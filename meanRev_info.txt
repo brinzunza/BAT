@@ -1,0 +1,66 @@
+DATA
+
+Provider = Polygon API (multiple free calls per minute)
+
+open close high low time
+
+API return is json, transform into pandas dataframe
+
+
+SIGNALS (Mean Reversion Strategy)
+
+Mean Reversion Strategy
+- Slow Moving Average (SMA)
+- Standard Deviadtion (STD)
+
+Use SMA for middle support of zone. Zone with will +-STD from SMA being upper band and lower band respectively
+
+Signals 
+- if close price becomes less than lower band, then buy signal 
+- if close price becomes larger than the upper band, then sell signal 
+
+
+SIGNALS (Moving Average Strategy)
+
+Moving Average Strategy
+- Slow Moving Average
+- Medium Moving Average
+- Fast Moving Average
+
+
+BACKTEST
+
+trades can be either buy or sell
+
+time, price, buy or sell, balance, realized gains
+
+- time: df['timestamp']
+- price: df['close']
+- buy or sell: position variable; 1 if buy, -1 if sell, else 0 
+- balance: initial_balance + realized_gains + unrealized gains 
+- realized gains: sum of (entry price - exit price)
+- unrealized gains: balance + (entry price - current price)
+
+buy
+- if buy signal is True, then buy
+    - if buy signal while selling, reverse
+
+sell 
+- if sell signal is True, then sell
+    - if sell signal while buying, reverse
+
+ANALYSIS
+
+winrate, final balance, net returns, % returns, num trades, avg trades per hour, avg $ per trade, balance vs time plot, balance vs trade plot, largest win, largest loss
+
+winrate: num("Win") / len(Trades)
+final balance: trade_df[-1]
+net returns: final_balance - initial_balance 
+% returns: final_balance / initial_balance * 100
+num trades: len(trade_df)
+avg trades per hour: len(trades_df)/(end date - start date) into hours
+avg $ per trade: sum(profit) / len(trades_df)
+largest win: max(profit)
+largest loss: max(loss)
+balance vs time plot: y = trade_df['Time'] x = trade_df['Balance']
+balance vs trade plot: y = trade_df x = trade_df['Balance']
