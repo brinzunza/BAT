@@ -23,9 +23,14 @@ Signals
 SIGNALS (Moving Average Strategy)
 
 Moving Average Strategy
-- Slow Moving Average
-- Medium Moving Average
-- Fast Moving Average
+- Slow Moving Average (Ex. 1)
+- Medium Moving Average (Ex. 5)
+- Fast Moving Average (Ex. 25)
+
+Moving average is a strategy to combat against short term volatility and follow the trend
+
+Sell Signal when short > medium > long
+Buy Signal when long > medium > short
 
 
 BACKTEST
