@@ -1,6 +1,5 @@
 # BAT - Bruninvestor Algorithmic Trading
 
-## Overview
 BAT is an algorithmic trading project that implements two distinct trading strategies using Python:
 
 1. **Mean Reversion Strategy**
@@ -18,9 +17,10 @@ This project demonstrates the application of quantitative analysis and algorithm
 ## Strategies
 
 ### Mean Reversion Strategy
-This strategy is based on the assumption that asset prices tend to revert to their historical average over time. The algorithm:
-- Buys when prices fall below the mean*
-- Sells when prices rise above the mean*
+This strategy is based on the assumption that asset prices tend to revert to their historical average over time. 
+The algorithm:
+- Buys when prices fall below the historical mean*
+- Sells when prices rise above the historical mean*
 
 ### Moving Averages Strategy
 This strategy uses three moving averages (short, medium, and long-term) to identify trends and generate trading signals:
