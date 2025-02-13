@@ -1,0 +1,30 @@
+def structure():
+    if in uptrend:
+        if curr_candle closes below last_candle and possible_high == None:
+            set possible high to high of last candle and possible low to low of current candle
+        if curr_candle closes below valid_low:
+            change to downtrend
+            set valid high to potential high
+        if curr_candle closes above potential high:
+            set valid high to potential high
+            set valid low to potential low
+            set potential low to None
+            set potential high to None
+            set signal(stoploss=validlow, takeProfit=validhigh)
+
+    if in downtrend:
+        if curr_candle closes above last_candle and possible_low == None:
+            set possible low to high of last candle and possible high to high of curr_candle
+        if curr_candle closes above valid high:
+            change to uptrend
+            set valid low to potential low
+        if curr_candle closes below potiential low:
+            set valid low to potential low
+            set valid high to potential high
+            set potential low to None
+            set potential high to None
+            set signal(stoploss=validhigh, takeprofit=validlow)
+
+
+def signal(stoploss, takeProfit):
+    entry = midpoint between stoploss and takeprofit
