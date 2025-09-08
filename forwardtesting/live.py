@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
 import alpaca_trade_api as tradeapi
 import pandas as pd
 import requests
@@ -5,7 +9,6 @@ from polygon import BaseClient
 import matplotlib.pyplot as  plt
 from datetime import datetime, timedelta
 import time
-import os
 
 ALPACA_API_KEY = os.getenv('ALPACA_API_KEY')
 ALPACA_SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
@@ -34,7 +37,7 @@ def sell(symbol='BTC', qty=1):
     return(f"Sold {qty} shares of {symbol}")
 
 def getData(ticker='X:BTCUSD', timespan='minute', limit=50000):
-    api_key = 'q4AAVje7SoHY939BYwnUjpO8Q1o6fSjp'
+    api_key = os.getenv('POLYGON_API_KEY')
     to_date = datetime.now() 
     from_date = to_date - timedelta(days=1) 
     to_date = to_date.strftime('%Y-%m-%d') 
