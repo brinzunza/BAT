@@ -5,9 +5,10 @@ from polygon import BaseClient
 import matplotlib.pyplot as  plt
 from datetime import datetime, timedelta
 import time
+import os
 
-ALPACA_API_KEY = 'api-key'
-ALPACA_SECRET_KEY = 'secret-key'
+ALPACA_API_KEY = os.getenv('ALPACA_API_KEY')
+ALPACA_SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
 ALPACA_BASE_URL = 'https://paper-api.alpaca.markets/'
 
 trade_api = tradeapi.REST(ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL, api_version='v2')
