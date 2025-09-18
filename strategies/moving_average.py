@@ -1,6 +1,7 @@
 import pandas as pd
 from typing import Dict, Any, Optional
 from .base_strategy import BaseStrategy
+from indicators.technical_indicators import sma
 
 
 class MovingAverageStrategy(BaseStrategy):
@@ -28,9 +29,9 @@ class MovingAverageStrategy(BaseStrategy):
         df = df.copy()
         
         # Calculate moving averages
-        df['short_mavg'] = df['Close'].rolling(window=self.short_window, min_periods=1).mean()
-        df['medium_mavg'] = df['Close'].rolling(window=self.medium_window, min_periods=1).mean()
-        df['long_mavg'] = df['Close'].rolling(window=self.long_window, min_periods=1).mean()
+        df['short_mavg'] = sma(df['Close'], self.short_window)
+        df['medium_mavg'] = sma(df['Close'], self.medium_window)
+        df['long_mavg'] = sma(df['Close'], self.long_window)
         
         # Generate signals based on crossover conditions
         df['Sell Signal'] = (
