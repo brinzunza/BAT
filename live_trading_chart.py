@@ -35,8 +35,14 @@ class LiveTradingChart:
         self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
 
         # Get initial balance from Alpaca account
-        initial_balance = self.broker.get_buying_power() if self.broker else 10000
-        print(f"💰 Account Balance: ${initial_balance:,.2f}")
+        if self.broker:
+            account_info = self.broker.get_account_api() if hasattr(self.broker, 'get_account_api') else self.broker.get_account()
+            initial_balance = float(account_info.get('equity', 10000))
+            print(f"💰 Account Equity: ${initial_balance:,.2f}")
+            print(f"💰 Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
+        else:
+            initial_balance = 10000
+            print(f"💰 Simulation Balance: ${initial_balance:,.2f}")
 
         # Initialize trading engine
         self.trading_engine = LiveTradingEngine(
@@ -83,7 +89,7 @@ class LiveTradingChart:
         try:
             # Initial data loading phase
             if self.data_history.empty:
-                print(f"🚀 Starting fast data collection for {self.symbol}...")
+                print(f"🚀 Initializing {self.symbol} data...")
 
                 # Use the public endpoint to get recent bars immediately
                 initial_df = self.data_provider.get_recent_bars_public(self.symbol, limit=self.min_data_points + 10)
@@ -91,15 +97,13 @@ class LiveTradingChart:
                 if not initial_df.empty:
                     # Use the fetched data, keep only what we need
                     self.data_history = initial_df.tail(self.min_data_points).copy().reset_index(drop=True)
-                    print(f"✅ Fast initialization complete! Loaded {len(self.data_history)} bars")
 
                     # Mark as ready since we have enough data
                     if len(self.data_history) >= self.min_data_points:
                         self.data_ready = True
-                        print(f"🎯 Ready for trading immediately!")
-                        print(f"📊 Now switching to live data updates...")
+                        print(f"✅ Ready for live trading with {len(self.data_history)} bars")
                 else:
-                    print(f"❌ Failed to get initial data, will try live updates")
+                    print(f"❌ Failed to get initial data")
                     return None
 
             # Live data update phase (after initial load)
@@ -108,8 +112,8 @@ class LiveTradingChart:
                 latest_bar = self.data_provider.get_latest_bar(self.symbol)
 
                 if not latest_bar:
-                    print("⚠️ No live data received, using existing data")
-                    # Continue with existing data
+                    # Continue with existing data silently
+                    pass
                 else:
                     # Convert to DataFrame row
                     new_row = pd.DataFrame([latest_bar])
@@ -125,7 +129,12 @@ class LiveTradingChart:
                         last_historical_ts = last_historical_ts.tz_localize('UTC')
 
                     if latest_ts > last_historical_ts:
-                        print(f"🔄 Adding new live bar: ${latest_bar['Close']:.2f} at {latest_bar['timestamp'].strftime('%H:%M:%S')}")
+                        # Display OHLCV data
+                        print(f"\n📊 NEW DATA - {self.symbol} at {latest_bar['timestamp'].strftime('%H:%M:%S')}")
+                        print(f"    O: ${latest_bar['Open']:.2f} | H: ${latest_bar['High']:.2f} | L: ${latest_bar['Low']:.2f} | C: ${latest_bar['Close']:.2f} | V: {latest_bar['Volume']:.0f}")
+
+                        # Check for active position and display unrealized PnL
+                        self._display_position_update(latest_bar['Close'])
 
                         # Add new bar
                         self.data_history = pd.concat([self.data_history, new_row], ignore_index=True)
@@ -137,7 +146,6 @@ class LiveTradingChart:
             # Process data if we have enough
             if len(self.data_history) >= self.min_data_points:
                 if not self.data_ready:
-                    print(f"✅ Data collection complete! Ready for trading with {len(self.data_history)} bars")
                     self.data_ready = True
 
                 # Generate signals with strategy
@@ -150,9 +158,6 @@ class LiveTradingChart:
                 except Exception as e:
                     print(f"⚠️ Error generating signals: {e}")
                     # Continue with existing data
-            else:
-                remaining = self.min_data_points - len(self.data_history)
-                print(f"🔄 Need more data... {len(self.data_history)}/{self.min_data_points} bars ({remaining} more needed)")
 
             return self.data_history
 
@@ -185,61 +190,42 @@ class LiveTradingChart:
             current_price = latest_row['Close']
             timestamp = latest_row['timestamp']
 
-            # Log current market data
-            print(f"\n📊 [{timestamp.strftime('%Y-%m-%d %H:%M:%S')}] Market Update:")
-            print(f"   💰 {self.symbol}: ${current_price:.2f}")
-            print(f"   📈 Buy Signal: {'🟢 YES' if buy_signal else '⚫ NO'}")
-            print(f"   📉 Sell Signal: {'🔴 YES' if sell_signal else '⚫ NO'}")
-
-            # Execute trades through trading engine
+            # Execute trades through trading engine (only show signals when they trigger)
             if buy_signal or sell_signal:
-                signal_type = "BUY" if buy_signal else "SELL"
-                print(f"\n🚨 [{timestamp.strftime('%H:%M:%S')}] {signal_type} SIGNAL TRIGGERED!")
-                print(f"   💵 Price: ${current_price:.2f}")
-                print(f"   📊 Strategy: {self.strategy.name}")
-                print(f"   🔄 Processing trade...")
-
-                # Store previous position for logging
-                previous_position = self.trading_engine.position
-                previous_balance = self.trading_engine.current_balance
-
                 self.trading_engine.process_signals(
                     self.data_history,
                     self.strategy,
                     self.symbol,
                     self.quantity
                 )
-
-                # Log trade execution results
-                new_position = self.trading_engine.position
-                new_balance = self.trading_engine.current_balance
-
-                if new_position != previous_position:
-                    position_change = "OPENED" if previous_position == 0 else "CLOSED/CHANGED"
-                    balance_change = new_balance - previous_balance
-
-                    print(f"   ✅ Trade {position_change}!")
-                    print(f"   📍 New Position: {self._format_position(new_position)}")
-                    if balance_change != 0:
-                        sign = "+" if balance_change > 0 else ""
-                        print(f"   💰 Balance Change: {sign}${balance_change:.2f}")
-                    print(f"   🏦 New Balance: ${new_balance:.2f}")
-                else:
-                    print(f"   ⚠️  No position change (cooldown or other condition)")
-
                 self.last_trade_time = current_time
-
-            else:
-                # Log when no signals
-                position_str = self._format_position(self.trading_engine.position)
-                unrealized_pnl = self._calculate_unrealized_pnl(current_price)
-                print(f"   📊 Position: {position_str}")
-                if unrealized_pnl != 0:
-                    sign = "+" if unrealized_pnl > 0 else ""
-                    print(f"   💹 Unrealized P&L: {sign}${unrealized_pnl:.2f}")
 
         except Exception as e:
             print(f"❌ Error processing trading signals: {e}")
+
+    def _display_position_update(self, current_price: float):
+        """Display position and unrealized PnL update with new price data"""
+        try:
+            if self.broker and hasattr(self.broker, 'get_position_for_symbol'):
+                position = self.broker.get_position_for_symbol(self.symbol)
+                current_qty = float(position.get('qty', 0))
+
+                if current_qty > 0:  # We have an active position
+                    unrealized_pnl = float(position.get('unrealized_pl', 0))
+                    avg_entry_price = float(position.get('avg_entry_price', 0))
+                    market_value = float(position.get('market_value', 0))
+
+                    # Get account info
+                    account_info = self.broker.get_account_api() if hasattr(self.broker, 'get_account_api') else self.broker.get_account()
+                    account_balance = float(account_info.get('equity', 0))
+                    session_pnl = account_balance - self.trading_engine.initial_balance
+
+                    print(f"    📈 POSITION: {current_qty} {self.symbol} @ ${avg_entry_price:.2f} | Current: ${current_price:.2f}")
+                    print(f"    💰 Market Value: ${market_value:.2f} | Unrealized P&L: ${unrealized_pnl:.2f} | Session P&L: ${session_pnl:.2f}")
+
+        except Exception as e:
+            # Silently continue if position check fails
+            pass
 
     def _format_position(self, position):
         """Format position for display"""
@@ -254,17 +240,14 @@ class LiveTradingChart:
         return "UNKNOWN"
 
     def _calculate_unrealized_pnl(self, current_price):
-        """Calculate unrealized P&L"""
-        if (self.trading_engine.position == 0 or
-            not hasattr(self.trading_engine, 'entry_price') or
-            self.trading_engine.entry_price == 0):
+        """Get unrealized P&L from Alpaca"""
+        try:
+            if self.broker and hasattr(self.broker, 'get_position_for_symbol'):
+                position = self.broker.get_position_for_symbol(self.symbol)
+                return float(position.get('unrealized_pl', 0))
             return 0
-
-        if self.trading_engine.position == 1:  # Long
-            return (current_price - self.trading_engine.entry_price) * self.quantity
-        elif self.trading_engine.position == -1:  # Short
-            return (self.trading_engine.entry_price - current_price) * self.quantity
-        return 0
+        except Exception:
+            return 0
 
     def draw_candlesticks(self):
         """Draw candlestick chart with indicators"""
@@ -334,45 +317,40 @@ class LiveTradingChart:
         self._add_performance_text()
 
     def _draw_strategy_indicators(self, df: pd.DataFrame):
-        """Draw strategy-specific indicators"""
+        """Draw strategy-specific indicators dynamically"""
         try:
             x_axis = range(len(df))
 
-            # Common indicators that most strategies use
-            if 'SMA_20' in df.columns:
-                self.main_ax.plot(x_axis, df['SMA_20'], label='SMA 20', color='blue', alpha=0.7)
+            # Get the strategy's indicators
+            strategy_indicators = self.strategy.get_indicators()
 
-            if 'SMA_50' in df.columns:
-                self.main_ax.plot(x_axis, df['SMA_50'], label='SMA 50', color='orange', alpha=0.7)
+            # Clear indicator axis first
+            self.indicator_ax.clear()
+            self.indicator_ax.set_xlabel('Time')
+            self.indicator_ax.grid(True, alpha=0.3)
 
-            if 'EMA_12' in df.columns:
-                self.main_ax.plot(x_axis, df['EMA_12'], label='EMA 12', color='purple', alpha=0.7)
+            # Draw indicators based on strategy type
+            strategy_name = self.strategy.name.lower()
 
-            if 'EMA_26' in df.columns:
-                self.main_ax.plot(x_axis, df['EMA_26'], label='EMA 26', color='brown', alpha=0.7)
+            # === BOLLINGER BANDS STRATEGY ===
+            if 'bollinger' in strategy_name or any('bb_' in indicator for indicator in strategy_indicators):
+                self._draw_bollinger_bands(df, x_axis)
 
-            # Bollinger Bands
-            if 'bb_upper' in df.columns and 'bb_lower' in df.columns:
-                self.main_ax.plot(x_axis, df['bb_upper'], label='BB Upper', color='gray', alpha=0.5, linestyle='--')
-                self.main_ax.plot(x_axis, df['bb_lower'], label='BB Lower', color='gray', alpha=0.5, linestyle='--')
-                self.main_ax.fill_between(x_axis, df['bb_upper'], df['bb_lower'], alpha=0.1, color='gray')
+            # === MEAN REVERSION STRATEGY ===
+            elif 'mean reversion' in strategy_name or any(indicator in ['SMA', 'STD', 'Upper Band', 'Lower Band'] for indicator in strategy_indicators):
+                self._draw_mean_reversion_indicators(df, x_axis)
 
-            if 'bb_middle' in df.columns:
-                self.main_ax.plot(x_axis, df['bb_middle'], label='BB Middle', color='blue', alpha=0.7)
+            # === RSI STRATEGY ===
+            elif 'rsi' in strategy_name or 'rsi' in strategy_indicators:
+                self._draw_rsi_indicators(df, x_axis)
 
-            # RSI in indicator subplot
-            if 'RSI' in df.columns:
-                self.indicator_ax.plot(x_axis, df['RSI'], label='RSI', color='purple')
-                self.indicator_ax.axhline(y=70, color='red', linestyle='--', alpha=0.5)
-                self.indicator_ax.axhline(y=30, color='green', linestyle='--', alpha=0.5)
-                self.indicator_ax.set_ylim(0, 100)
+            # === MACD STRATEGY ===
+            elif 'macd' in strategy_name or any('macd' in indicator.lower() for indicator in strategy_indicators):
+                self._draw_macd_indicators(df, x_axis)
 
-            # MACD in indicator subplot
-            elif 'MACD' in df.columns and 'MACD_Signal' in df.columns:
-                self.indicator_ax.plot(x_axis, df['MACD'], label='MACD', color='blue')
-                self.indicator_ax.plot(x_axis, df['MACD_Signal'], label='Signal', color='red')
-                if 'MACD_Hist' in df.columns:
-                    self.indicator_ax.bar(x_axis, df['MACD_Hist'], label='Histogram', alpha=0.3)
+            # === GENERIC INDICATOR DRAWING ===
+            else:
+                self._draw_generic_indicators(df, x_axis, strategy_indicators)
 
             # Add legends
             if self.main_ax.get_legend_handles_labels()[0]:
@@ -382,6 +360,104 @@ class LiveTradingChart:
 
         except Exception as e:
             print(f"Error drawing indicators: {e}")
+
+    def _draw_bollinger_bands(self, df: pd.DataFrame, x_axis):
+        """Draw Bollinger Bands indicators"""
+        if 'bb_upper' in df.columns and 'bb_lower' in df.columns:
+            self.main_ax.plot(x_axis, df['bb_upper'], label='BB Upper', color='red', alpha=0.6, linestyle='--')
+            self.main_ax.plot(x_axis, df['bb_lower'], label='BB Lower', color='green', alpha=0.6, linestyle='--')
+            self.main_ax.fill_between(x_axis, df['bb_upper'], df['bb_lower'], alpha=0.1, color='blue', label='BB Band')
+
+        if 'bb_middle' in df.columns:
+            self.main_ax.plot(x_axis, df['bb_middle'], label='BB Middle (SMA)', color='blue', alpha=0.8)
+
+        self.indicator_ax.set_ylabel('Bollinger Band %')
+        # Calculate BB percentage (position within bands)
+        if all(col in df.columns for col in ['bb_upper', 'bb_lower', 'Close']):
+            bb_percent = (df['Close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower']) * 100
+            self.indicator_ax.plot(x_axis, bb_percent, label='BB %', color='purple')
+            self.indicator_ax.axhline(y=80, color='red', linestyle='--', alpha=0.5, label='Overbought')
+            self.indicator_ax.axhline(y=20, color='green', linestyle='--', alpha=0.5, label='Oversold')
+            self.indicator_ax.set_ylim(0, 100)
+
+    def _draw_mean_reversion_indicators(self, df: pd.DataFrame, x_axis):
+        """Draw Mean Reversion strategy indicators"""
+        if 'SMA' in df.columns:
+            self.main_ax.plot(x_axis, df['SMA'], label='SMA', color='blue', alpha=0.8, linewidth=2)
+
+        if 'Upper Band' in df.columns and 'Lower Band' in df.columns:
+            self.main_ax.plot(x_axis, df['Upper Band'], label='Upper Band (+2σ)', color='red', alpha=0.6, linestyle='--')
+            self.main_ax.plot(x_axis, df['Lower Band'], label='Lower Band (-2σ)', color='green', alpha=0.6, linestyle='--')
+            self.main_ax.fill_between(x_axis, df['Upper Band'], df['Lower Band'], alpha=0.1, color='gray', label='±2σ Range')
+
+        # Draw standard deviation in indicator panel
+        if 'STD' in df.columns:
+            self.indicator_ax.plot(x_axis, df['STD'], label='Standard Deviation', color='orange', linewidth=2)
+            self.indicator_ax.set_ylabel('Standard Deviation')
+            # Add reference lines for volatility levels
+            std_mean = df['STD'].mean()
+            self.indicator_ax.axhline(y=std_mean, color='orange', linestyle=':', alpha=0.5, label=f'Avg STD ({std_mean:.2f})')
+
+    def _draw_rsi_indicators(self, df: pd.DataFrame, x_axis):
+        """Draw RSI strategy indicators"""
+        if 'rsi' in df.columns:
+            self.indicator_ax.plot(x_axis, df['rsi'], label='RSI', color='purple', linewidth=2)
+            self.indicator_ax.axhline(y=70, color='red', linestyle='--', alpha=0.7, label='Overbought (70)')
+            self.indicator_ax.axhline(y=30, color='green', linestyle='--', alpha=0.7, label='Oversold (30)')
+            self.indicator_ax.axhline(y=50, color='gray', linestyle=':', alpha=0.5, label='Midline')
+            self.indicator_ax.set_ylim(0, 100)
+            self.indicator_ax.set_ylabel('RSI Value')
+
+            # Add background coloring for zones
+            self.indicator_ax.fill_between(x_axis, 70, 100, alpha=0.1, color='red', label='Overbought Zone')
+            self.indicator_ax.fill_between(x_axis, 0, 30, alpha=0.1, color='green', label='Oversold Zone')
+
+    def _draw_macd_indicators(self, df: pd.DataFrame, x_axis):
+        """Draw MACD strategy indicators"""
+        if 'macd_line' in df.columns:
+            self.indicator_ax.plot(x_axis, df['macd_line'], label='MACD Line', color='blue', linewidth=2)
+
+        if 'signal_line' in df.columns:
+            self.indicator_ax.plot(x_axis, df['signal_line'], label='Signal Line', color='red', linewidth=2)
+
+        if 'histogram' in df.columns:
+            # Color histogram bars based on positive/negative values
+            colors = ['green' if x >= 0 else 'red' for x in df['histogram']]
+            self.indicator_ax.bar(x_axis, df['histogram'], label='MACD Histogram', alpha=0.6, color=colors)
+
+        self.indicator_ax.axhline(y=0, color='black', linestyle='-', alpha=0.5, label='Zero Line')
+        self.indicator_ax.set_ylabel('MACD Values')
+
+    def _draw_generic_indicators(self, df: pd.DataFrame, x_axis, indicators):
+        """Draw generic indicators for unknown strategies"""
+        main_indicators = []
+        oscillator_indicators = []
+
+        # Categorize indicators
+        for indicator in indicators:
+            if indicator in df.columns:
+                # Check if it's likely an oscillator (bounded indicator)
+                values = df[indicator].dropna()
+                if len(values) > 0:
+                    min_val, max_val = values.min(), values.max()
+                    if 0 <= min_val and max_val <= 100:  # Likely an oscillator
+                        oscillator_indicators.append(indicator)
+                    else:
+                        main_indicators.append(indicator)
+
+        # Draw main chart indicators
+        colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
+        for i, indicator in enumerate(main_indicators):
+            color = colors[i % len(colors)]
+            self.main_ax.plot(x_axis, df[indicator], label=indicator, color=color, alpha=0.7)
+
+        # Draw oscillator indicators
+        for i, indicator in enumerate(oscillator_indicators):
+            color = colors[i % len(colors)]
+            self.indicator_ax.plot(x_axis, df[indicator], label=indicator, color=color, linewidth=2)
+
+        if oscillator_indicators:
+            self.indicator_ax.set_ylabel('Oscillator Values')
 
     def _draw_trading_signals(self, df: pd.DataFrame):
         """Draw buy/sell signals on chart"""
@@ -436,27 +512,35 @@ class LiveTradingChart:
         try:
             performance = self.trading_engine.get_performance_summary()
 
-            # Get current price and position info
+                # Get current price and position info from Alpaca
             current_price = 0
             unrealized_pnl = 0
+            position_status = "FLAT"
+
             if len(self.data_history) > 0:
                 current_price = self.data_history.iloc[-1]['Close']
 
-                if (self.trading_engine.position != 0 and
-                    hasattr(self.trading_engine, 'entry_price') and
-                    self.trading_engine.entry_price > 0):
+                # Get position data from Alpaca
+                if self.broker and hasattr(self.broker, 'get_position_for_symbol'):
+                    try:
+                        position = self.broker.get_position_for_symbol(self.symbol)
+                        current_qty = float(position.get('qty', 0))
+                        avg_entry_price = float(position.get('avg_entry_price', 0))
+                        unrealized_pnl = float(position.get('unrealized_pl', 0))
 
-                    if self.trading_engine.position == 1:  # Long
-                        unrealized_pnl = current_price - self.trading_engine.entry_price
-                    elif self.trading_engine.position == -1:  # Short
-                        unrealized_pnl = self.trading_engine.entry_price - current_price
-
-            # Position status
-            position_status = "FLAT"
-            if self.trading_engine.position == 1:
-                position_status = f"LONG @ ${self.trading_engine.entry_price:.2f}"
-            elif self.trading_engine.position == -1:
-                position_status = f"SHORT @ ${self.trading_engine.entry_price:.2f}"
+                        # Format position status using Alpaca data
+                        if current_qty > 0:
+                            position_status = f"LONG {current_qty} @ ${avg_entry_price:.2f}"
+                        elif current_qty < 0:
+                            position_status = f"SHORT {abs(current_qty)} @ ${avg_entry_price:.2f}"
+                        else:
+                            position_status = "FLAT"
+                    except Exception:
+                        # Fallback to engine data
+                        if self.trading_engine.position == 1:
+                            position_status = f"LONG @ ${self.trading_engine.entry_price:.2f}"
+                        elif self.trading_engine.position == -1:
+                            position_status = f"SHORT @ ${self.trading_engine.entry_price:.2f}"
 
             # Create text
             info_text = (
@@ -478,14 +562,10 @@ class LiveTradingChart:
     def animate(self, frame):
         """Animation function for live updates"""
         try:
-            print(f"\n📊 Fetching data... (Frame {frame})")
             data = self.fetch_and_process_data()
 
             if data is not None:
                 self.draw_candlesticks()
-                print(f"✅ Chart updated with {len(data)} candles")
-            else:
-                print("❌ No data to display")
 
         except Exception as e:
             print(f"❌ Animation error: {e}")

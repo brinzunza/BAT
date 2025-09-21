@@ -505,3 +505,124 @@ class AlpacaBroker:
         if account_info and 'buying_power' in account_info:
             return float(account_info['buying_power'])
         return 0.0
+
+    def get_positions_api(self):
+        """Get all positions using direct API call"""
+        try:
+            url = f"{self.base_url}/v2/positions"
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error getting positions via API: {e}")
+            return []
+
+    def get_position_for_symbol(self, symbol: str):
+        """Get position for specific symbol using direct API call"""
+        try:
+            # Convert symbol format (BTC/USD -> BTCUSD)
+            if '/' in symbol:
+                symbol = symbol.replace('/', '')
+
+            url = f"{self.base_url}/v2/positions/{symbol}"
+            response = requests.get(url, headers=self.headers)
+
+            if response.status_code == 404:
+                # No position exists
+                return {
+                    'symbol': symbol,
+                    'qty': '0',
+                    'side': 'long',
+                    'avg_entry_price': '0',
+                    'market_value': '0',
+                    'unrealized_pl': '0',
+                    'unrealized_plpc': '0'
+                }
+
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error getting position for {symbol}: {e}")
+            return {
+                'symbol': symbol,
+                'qty': '0',
+                'side': 'long',
+                'avg_entry_price': '0',
+                'market_value': '0',
+                'unrealized_pl': '0',
+                'unrealized_plpc': '0'
+            }
+
+    def get_account_api(self):
+        """Get account information using direct API call"""
+        try:
+            url = f"{self.base_url}/v2/account"
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error getting account via API: {e}")
+            return {}
+
+    def get_portfolio_history(self, period: str = "1D"):
+        """Get portfolio history using direct API call"""
+        try:
+            url = f"{self.base_url}/v2/account/portfolio/history"
+            params = {
+                'period': period,
+                'timeframe': '1Min'
+            }
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error getting portfolio history: {e}")
+            return {}
+
+    def get_orders_api(self, status: str = "all", limit: int = 50):
+        """Get orders using direct API call"""
+        try:
+            url = f"{self.base_url}/v2/orders"
+            params = {
+                'status': status,
+                'limit': limit,
+                'direction': 'desc'
+            }
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error getting orders via API: {e}")
+            return []
+
+    def close_position(self, symbol: str, cancel_orders: bool = True):
+        """Close position for specific symbol using direct API call"""
+        try:
+            # Convert symbol format (BTC/USD -> BTCUSD)
+            if '/' in symbol:
+                symbol = symbol.replace('/', '')
+
+            url = f"{self.base_url}/v2/positions/{symbol}"
+            params = {
+                'cancel_orders': str(cancel_orders).lower()
+            }
+            response = requests.delete(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error closing position for {symbol}: {e}")
+            return {'status': 'failed', 'error': str(e)}
+
+    def close_all_positions(self, cancel_orders: bool = True):
+        """Close all positions using direct API call"""
+        try:
+            url = f"{self.base_url}/v2/positions"
+            params = {
+                'cancel_orders': str(cancel_orders).lower()
+            }
+            response = requests.delete(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error closing all positions: {e}")
+            return {'status': 'failed', 'error': str(e)}

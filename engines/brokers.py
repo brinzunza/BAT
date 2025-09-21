@@ -37,7 +37,7 @@ class AlpacaBroker(BrokerInterface):
         except ImportError:
             raise ImportError("alpaca_trade_api package not installed. Install with: pip install alpaca-trade-api")
     
-    def buy(self, symbol: str = 'BTC', quantity: float = 1) -> str:
+    def buy(self, symbol: str = 'BTCUSD', quantity: float = 1) -> str:
         """Execute buy order"""
         try:
             self.trade_api.submit_order(
@@ -51,7 +51,7 @@ class AlpacaBroker(BrokerInterface):
         except Exception as e:
             raise Exception(f"Failed to execute buy order: {e}")
     
-    def sell(self, symbol: str = 'BTC', quantity: float = 1) -> str:
+    def sell(self, symbol: str = 'BTCUSD', quantity: float = 1) -> str:
         """Execute sell order"""
         try:
             self.trade_api.submit_order(

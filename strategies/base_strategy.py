@@ -37,3 +37,18 @@ class BaseStrategy(ABC):
         """Validate that the DataFrame has required columns"""
         required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
         return all(col in df.columns for col in required_columns)
+
+    def get_required_lookback(self) -> int:
+        """Return minimum number of data points required for reliable signals"""
+        # Default lookback period - strategies can override this
+        return 50
+
+    def validate_signal_conditions(self, df: pd.DataFrame) -> bool:
+        """Additional strategy-specific signal validation"""
+        # Default implementation - strategies can override this
+        return True
+
+    def get_indicators(self) -> list:
+        """Return list of indicator columns this strategy creates"""
+        # Default implementation - strategies should override this
+        return []
