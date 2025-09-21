@@ -16,7 +16,7 @@ ALPACA_BASE_URL = 'https://paper-api.alpaca.markets/'
 
 trade_api = tradeapi.REST(ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL, api_version='v2')
 
-def buy(symbol='BTC', qty=1):
+def buy(symbol='ETHUSD', qty=0.01):
     trade_api.submit_order(
         symbol=symbol,
         qty=qty,
@@ -26,7 +26,7 @@ def buy(symbol='BTC', qty=1):
     )
     return(f"Bought {qty} shares of {symbol}")
 
-def sell(symbol='BTC', qty=1):
+def sell(symbol='ETHUSD', qty=0.01):
     trade_api.submit_order(
         symbol=symbol,
         qty=qty,
@@ -98,4 +98,4 @@ def run_trading_bot():
         time.sleep(60)
 
 if __name__ == "__main__":
-    run_trading_bot()
+    sell()
