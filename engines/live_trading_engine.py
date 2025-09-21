@@ -186,11 +186,9 @@ class LiveTradingEngine:
                     
                     # Process signals
                     self.process_signals(df, strategy, symbol, quantity)
-                    
-                    # Log current status
-                    self.logger.info(f"Iteration {iteration + 1} completed. "
-                                   f"Position: {self.position}, "
-                                   f"Balance: {self.current_balance:.5f}")
+
+                    # Display trading stats every iteration
+                    self._display_trading_stats(iteration + 1, symbol)
                     
                 except Exception as e:
                     self.logger.error(f"Error in iteration {iteration + 1}: {e}")
@@ -221,9 +219,13 @@ class LiveTradingEngine:
         if len(trade_df) == 0:
             return {
                 'total_trades': 0,
+                'profitable_trades': 0,
+                'losing_trades': 0,
+                'win_rate': 0,
                 'current_balance': self.current_balance,
                 'total_return': 0,
-                'percent_return': 0
+                'percent_return': 0,
+                'current_position': self.position
             }
         
         profitable_trades = trade_df[trade_df['profit'] > 0]
@@ -239,3 +241,45 @@ class LiveTradingEngine:
             'percent_return': (self.current_balance / self.initial_balance - 1) * 100,
             'current_position': self.position
         }
+
+    def _display_trading_stats(self, iteration: int, symbol: str):
+        """Display current trading statistics"""
+        performance = self.get_performance_summary()
+
+        # Calculate unrealized P&L if in position
+        unrealized_pnl = 0
+        if self.position != 0 and hasattr(self, 'entry_price') and self.entry_price > 0:
+            try:
+                # Get current price from latest data
+                df = self.data_provider.get_live_data(symbol)
+                if len(df) > 0:
+                    current_price = df.iloc[-1]['Close']
+                    if self.position == 1:  # Long position
+                        unrealized_pnl = current_price - self.entry_price
+                    elif self.position == -1:  # Short position
+                        unrealized_pnl = self.entry_price - current_price
+            except Exception:
+                unrealized_pnl = 0
+
+        # Format position status
+        position_status = "FLAT"
+        if self.position == 1:
+            position_status = f"LONG @ ${self.entry_price:.2f}"
+        elif self.position == -1:
+            position_status = f"SHORT @ ${self.entry_price:.2f}"
+
+        # Print stats
+        print("\n" + "=" * 60)
+        print(f"📊 LIVE TRADING STATS - Iteration {iteration}")
+        print("=" * 60)
+        print(f"Symbol: {symbol}")
+        print(f"Position: {position_status}")
+        print(f"Total Trades: {performance['total_trades']}")
+        print(f"Win Rate: {performance['win_rate']:.1f}%")
+        print(f"Current Balance: ${performance['current_balance']:.2f}")
+        print(f"Realized P&L: ${performance['total_return']:.2f}")
+        print(f"Unrealized P&L: ${unrealized_pnl:.2f}")
+        print(f"Total P&L: ${performance['total_return'] + unrealized_pnl:.2f}")
+        print(f"Percent Return: {performance['percent_return']:.2f}%")
+        print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("=" * 60)
