@@ -110,7 +110,7 @@ class BacktestEngine:
                 'winrate': 0,
                 'final_balance': self.initial_balance,
                 'net_returns': 0,
-                'percent_return': 1.0,
+                'percent_return': 0.0,
                 'avg_profit_per_trade': 0,
                 'largest_win': 0,
                 'largest_loss': 0
@@ -121,7 +121,7 @@ class BacktestEngine:
         winrate = len(wins) / num_trades * 100
         final_balance = trade_df['Balance'].iloc[-1]
         net_returns = final_balance - self.initial_balance
-        percent_return = final_balance / self.initial_balance
+        percent_return = (final_balance - self.initial_balance) / self.initial_balance * 100
         avg_profit_per_trade = net_returns / num_trades
         
         profits = trade_df['Profit'].dropna()
@@ -146,7 +146,7 @@ class BacktestEngine:
         print(f"Winrate: {analysis['winrate']:.2f}%")
         print(f"Final Balance: {analysis['final_balance']:.5f}")
         print(f"Net Returns: {analysis['net_returns']:.5f}")
-        print(f"Percentage Returns: {analysis['percent_return']:.8f}%")
+        print(f"Percentage Returns: {analysis['percent_return']:.2f}%")
         print(f"Total Trades: {analysis['num_trades']}")
         print(f"Average Profit per Trade: {analysis['avg_profit_per_trade']:.8f}")
         print(f"Largest Win: {analysis['largest_win']:.8f}")
