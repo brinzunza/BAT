@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 import warnings
 warnings.filterwarnings('ignore')
 
-from data_providers.alpaca_provider import AlpacaDataProvider, AlpacaBroker
+from data_providers.alpaca_provider import AlpacaDataProvider, AlpacaBroker, SimulatedBroker
 from strategies.base_strategy import BaseStrategy
 from engines.live_trading_engine import LiveTradingEngine
 
@@ -23,16 +23,26 @@ class LiveTradingChart:
                  secret_key: str = None,
                  symbol: str = "BTC/USD",
                  paper_trading: bool = True,
-                 quantity: float = 0.01):
+                 quantity: float = 0.01,
+                 trading_mode: str = "long_only",
+                 use_simulated_broker: bool = False,
+                 initial_balance: float = 10000):
 
         self.strategy = strategy
         self.symbol = symbol
         self.quantity = quantity
         self.paper_trading = paper_trading
+        self.trading_mode = trading_mode
+        self.use_simulated_broker = use_simulated_broker
 
         # Initialize data provider and broker
         self.data_provider = AlpacaDataProvider(api_key, secret_key)
-        self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
+
+        if use_simulated_broker:
+            self.broker = SimulatedBroker(api_key, secret_key, initial_balance) if api_key else None
+            print(f"🎮 Using SimulatedBroker with ${initial_balance:,.2f} initial balance")
+        else:
+            self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
 
         # Get initial balance from Alpaca account
         if self.broker:
@@ -48,13 +58,39 @@ class LiveTradingChart:
         self.trading_engine = LiveTradingEngine(
             data_provider=self.data_provider,
             broker_interface=self.broker,
-            initial_balance=initial_balance
+            initial_balance=initial_balance,
+            trading_mode=trading_mode
         )
 
         # Chart setup
         self.fig, (self.main_ax, self.indicator_ax) = plt.subplots(2, 1,
                                                                   figsize=(15, 10),
                                                                   gridspec_kw={'height_ratios': [3, 1]})
+
+        # Set custom window title
+        self.fig.canvas.manager.set_window_title(f"BAT Trading Bot - {symbol} Live Trading")
+
+        # Set custom window icon (if icon file exists)
+        try:
+            import os
+            icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
+            if os.path.exists(icon_path):
+                # Try different methods based on backend
+                try:
+                    # For Tkinter backend
+                    self.fig.canvas.manager.window.wm_iconbitmap(icon_path)
+                except:
+                    try:
+                        # For Qt backend
+                        from PIL import Image
+                        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+                        if hasattr(self.fig.canvas.manager, 'window'):
+                            icon = Image.open(icon_path)
+                            self.fig.canvas.manager.window.setWindowIcon(icon)
+                    except:
+                        pass  # Continue without icon if method not supported
+        except Exception:
+            pass  # Continue without icon if not found or error occurs
 
         # Main chart setup
         self.main_ax.set_title(f'{symbol} Live Trading Chart - {strategy.name}')
@@ -460,7 +496,7 @@ class LiveTradingChart:
             self.indicator_ax.set_ylabel('Oscillator Values')
 
     def _draw_trading_signals(self, df: pd.DataFrame):
-        """Draw buy/sell signals on chart"""
+        """Draw buy/sell signals and trade executions on chart"""
         try:
             signal_names = self.strategy.get_signal_names()
             x_axis = range(len(df))
@@ -483,8 +519,87 @@ class LiveTradingChart:
                     self.main_ax.scatter(sell_indices, sell_prices, color='red', marker='v',
                                        s=100, label='Sell Signal', zorder=5)
 
+            # Draw executed trades from trading engine
+            self._draw_executed_trades(df)
+
         except Exception as e:
             print(f"Error drawing signals: {e}")
+
+    def _draw_executed_trades(self, df: pd.DataFrame):
+        """Draw executed trades on chart"""
+        try:
+            trade_history = self.trading_engine.get_trade_history()
+
+            if len(trade_history) == 0:
+                return
+
+            # Create a mapping of timestamps to dataframe indices
+            timestamp_to_index = {}
+            for i, row in df.iterrows():
+                timestamp_to_index[row['timestamp']] = i
+
+            # Group trades by action type
+            buy_trades = []
+            sell_trades = []
+            close_trades = []
+
+            for _, trade in trade_history.iterrows():
+                trade_time = trade['timestamp']
+
+                # Normalize timezone info to avoid comparison errors
+                # Convert to timezone-naive datetime for consistent comparison
+                if pd.api.types.is_datetime64tz_dtype(type(trade_time)) or (hasattr(trade_time, 'tz') and trade_time.tz is not None):
+                    trade_time = pd.to_datetime(trade_time).tz_localize(None)
+                else:
+                    trade_time = pd.to_datetime(trade_time)
+
+                # Find closest timestamp in our data
+                closest_index = None
+                min_diff = None
+
+                for ts, idx in timestamp_to_index.items():
+                    # Ensure chart timestamp is also timezone-naive
+                    if pd.api.types.is_datetime64tz_dtype(type(ts)) or (hasattr(ts, 'tz') and ts.tz is not None):
+                        chart_ts = pd.to_datetime(ts).tz_localize(None)
+                    else:
+                        chart_ts = pd.to_datetime(ts)
+
+                    try:
+                        diff = abs((chart_ts - trade_time).total_seconds())
+                        if min_diff is None or diff < min_diff:
+                            min_diff = diff
+                            closest_index = idx
+                    except (TypeError, AttributeError) as e:
+                        # Skip if there are still datetime conversion issues
+                        continue
+
+                if closest_index is not None:
+                    action = trade['action']
+                    if action in ['buy_long']:
+                        buy_trades.append((closest_index, trade['price']))
+                    elif action in ['sell_short']:
+                        sell_trades.append((closest_index, trade['price']))
+                    elif action in ['close_position', 'close_long', 'close_short']:
+                        close_trades.append((closest_index, trade['price']))
+
+            # Draw trade markers
+            if buy_trades:
+                indices, prices = zip(*buy_trades)
+                self.main_ax.scatter(indices, prices, color='darkgreen', marker='o',
+                                   s=80, label='Buy Executed', zorder=6, edgecolors='white', linewidths=2)
+
+            if sell_trades:
+                indices, prices = zip(*sell_trades)
+                self.main_ax.scatter(indices, prices, color='darkred', marker='o',
+                                   s=80, label='Sell Executed', zorder=6, edgecolors='white', linewidths=2)
+
+            if close_trades:
+                indices, prices = zip(*close_trades)
+                self.main_ax.scatter(indices, prices, color='orange', marker='x',
+                                   s=100, label='Position Closed', zorder=6, linewidths=3)
+
+        except Exception as e:
+            print(f"Error drawing executed trades: {e}")
 
     def _setup_time_axis(self, df: pd.DataFrame):
         """Setup time axis labels"""

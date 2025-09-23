@@ -43,6 +43,7 @@ class TradingCLI:
         """Display application banner"""
         print("=" * 60)
         print("         BAT - Backtesting & Automated Trading")
+        print("           📈 Stocks & Cryptocurrency Trading 📈")
         print("=" * 60)
         print()
     
@@ -188,15 +189,65 @@ class TradingCLI:
             return strategy_class()
 
         return None
-    
+
+    def select_trading_mode(self):
+        """Let user select trading mode"""
+        print("\n🔄 Trading Mode Selection:")
+        print("==========================")
+        print("1. Buy & Close Only (Long-only trading)")
+        print("   - Buy signals → Buy positions")
+        print("   - Sell signals → Close positions")
+        print("   - No short selling")
+        print()
+        print("2. Buy & Short Trading (Long/Short trading)")
+        print("   - Buy signals → Buy positions (or close short)")
+        print("   - Sell signals → Short positions (or close long)")
+        print("   - Allows short selling for advanced strategies")
+        print()
+
+        while True:
+            choice = input("Select trading mode (1-2): ").strip()
+            if choice == "1":
+                return "long_only"
+            elif choice == "2":
+                return "long_short"
+            print("❌ Invalid choice. Please enter 1 or 2.")
+
+    def select_asset_type(self):
+        """Let user select between crypto and stocks for backtesting (Polygon only)"""
+        print("\n📊 Asset Type Selection (Backtesting):")
+        print("======================================")
+        print("1. Cryptocurrency (Polygon API)")
+        print("2. Stocks (Polygon API)")
+        print()
+
+        while True:
+            choice = input("Select asset type (1-2): ").strip()
+            if choice in ['1', '2']:
+                return choice
+            print("❌ Invalid choice. Please enter 1 or 2.")
+
     def configure_data_parameters(self):
-        """Configure data parameters"""
+        """Configure data parameters with support for both crypto and stocks"""
         print("\nData Configuration:")
         print("-" * 20)
-        
-        ticker = input("Enter ticker (default X:BTCUSD): ").strip() or "X:BTCUSD"
+
+        # Select asset type
+        asset_choice = self.select_asset_type()
+
+        # Configure ticker based on asset type (Polygon only for backtesting)
+        if asset_choice == '1':  # Crypto (Polygon)
+            print("\n₿ Cryptocurrency Configuration (Polygon):")
+            ticker = input("Enter crypto ticker (default X:BTCUSD): ").strip() or "X:BTCUSD"
+            print("Common crypto tickers: X:BTCUSD, X:ETHUSD, X:DOGEUSD, X:LTCUSD")
+        else:  # asset_choice == '2' - Stocks (Polygon)
+            print("\n📈 Stock Configuration (Polygon):")
+            ticker = input("Enter stock ticker (default AAPL): ").strip() or "AAPL"
+            print("Common stock tickers: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX, SPY, QQQ")
+
+        # Configure timespan (Polygon API only)
         timespan = input("Enter timespan (minute/hour/day, default minute): ").strip() or "minute"
-        
+
         # Date configuration
         use_defaults = input("Use default date range? (y/n, default y): ").strip().lower()
         if use_defaults != 'n':
@@ -206,15 +257,16 @@ class TradingCLI:
         else:
             from_date = input("Enter from date (YYYY-MM-DD): ").strip()
             to_date = input("Enter to date (YYYY-MM-DD): ").strip()
-        
+
         limit = int(input("Enter data limit (default 50000): ") or "50000")
-        
+
         return {
             'ticker': ticker,
             'timespan': timespan,
             'from_date': from_date,
             'to_date': to_date,
-            'limit': limit
+            'limit': limit,
+            'asset_type': asset_choice
         }
     
     def run_backtest(self):
@@ -222,32 +274,51 @@ class TradingCLI:
         print("\n" + "=" * 40)
         print("           BACKTESTING MODE")
         print("=" * 40)
-        
+
         # Select strategy
         strategy = self.select_strategy()
         if not strategy:
             return
-        
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
         # Configure data
         data_params = self.configure_data_parameters()
-        
+
         # Get initial balance
         initial_balance = float(input("Enter initial balance (default 10000): ") or "10000")
         
         print(f"\n📊 Running backtest for {strategy.name}...")
         print(f"📈 Ticker: {data_params['ticker']}")
+        print(f"🔄 Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
         print(f"⏰ Timespan: {data_params['timespan']}")
         print(f"📅 From: {data_params['from_date']} To: {data_params['to_date']}")
-        
+
         try:
-            # Get data
+            # Get data based on asset type
             print("Fetching data...")
+
+            # Remove asset_type from params before passing to data provider
+            asset_type = data_params.pop('asset_type')
+
+            # Backtesting only uses Polygon API now
+            if not self.data_provider:
+                print("❌ Polygon data provider not configured. Please configure it first.")
+                return
             df = self.data_provider.get_data(**data_params)
+
             print(f"✓ Retrieved {len(df)} data points")
-            
+
+            if df.empty:
+                print(f"❌ No data available for {data_params['ticker']} in the specified period.")
+                print("Please try a different ticker or time period.")
+                return
+
             # Run backtest
             print("Running backtest...")
-            engine = BacktestEngine(initial_balance)
+            # Pass the ticker symbol to the engine for proper formatting
+            engine = BacktestEngine(initial_balance, trading_mode, data_params['ticker'])
             results = engine.backtest(df, strategy)
             
             # Display results
@@ -284,7 +355,7 @@ class TradingCLI:
     def run_live_trading(self):
         """Run live trading workflow with real-time charting"""
         print("\n" + "=" * 50)
-        print("      🚀 LIVE TRADING WITH CHARTS - BTC/USD")
+        print("      🚀 LIVE TRADING WITH REAL-TIME CHARTS")
         print("=" * 50)
 
         # Setup Alpaca credentials if not already configured
@@ -299,26 +370,103 @@ class TradingCLI:
         if not strategy:
             return
 
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
         # Configure trading parameters
         print("\n📊 Live Trading Configuration:")
         print("-" * 30)
 
-        # Fixed to BTC/USD for crypto
-        symbol = "BTC/USD"
-        print(f"Symbol: {symbol} (Fixed for crypto trading)")
+        # Select asset type for live trading
+        print("📊 Asset Selection for Live Trading:")
+        print("===================================")
+        print("1. Cryptocurrency - BTC/USD")
+        print("2. Cryptocurrency - ETH/USD")
+        print("3. Cryptocurrency - DOGE/USD")
+        print("4. Cryptocurrency - Custom Crypto")
+        print("5. Stock - AAPL")
+        print("6. Stock - MSFT")
+        print("7. Stock - GOOGL")
+        print("8. Stock - TSLA")
+        print("9. Stock - Custom Stock")
+        print()
 
-        quantity = float(input("Enter BTC position size (default 0.01): ") or "0.01")
+        asset_symbols = {
+            "1": ("BTC/USD", 0.01, "crypto"),
+            "2": ("ETH/USD", 0.1, "crypto"),
+            "3": ("DOGE/USD", 100, "crypto"),
+            "4": ("CUSTOM_CRYPTO", 1.0, "crypto"),
+            "5": ("AAPL", 1, "stock"),
+            "6": ("MSFT", 1, "stock"),
+            "7": ("GOOGL", 1, "stock"),
+            "8": ("TSLA", 1, "stock"),
+            "9": ("CUSTOM_STOCK", 1, "stock")
+        }
+
+        while True:
+            choice = input("Select asset (1-9): ").strip()
+            if choice in asset_symbols:
+                symbol, default_quantity, asset_type = asset_symbols[choice]
+
+                if choice == "4":  # Custom crypto
+                    symbol = input("Enter crypto pair (e.g., LTC/USD): ").strip().upper()
+                    if "/" not in symbol:
+                        symbol += "/USD"
+                elif choice == "9":  # Custom stock
+                    symbol = input("Enter stock ticker (e.g., AMZN): ").strip().upper()
+                    asset_type = "stock"
+
+                break
+            print("❌ Invalid choice. Please enter 1-9.")
+
+        print(f"Selected: {symbol}")
+
+        # Configure quantity based on asset type
+        if asset_type == "crypto":
+            unit = symbol.split("/")[0] if "/" in symbol else "units"
+            quantity = float(input(f"Enter {unit} position size (default {default_quantity}): ") or str(default_quantity))
+        else:  # stock
+            quantity = int(input(f"Enter number of shares (default {default_quantity}): ") or str(default_quantity))
 
         # Update interval
         update_interval = int(input("Chart update interval in seconds (default 60): ") or "60")
 
+        # Select broker type
+        print("\n🏦 Broker Selection:")
+        print("====================")
+        print("1. Alpaca Paper Trading")
+        print("2. Simulated Broker")
+        print()
+
+        while True:
+            broker_choice = input("Select broker (1-2): ").strip()
+            if broker_choice == "1":
+                use_simulated_broker = False
+                break
+            elif broker_choice == "2":
+                use_simulated_broker = True
+                break
+            print("❌ Invalid choice. Please enter 1 or 2.")
+
         print(f"\n⚙️  Configuration Summary:")
+        print(f"   Asset Type: {'Cryptocurrency' if asset_type == 'crypto' else 'Stock'}")
         print(f"   Strategy: {strategy.name}")
         print(f"   Symbol: {symbol}")
-        print(f"   Position Size: {quantity} BTC")
+        print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+
+        if asset_type == "crypto":
+            unit = symbol.split("/")[0] if "/" in symbol else "units"
+            print(f"   Position Size: {quantity} {unit}")
+        else:
+            print(f"   Position Size: {quantity} shares")
+
         print(f"   Update Interval: {update_interval} seconds")
-        print(f"   Trading Mode: {'Paper' if self.alpaca_broker.paper_trading else 'Live'}")
-        print(f"   Account Balance: Will be retrieved from Alpaca")
+        print(f"   Broker Type: {'SimulatedBroker' if use_simulated_broker else 'Alpaca Paper Trading'}")
+
+        if use_simulated_broker:
+            print(f"   Initial Balance: $10,000 (simulated)")
+        else:
+            print(f"   Account Balance: Will be retrieved from Alpaca")
 
         print(f"\n📈 Features:")
         print(f"   ✅ Real-time candlestick chart")
@@ -341,7 +489,10 @@ class TradingCLI:
                 secret_key=self.alpaca_data_provider.secret_key,
                 symbol=symbol,
                 paper_trading=self.alpaca_broker.paper_trading,
-                quantity=quantity
+                quantity=quantity,
+                trading_mode=trading_mode,
+                use_simulated_broker=use_simulated_broker,
+                initial_balance=10000
             )
 
             print(f"\n🎯 Starting live trading with charts...")

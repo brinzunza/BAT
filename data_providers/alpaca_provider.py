@@ -8,7 +8,7 @@ from .base_provider import BaseDataProvider
 
 
 class AlpacaDataProvider(BaseDataProvider):
-    """Alpaca data provider for crypto data"""
+    """Alpaca data provider for crypto and stock data"""
 
     def __init__(self, api_key: str = None, secret_key: str = None):
         super().__init__(api_key)
@@ -21,16 +21,29 @@ class AlpacaDataProvider(BaseDataProvider):
             "APCA-API-SECRET-KEY": secret_key
         }
 
+    def _is_crypto(self, ticker: str) -> bool:
+        """Determine if ticker is cryptocurrency"""
+        return '/' in ticker or ticker.upper().endswith('USD')
+
+    def _get_data_endpoint(self, ticker: str) -> str:
+        """Get appropriate data endpoint based on asset type"""
+        if self._is_crypto(ticker):
+            return f"{self.base_url}/v1beta3/crypto/us/bars"
+        else:
+            return f"{self.base_url}/v2/stocks/bars"
+
     def get_data(self,
                  ticker: str,
                  timespan: str = '1Min',
                  from_date: str = None,
                  to_date: str = None,
                  limit: int = 1000) -> pd.DataFrame:
-        """Get historical crypto data from Alpaca"""
+        """Get historical data from Alpaca (crypto or stocks)"""
 
-        # Convert ticker format for crypto
-        if '/' in ticker:
+        is_crypto = self._is_crypto(ticker)
+
+        # Convert ticker format
+        if is_crypto and '/' in ticker:
             symbol = ticker.replace('/', '')
         else:
             symbol = ticker
@@ -41,15 +54,31 @@ class AlpacaDataProvider(BaseDataProvider):
         if not from_date:
             from_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
-        url = f"{self.base_url}/v1beta3/crypto/us/bars"
-        params = {
-            'symbols': symbol,
-            'timeframe': timespan,
-            'start': from_date,
-            'end': to_date,
-            'limit': limit,
-            'sort': 'asc'
-        }
+        # Get appropriate endpoint
+        url = self._get_data_endpoint(ticker)
+
+        # Set parameters based on asset type
+        if is_crypto:
+            params = {
+                'symbols': symbol,
+                'timeframe': timespan,
+                'start': from_date,
+                'end': to_date,
+                'limit': limit,
+                'sort': 'asc'
+            }
+        else:
+            # Stock parameters - use the working format from your example
+            params = {
+                'symbols': symbol,
+                'timeframe': timespan,
+                'start': from_date,
+                'end': to_date,
+                'limit': limit,
+                'adjustment': 'raw',
+                'feed': 'sip',
+                'sort': 'asc'
+            }
 
         try:
             response = requests.get(url, headers=self.headers, params=params)
@@ -85,7 +114,7 @@ class AlpacaDataProvider(BaseDataProvider):
             return df
 
         except Exception as e:
-            print(f"Error fetching historical data: {e}")
+            print(f"Error fetching historical data for {ticker}: {e}")
             return pd.DataFrame()
 
     def get_live_data(self, ticker: str, lookback_minutes: int = 100) -> pd.DataFrame:
@@ -106,40 +135,70 @@ class AlpacaDataProvider(BaseDataProvider):
     def get_latest_bar(self, ticker: str) -> dict:
         """Get only the latest bar for live trading using public endpoint"""
 
-        # Convert ticker format for the URL
-        if '/' in ticker:
-            symbol = ticker.replace('/', '%2F')  # URL encode the slash
-        else:
-            symbol = f"{ticker}%2FUSD"  # Assume USD pair if no slash
+        is_crypto = self._is_crypto(ticker)
 
-        # Use the public endpoint (no authentication required)
-        url = f"https://data.alpaca.markets/v1beta3/crypto/us/latest/bars?symbols={symbol}"
+        if is_crypto:
+            # Convert ticker format for the URL
+            if '/' in ticker:
+                symbol = ticker.replace('/', '%2F')  # URL encode the slash
+            else:
+                symbol = f"{ticker}%2FUSD"  # Assume USD pair if no slash
+
+            # Use the public crypto endpoint (no authentication required)
+            url = f"https://data.alpaca.markets/v1beta3/crypto/us/latest/bars?symbols={symbol}"
+            symbol_key = ticker if '/' in ticker else f"{ticker}/USD"
+        else:
+            # For stocks, use the stock endpoint with query parameters
+            symbol = ticker
+            url = f"https://data.alpaca.markets/v2/stocks/bars/latest?symbols={symbol}"
+            symbol_key = ticker
 
         try:
-            response = requests.get(url, headers={"accept": "application/json"})
+            if is_crypto:
+                response = requests.get(url, headers={"accept": "application/json"})
+            else:
+                response = requests.get(url, headers=self.headers)
+
             response.raise_for_status()
             data = response.json()
 
-            # Extract the symbol key (e.g., 'BTC/USD' or 'BTCUSD')
-            symbol_key = ticker if '/' in ticker else f"{ticker}/USD"
-
-            if 'bars' in data and symbol_key in data['bars']:
-                bar_data = data['bars'][symbol_key]
-                import pandas as pd
-                return {
-                    'timestamp': pd.to_datetime(datetime.utcnow()),  # Use timezone-aware UTC time
-                    'Open': float(bar_data['o']),
-                    'High': float(bar_data['h']),
-                    'Low': float(bar_data['l']),
-                    'Close': float(bar_data['c']),
-                    'Volume': float(bar_data['v'])
-                }
+            if is_crypto:
+                if 'bars' in data and symbol_key in data['bars']:
+                    bar_data = data['bars'][symbol_key]
+                    import pandas as pd
+                    return {
+                        'timestamp': pd.to_datetime(datetime.utcnow()),  # Use timezone-aware UTC time
+                        'Open': float(bar_data['o']),
+                        'High': float(bar_data['h']),
+                        'Low': float(bar_data['l']),
+                        'Close': float(bar_data['c']),
+                        'Volume': float(bar_data['v'])
+                    }
+                else:
+                    print(f"No data found for {symbol_key} in response")
+                    return {}
             else:
-                print(f"No data found for {symbol_key} in response")
-                return {}
+                # Stock data format - similar to crypto, should have bars[symbol]
+                if 'bars' in data and symbol_key in data['bars']:
+                    bar_data = data['bars'][symbol_key]
+                    import pandas as pd
+                    return {
+                        'timestamp': pd.to_datetime(datetime.utcnow()),
+                        'Open': float(bar_data['o']),
+                        'High': float(bar_data['h']),
+                        'Low': float(bar_data['l']),
+                        'Close': float(bar_data['c']),
+                        'Volume': float(bar_data['v'])
+                    }
+                else:
+                    print(f"No bar data found for {symbol} in response")
+                    print(f"Response keys: {list(data.keys())}")
+                    if 'bars' in data:
+                        print(f"Available symbols: {list(data['bars'].keys())}")
+                    return {}
 
         except Exception as e:
-            print(f"Error fetching latest bar from public endpoint: {e}")
+            print(f"Error fetching latest bar for {ticker}: {e}")
             return {}
 
     def get_recent_bars_public(self, ticker: str, limit: int = 50) -> pd.DataFrame:
@@ -147,11 +206,7 @@ class AlpacaDataProvider(BaseDataProvider):
         from datetime import datetime, timedelta
         import pandas as pd
 
-        # Convert ticker format for the URL
-        if '/' in ticker:
-            symbol = ticker.replace('/', '%2F')  # URL encode the slash
-        else:
-            symbol = f"{ticker}%2FUSD"  # Assume USD pair if no slash
+        is_crypto = self._is_crypto(ticker)
 
         # Calculate time range - get last 3 hours to ensure we have enough recent data
         end_time = datetime.utcnow()
@@ -161,68 +216,114 @@ class AlpacaDataProvider(BaseDataProvider):
         start_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
         end_str = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Use the public bars endpoint (no authentication required)
-        url = f"https://data.alpaca.markets/v1beta3/crypto/us/bars?symbols={symbol}&timeframe=1Min&start={start_str}&end={end_str}&limit={limit}&sort=desc"
+        if is_crypto:
+            # Convert ticker format for the URL
+            if '/' in ticker:
+                symbol = ticker.replace('/', '%2F')  # URL encode the slash
+            else:
+                symbol = f"{ticker}%2FUSD"  # Assume USD pair if no slash
 
-        print(f"🔍 Fetching data from: {start_str} to {end_str}")
+            # Use the public crypto bars endpoint (no authentication required)
+            url = f"https://data.alpaca.markets/v1beta3/crypto/us/bars?symbols={symbol}&timeframe=1Min&start={start_str}&end={end_str}&limit={limit}&sort=desc"
+            symbol_key = ticker if '/' in ticker else f"{ticker}/USD"
+        else:
+            # For stocks, use authenticated endpoint with proper parameters
+            symbol = ticker
+            url = f"https://data.alpaca.markets/v2/stocks/bars?symbols={symbol}&timeframe=1Min&start={start_str}&end={end_str}&limit={limit}&adjustment=raw&feed=sip&sort=desc"
+            symbol_key = ticker
+
+        print(f"🔍 Fetching {ticker} data from: {start_str} to {end_str}")
 
         try:
-            response = requests.get(url, headers={"accept": "application/json"})
+            if is_crypto:
+                response = requests.get(url, headers={"accept": "application/json"})
+            else:
+                response = requests.get(url, headers=self.headers)
+
             response.raise_for_status()
             data = response.json()
 
-            # Extract the symbol key (e.g., 'BTC/USD')
-            symbol_key = ticker if '/' in ticker else f"{ticker}/USD"
-
             print(f"📡 API Response keys: {list(data.keys())}")
-            if 'bars' in data:
-                print(f"📊 Available symbols: {list(data['bars'].keys())}")
 
-            if 'bars' in data and symbol_key in data['bars']:
-                bars_data = data['bars'][symbol_key]
-                print(f"✅ Found {len(bars_data)} bars for {symbol_key}")
+            if is_crypto:
+                if 'bars' in data:
+                    print(f"📊 Available symbols: {list(data['bars'].keys())}")
 
-                if not bars_data:
-                    print(f"⚠️ No bars data returned for {symbol_key}")
+                if 'bars' in data and symbol_key in data['bars']:
+                    bars_data = data['bars'][symbol_key]
+                    print(f"✅ Found {len(bars_data)} bars for {symbol_key}")
+
+                    if not bars_data:
+                        print(f"⚠️ No bars data returned for {symbol_key}")
+                        return pd.DataFrame()
+
+                    # Convert to DataFrame
+                    df_data = []
+                    for bar in bars_data:
+                        df_data.append({
+                            'timestamp': pd.to_datetime(bar['t']),
+                            'Open': float(bar['o']),
+                            'High': float(bar['h']),
+                            'Low': float(bar['l']),
+                            'Close': float(bar['c']),
+                            'Volume': float(bar['v'])
+                        })
+                else:
+                    print(f"❌ No bars data found for {symbol_key} in response")
+                    if 'bars' in data:
+                        print(f"Available symbols in response: {list(data['bars'].keys())}")
+                    else:
+                        print(f"No 'bars' key in response. Keys: {list(data.keys())}")
+                    return pd.DataFrame()
+            else:
+                # Stock data format - similar to crypto, symbol is in bars dict
+                if 'bars' in data:
+                    print(f"📊 Available symbols: {list(data['bars'].keys())}")
+
+                if 'bars' in data and symbol_key in data['bars']:
+                    bars_data = data['bars'][symbol_key]
+                    print(f"✅ Found {len(bars_data)} bars for {symbol_key}")
+
+                    if not bars_data:
+                        print(f"⚠️ No bars data returned for {symbol_key}")
+                        return pd.DataFrame()
+
+                    # Convert to DataFrame
+                    df_data = []
+                    for bar in bars_data:
+                        df_data.append({
+                            'timestamp': pd.to_datetime(bar['t']),
+                            'Open': float(bar['o']),
+                            'High': float(bar['h']),
+                            'Low': float(bar['l']),
+                            'Close': float(bar['c']),
+                            'Volume': float(bar['v'])
+                        })
+                else:
+                    print(f"❌ No bars data found for {symbol_key} in response")
+                    if 'bars' in data:
+                        print(f"Available symbols in response: {list(data['bars'].keys())}")
+                    else:
+                        print(f"No 'bars' key in response. Keys: {list(data.keys())}")
                     return pd.DataFrame()
 
-                # Convert to DataFrame
-                df_data = []
-                for bar in bars_data:
-                    df_data.append({
-                        'timestamp': pd.to_datetime(bar['t']),
-                        'Open': float(bar['o']),
-                        'High': float(bar['h']),
-                        'Low': float(bar['l']),
-                        'Close': float(bar['c']),
-                        'Volume': float(bar['v'])
-                    })
+            df = pd.DataFrame(df_data)
 
-                df = pd.DataFrame(df_data)
-
-                if df.empty:
-                    print(f"⚠️ DataFrame is empty after conversion")
-                    return df
-
-                # Sort by timestamp (desc gives us newest first, so reverse to get chronological order)
-                df = df.sort_values('timestamp').reset_index(drop=True)
-
-                print(f"📊 Successfully fetched {len(df)} recent bars")
-                print(f"📅 Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-                print(f"💰 Latest price: ${df['Close'].iloc[-1]:,.2f}")
-
+            if df.empty:
+                print(f"⚠️ DataFrame is empty after conversion")
                 return df
 
-            else:
-                print(f"❌ No bars data found for {symbol_key} in response")
-                if 'bars' in data:
-                    print(f"Available symbols in response: {list(data['bars'].keys())}")
-                else:
-                    print(f"No 'bars' key in response. Keys: {list(data.keys())}")
-                return pd.DataFrame()
+            # Sort by timestamp (desc gives us newest first, so reverse to get chronological order)
+            df = df.sort_values('timestamp').reset_index(drop=True)
+
+            print(f"📊 Successfully fetched {len(df)} recent bars")
+            print(f"📅 Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+            print(f"💰 Latest price: ${df['Close'].iloc[-1]:,.2f}")
+
+            return df
 
         except Exception as e:
-            print(f"❌ Error fetching recent bars from public endpoint: {e}")
+            print(f"❌ Error fetching recent bars for {ticker}: {e}")
             import traceback
             traceback.print_exc()
             return pd.DataFrame()
@@ -364,24 +465,32 @@ class AlpacaBroker:
             print(f"❌ Error checking crypto permissions: {e}")
             return False
 
-    def buy(self, symbol: str, quantity: float, order_type: str = "market") -> dict:
+    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
         """Place buy order using alpaca_trade_api library"""
 
-        # Convert symbol format for crypto (BTC/USD -> BTCUSD)
+        original_symbol = symbol
+        # Convert symbol format for crypto (BTC/USD -> BTCUSD), keep stocks as-is
         if '/' in symbol:
             symbol = symbol.replace('/', '')
 
-        print(f"🔄 Placing buy order: {quantity} {symbol} using alpaca_trade_api")
+        print(f"🔄 Placing buy order: {quantity} {original_symbol} using alpaca_trade_api")
 
         try:
             # Use the official alpaca_trade_api library
-            order = self.trade_api.submit_order(
-                symbol=symbol,
-                qty=quantity,
-                side='buy',
-                type=order_type,
-                time_in_force='gtc'
-            )
+            order_params = {
+                'symbol': symbol,
+                'qty': quantity,
+                'side': 'buy',
+                'type': order_type,
+                'time_in_force': 'gtc'
+            }
+
+            # Add limit price for limit orders
+            if order_type == "limit" and limit_price is not None:
+                order_params['limit_price'] = limit_price
+                print(f"💰 Limit price set to: ${limit_price:.2f}")
+
+            order = self.trade_api.submit_order(**order_params)
 
             print(f"✅ Buy order placed successfully!")
             print(f"📋 Order ID: {order.id}")
@@ -411,24 +520,32 @@ class AlpacaBroker:
 
             return {}
 
-    def sell(self, symbol: str, quantity: float, order_type: str = "market") -> dict:
+    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
         """Place sell order using alpaca_trade_api library"""
 
-        # Convert symbol format for crypto (BTC/USD -> BTCUSD)
+        original_symbol = symbol
+        # Convert symbol format for crypto (BTC/USD -> BTCUSD), keep stocks as-is
         if '/' in symbol:
             symbol = symbol.replace('/', '')
 
-        print(f"🔄 Placing sell order: {quantity} {symbol} using alpaca_trade_api")
+        print(f"🔄 Placing sell order: {quantity} {original_symbol} using alpaca_trade_api")
 
         try:
             # Use the official alpaca_trade_api library
-            order = self.trade_api.submit_order(
-                symbol=symbol,
-                qty=quantity,
-                side='sell',
-                type=order_type,
-                time_in_force='gtc'
-            )
+            order_params = {
+                'symbol': symbol,
+                'qty': quantity,
+                'side': 'sell',
+                'type': order_type,
+                'time_in_force': 'gtc'
+            }
+
+            # Add limit price for limit orders
+            if order_type == "limit" and limit_price is not None:
+                order_params['limit_price'] = limit_price
+                print(f"💰 Limit price set to: ${limit_price:.2f}")
+
+            order = self.trade_api.submit_order(**order_params)
 
             print(f"✅ Sell order placed successfully!")
             print(f"📋 Order ID: {order.id}")
@@ -626,3 +743,451 @@ class AlpacaBroker:
         except Exception as e:
             print(f"Error closing all positions: {e}")
             return {'status': 'failed', 'error': str(e)}
+
+    def cancel_order(self, order_id: str):
+        """Cancel a specific order using direct API call"""
+        try:
+            url = f"{self.base_url}/v2/orders/{order_id}"
+            response = requests.delete(url, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error canceling order {order_id}: {e}")
+            return {'status': 'failed', 'error': str(e)}
+
+
+class SimulatedBroker:
+    """Simulated broker that uses live Alpaca data but manages local account"""
+
+    def __init__(self, api_key: str, secret_key: str, initial_balance: float = 10000):
+        self.api_key = api_key
+        self.secret_key = secret_key
+        self.initial_balance = initial_balance
+
+        # Initialize data provider for live prices
+        self.data_provider = AlpacaDataProvider(api_key, secret_key)
+
+        # Local account state
+        self.reset_account()
+
+        # Order management
+        self.order_counter = 1
+
+    def reset_account(self):
+        """Reset the simulated account to initial state"""
+        self.cash_balance = self.initial_balance
+        self.positions = {}  # symbol -> {'qty': float, 'avg_entry_price': float, 'side': str}
+        self.orders = {}  # order_id -> order details
+        self.trade_history = []
+
+    def get_current_price(self, symbol: str) -> float:
+        """Get current market price from live Alpaca data"""
+        try:
+            original_symbol = symbol
+
+            # Get data using original symbol format (the data provider handles conversion)
+            latest_bar = self.data_provider.get_latest_bar(original_symbol)
+            if latest_bar:
+                return latest_bar['Close']
+            else:
+                # Fallback to quote data
+                quote_data = self.data_provider.get_latest_quote(original_symbol)
+                return quote_data.get('close', 0)
+        except Exception as e:
+            print(f"⚠️ Error getting current price for {symbol}: {e}")
+            return 0
+
+    def _generate_order_id(self) -> str:
+        """Generate a unique order ID"""
+        order_id = f"SIM_{self.order_counter:06d}"
+        self.order_counter += 1
+        return order_id
+
+    def _calculate_portfolio_value(self) -> float:
+        """Calculate total portfolio value (cash + positions)"""
+        total_value = self.cash_balance
+
+        for symbol, position in self.positions.items():
+            current_price = self.get_current_price(symbol)
+            position_value = float(position['qty']) * current_price
+            total_value += position_value
+
+        return total_value
+
+    def _calculate_unrealized_pnl(self, symbol: str) -> float:
+        """Calculate unrealized P&L for a position"""
+        if symbol not in self.positions:
+            return 0
+
+        position = self.positions[symbol]
+        qty = float(position['qty'])
+        avg_entry = float(position['avg_entry_price'])
+        current_price = self.get_current_price(symbol)
+
+        if qty > 0:  # Long position
+            return (current_price - avg_entry) * qty
+        elif qty < 0:  # Short position
+            return (avg_entry - current_price) * abs(qty)
+        else:
+            return 0
+
+    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+        """Simulate buy order execution"""
+        original_symbol = symbol
+
+        # Use original symbol for price lookups, but normalize for internal storage
+        storage_symbol = symbol.replace('/', '') if '/' in symbol else symbol
+
+        order_id = self._generate_order_id()
+        current_price = self.get_current_price(original_symbol)
+
+        if current_price <= 0:
+            return {'status': 'failed', 'error': 'Unable to get current price'}
+
+        # For limit orders, check if price is acceptable
+        if order_type == "limit" and limit_price is not None:
+            execution_price = limit_price
+            if current_price > limit_price:  # Current price too high for buy limit
+                # Store as pending order
+                self.orders[order_id] = {
+                    'id': order_id,
+                    'symbol': symbol,
+                    'qty': quantity,
+                    'side': 'buy',
+                    'type': order_type,
+                    'limit_price': limit_price,
+                    'status': 'pending',
+                    'created_at': datetime.now()
+                }
+                print(f"📋 BUY LIMIT ORDER PENDING - {quantity} {symbol} @ ${limit_price:.2f} (current: ${current_price:.2f})")
+                return {'id': order_id, 'status': 'pending', 'symbol': symbol, 'qty': quantity}
+        else:
+            execution_price = current_price
+
+        # Calculate trade value
+        trade_value = quantity * execution_price
+
+        # Check buying power
+        if trade_value > self.cash_balance:
+            return {'status': 'failed', 'error': 'Insufficient buying power'}
+
+        # Execute the trade
+        self._execute_buy(storage_symbol, quantity, execution_price, order_id)
+
+        print(f"✅ SIMULATED BUY EXECUTED - {quantity} {original_symbol} @ ${execution_price:.2f}")
+        print(f"💰 Cash Balance: ${self.cash_balance:.2f}")
+
+        return {
+            'id': order_id,
+            'status': 'filled',
+            'symbol': original_symbol,
+            'qty': quantity,
+            'filled_price': execution_price
+        }
+
+    def _execute_buy(self, symbol: str, quantity: float, price: float, order_id: str):
+        """Execute a buy order"""
+        trade_value = quantity * price
+
+        # Update cash balance
+        self.cash_balance -= trade_value
+
+        # Update position
+        if symbol in self.positions:
+            existing_qty = float(self.positions[symbol]['qty'])
+            existing_avg = float(self.positions[symbol]['avg_entry_price'])
+
+            if existing_qty < 0:  # Closing short position
+                if quantity >= abs(existing_qty):
+                    # Close short and potentially open long
+                    remaining_qty = quantity - abs(existing_qty)
+                    self.positions[symbol] = {
+                        'qty': remaining_qty,
+                        'avg_entry_price': price,
+                        'side': 'long' if remaining_qty > 0 else 'flat'
+                    }
+                else:
+                    # Partially close short
+                    self.positions[symbol]['qty'] = existing_qty + quantity
+            else:  # Adding to long position
+                total_qty = existing_qty + quantity
+                new_avg = ((existing_qty * existing_avg) + (quantity * price)) / total_qty
+                self.positions[symbol] = {
+                    'qty': total_qty,
+                    'avg_entry_price': new_avg,
+                    'side': 'long'
+                }
+        else:
+            # New position
+            self.positions[symbol] = {
+                'qty': quantity,
+                'avg_entry_price': price,
+                'side': 'long'
+            }
+
+        # Record trade
+        self.trade_history.append({
+            'order_id': order_id,
+            'symbol': symbol,
+            'side': 'buy',
+            'qty': quantity,
+            'price': price,
+            'timestamp': datetime.now()
+        })
+
+    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+        """Simulate sell order execution"""
+        original_symbol = symbol
+
+        # Use original symbol for price lookups, but normalize for internal storage
+        storage_symbol = symbol.replace('/', '') if '/' in symbol else symbol
+
+        order_id = self._generate_order_id()
+        current_price = self.get_current_price(original_symbol)
+
+        if current_price <= 0:
+            return {'status': 'failed', 'error': 'Unable to get current price'}
+
+        # For limit orders, check if price is acceptable
+        if order_type == "limit" and limit_price is not None:
+            execution_price = limit_price
+            if current_price < limit_price:  # Current price too low for sell limit
+                # Store as pending order
+                self.orders[order_id] = {
+                    'id': order_id,
+                    'symbol': symbol,
+                    'qty': quantity,
+                    'side': 'sell',
+                    'type': order_type,
+                    'limit_price': limit_price,
+                    'status': 'pending',
+                    'created_at': datetime.now()
+                }
+                print(f"📋 SELL LIMIT ORDER PENDING - {quantity} {symbol} @ ${limit_price:.2f} (current: ${current_price:.2f})")
+                return {'id': order_id, 'status': 'pending', 'symbol': symbol, 'qty': quantity}
+        else:
+            execution_price = current_price
+
+        # Execute the trade
+        self._execute_sell(storage_symbol, quantity, execution_price, order_id)
+
+        print(f"✅ SIMULATED SELL EXECUTED - {quantity} {original_symbol} @ ${execution_price:.2f}")
+        print(f"💰 Cash Balance: ${self.cash_balance:.2f}")
+
+        return {
+            'id': order_id,
+            'status': 'filled',
+            'symbol': original_symbol,
+            'qty': quantity,
+            'filled_price': execution_price
+        }
+
+    def _execute_sell(self, symbol: str, quantity: float, price: float, order_id: str):
+        """Execute a sell order"""
+        trade_value = quantity * price
+
+        # Update cash balance
+        self.cash_balance += trade_value
+
+        # Update position
+        if symbol in self.positions:
+            existing_qty = float(self.positions[symbol]['qty'])
+            existing_avg = float(self.positions[symbol]['avg_entry_price'])
+
+            if existing_qty > 0:  # Closing long position
+                if quantity >= existing_qty:
+                    # Close long and potentially open short
+                    remaining_qty = quantity - existing_qty
+                    self.positions[symbol] = {
+                        'qty': -remaining_qty,
+                        'avg_entry_price': price,
+                        'side': 'short' if remaining_qty > 0 else 'flat'
+                    }
+                else:
+                    # Partially close long
+                    self.positions[symbol]['qty'] = existing_qty - quantity
+            else:  # Adding to short position
+                total_qty = abs(existing_qty) + quantity
+                new_avg = ((abs(existing_qty) * existing_avg) + (quantity * price)) / total_qty
+                self.positions[symbol] = {
+                    'qty': -total_qty,
+                    'avg_entry_price': new_avg,
+                    'side': 'short'
+                }
+        else:
+            # New short position
+            self.positions[symbol] = {
+                'qty': -quantity,
+                'avg_entry_price': price,
+                'side': 'short'
+            }
+
+        # Record trade
+        self.trade_history.append({
+            'order_id': order_id,
+            'symbol': symbol,
+            'side': 'sell',
+            'qty': quantity,
+            'price': price,
+            'timestamp': datetime.now()
+        })
+
+    def close_position(self, symbol: str) -> dict:
+        """Close all positions for a symbol using market orders"""
+        # Convert symbol format
+        if '/' in symbol:
+            symbol = symbol.replace('/', '')
+
+        if symbol not in self.positions:
+            return {'status': 'failed', 'error': 'No position to close'}
+
+        position = self.positions[symbol]
+        qty = float(position['qty'])
+
+        if qty == 0:
+            return {'status': 'failed', 'error': 'No position to close'}
+
+        # Close position with market order
+        if qty > 0:  # Close long position
+            return self.sell(symbol, qty, order_type="market")
+        else:  # Close short position
+            return self.buy(symbol, abs(qty), order_type="market")
+
+    def cancel_order(self, order_id: str) -> dict:
+        """Cancel a pending order"""
+        if order_id not in self.orders:
+            return {'status': 'failed', 'error': 'Order not found'}
+
+        order = self.orders[order_id]
+        if order['status'] != 'pending':
+            return {'status': 'failed', 'error': 'Order is not pending'}
+
+        # Remove from pending orders
+        del self.orders[order_id]
+        print(f"✅ SIMULATED ORDER CANCELED - {order['side'].upper()} {order['qty']} {order['symbol']}")
+
+        return {'status': 'canceled', 'order_id': order_id}
+
+    def check_pending_orders(self):
+        """Check if any pending limit orders can be filled based on current prices"""
+        filled_orders = []
+
+        for order_id, order in list(self.orders.items()):
+            if order['status'] == 'pending':
+                symbol = order['symbol']
+                current_price = self.get_current_price(symbol)
+
+                should_fill = False
+                if order['side'] == 'buy' and current_price <= order['limit_price']:
+                    should_fill = True
+                elif order['side'] == 'sell' and current_price >= order['limit_price']:
+                    should_fill = True
+
+                if should_fill:
+                    print(f"🎯 LIMIT ORDER TRIGGERED - {order['side'].upper()} {order['qty']} {symbol} @ ${order['limit_price']:.2f}")
+
+                    # Execute the order
+                    if order['side'] == 'buy':
+                        self._execute_buy(symbol, order['qty'], order['limit_price'], order_id)
+                    else:
+                        self._execute_sell(symbol, order['qty'], order['limit_price'], order_id)
+
+                    # Update order status
+                    order['status'] = 'filled'
+                    filled_orders.append(order_id)
+
+        # Remove filled orders from pending
+        for order_id in filled_orders:
+            if order_id in self.orders:
+                del self.orders[order_id]
+
+        return len(filled_orders)
+
+    def get_position_for_symbol(self, symbol: str) -> dict:
+        """Get position information for a specific symbol"""
+        original_symbol = symbol
+        # Normalize symbol for internal storage
+        storage_symbol = symbol.replace('/', '') if '/' in symbol else symbol
+
+        if storage_symbol not in self.positions:
+            return {
+                'symbol': symbol,
+                'qty': '0',
+                'side': 'long',
+                'avg_entry_price': '0',
+                'market_value': '0',
+                'unrealized_pl': '0',
+                'unrealized_plpc': '0'
+            }
+
+        position = self.positions[storage_symbol]
+        qty = float(position['qty'])
+        avg_entry = float(position['avg_entry_price'])
+        current_price = self.get_current_price(original_symbol)
+
+        market_value = qty * current_price
+        unrealized_pnl = self._calculate_unrealized_pnl(storage_symbol)
+        unrealized_plpc = (unrealized_pnl / (abs(qty) * avg_entry)) * 100 if qty != 0 and avg_entry != 0 else 0
+
+        return {
+            'symbol': original_symbol,
+            'qty': str(qty),
+            'side': position['side'],
+            'avg_entry_price': str(avg_entry),
+            'market_value': str(market_value),
+            'unrealized_pl': str(unrealized_pnl),
+            'unrealized_plpc': str(unrealized_plpc)
+        }
+
+    def get_account(self) -> dict:
+        """Get simulated account information"""
+        portfolio_value = self._calculate_portfolio_value()
+        equity = portfolio_value
+
+        # Calculate total unrealized P&L
+        total_unrealized_pnl = sum(self._calculate_unrealized_pnl(symbol) for symbol in self.positions.keys())
+
+        return {
+            'id': 'simulated_account',
+            'status': 'ACTIVE',
+            'buying_power': str(self.cash_balance),
+            'equity': str(equity),
+            'portfolio_value': str(portfolio_value),
+            'cash': str(self.cash_balance),
+            'initial_balance': str(self.initial_balance),
+            'total_unrealized_pnl': str(total_unrealized_pnl),
+            'trading_blocked': False,
+            'account_blocked': False,
+            'pattern_day_trader': False
+        }
+
+    def get_account_api(self) -> dict:
+        """Alias for get_account() to match AlpacaBroker interface"""
+        return self.get_account()
+
+    def print_account_summary(self):
+        """Print a summary of the simulated account"""
+        account = self.get_account()
+        print(f"\n{'='*50}")
+        print(f"📊 SIMULATED ACCOUNT SUMMARY")
+        print(f"{'='*50}")
+        print(f"💰 Cash Balance: ${float(account['cash']):,.2f}")
+        print(f"📈 Portfolio Value: ${float(account['portfolio_value']):,.2f}")
+        print(f"💵 Equity: ${float(account['equity']):,.2f}")
+        print(f"💲 Total P&L: ${float(account['equity']) - self.initial_balance:,.2f}")
+        print(f"📊 Return: {((float(account['equity']) / self.initial_balance) - 1) * 100:.2f}%")
+
+        if self.positions:
+            print(f"\n📋 POSITIONS:")
+            for symbol, position in self.positions.items():
+                if float(position['qty']) != 0:
+                    unrealized_pnl = self._calculate_unrealized_pnl(symbol)
+                    current_price = self.get_current_price(symbol)
+                    print(f"  {symbol}: {position['qty']} @ ${position['avg_entry_price']:.2f} (current: ${current_price:.2f}) | P&L: ${unrealized_pnl:.2f}")
+
+        if self.orders:
+            print(f"\n📝 PENDING ORDERS:")
+            for order_id, order in self.orders.items():
+                print(f"  {order_id}: {order['side'].upper()} {order['qty']} {order['symbol']} @ ${order['limit_price']:.2f}")
+
+        print(f"{'='*50}")
