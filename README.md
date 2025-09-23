@@ -1,8 +1,9 @@
-# BAT - Bruninvestor Algorithmic Trading
-
-<div align="center">
-  <img src="david.jpg" alt="BAT Trading System" width="400"/>
+<div style="display: flex; align-items: center; margin-bottom: 20px;">
+  <img src="david.jpg" alt="BAT Trading System" width="400" style="margin-right: 20px;"/>
+  <h1 style="font-size: 400px; line-height: 400px; margin: 0;">BAT</h1>
 </div>
+
+# Bruninvestor Algorithmic Trading
 
 BAT is a comprehensive algorithmic trading system that supports both **stocks and cryptocurrencies** with multiple trading strategies and execution modes.
 
