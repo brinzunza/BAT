@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 BAT - Backtesting & Automated Trading System
-Main application entry point
+Main application entry point with enhanced CLI supporting stocks and crypto
 """
 
 import sys

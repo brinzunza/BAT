@@ -25,24 +25,31 @@ class MovingAverageStrategy(BaseStrategy):
         """Generate moving average crossover signals"""
         if not self.validate_data(df):
             raise ValueError("Invalid data format")
-            
+
         df = df.copy()
-        
+
         # Calculate moving averages
         df['short_mavg'] = sma(df['Close'], self.short_window)
         df['medium_mavg'] = sma(df['Close'], self.medium_window)
         df['long_mavg'] = sma(df['Close'], self.long_window)
-        
-        # Generate signals based on crossover conditions
-        df['Sell Signal'] = (
-            (df['medium_mavg'] > df['long_mavg']) & 
-            (df['short_mavg'] > df['medium_mavg'])
-        )
-        df['Buy Signal'] = (
-            (df['medium_mavg'] < df['long_mavg']) & 
-            (df['short_mavg'] < df['medium_mavg'])
-        )
-        
+
+        # Detect crossover events and alignment changes
+        # Current bullish alignment: short > medium > long
+        bullish_alignment = (df['short_mavg'] > df['medium_mavg']) & (df['medium_mavg'] > df['long_mavg'])
+        # Previous bullish alignment
+        prev_bullish_alignment = (df['short_mavg'].shift(1) > df['medium_mavg'].shift(1)) & (df['medium_mavg'].shift(1) > df['long_mavg'].shift(1))
+
+        # Current bearish alignment: short < medium < long
+        bearish_alignment = (df['short_mavg'] < df['medium_mavg']) & (df['medium_mavg'] < df['long_mavg'])
+        # Previous bearish alignment
+        prev_bearish_alignment = (df['short_mavg'].shift(1) < df['medium_mavg'].shift(1)) & (df['medium_mavg'].shift(1) < df['long_mavg'].shift(1))
+
+        # Buy signal: Transition to bullish alignment (all MAs cross upwards)
+        df['Buy Signal'] = bullish_alignment & ~prev_bullish_alignment
+
+        # Sell signal: Transition to bearish alignment (all MAs cross downwards)
+        df['Sell Signal'] = bearish_alignment & ~prev_bearish_alignment
+
         return df
     
     def get_signal_names(self) -> Dict[str, str]:

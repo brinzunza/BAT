@@ -66,29 +66,202 @@ def select_strategy():
         print("❌ Invalid choice. Please enter 1, 2, or 3.")
 
 
+def select_symbol():
+    """Let user select trading symbol from crypto or stocks"""
+    print("\n📊 Symbol Selection:")
+    print("===================")
+    print("1. Cryptocurrency")
+    print("2. Stocks")
+    print()
+
+    # Popular crypto options
+    crypto_symbols = {
+        "1": ("BTC/USD", "Bitcoin"),
+        "2": ("ETH/USD", "Ethereum"),
+        "3": ("DOGE/USD", "Dogecoin"),
+        "4": ("LTC/USD", "Litecoin"),
+        "5": ("BCH/USD", "Bitcoin Cash"),
+        "6": ("AVAX/USD", "Avalanche"),
+        "7": ("LINK/USD", "Chainlink"),
+        "8": ("UNI/USD", "Uniswap"),
+        "9": ("CUSTOM", "Custom Crypto Symbol")
+    }
+
+    # Popular stock options
+    stock_symbols = {
+        "1": ("AAPL", "Apple Inc."),
+        "2": ("MSFT", "Microsoft Corporation"),
+        "3": ("GOOGL", "Alphabet Inc."),
+        "4": ("AMZN", "Amazon.com Inc."),
+        "5": ("TSLA", "Tesla Inc."),
+        "6": ("NVDA", "NVIDIA Corporation"),
+        "7": ("META", "Meta Platforms Inc."),
+        "8": ("NFLX", "Netflix Inc."),
+        "9": ("SPY", "SPDR S&P 500 ETF"),
+        "10": ("QQQ", "Invesco QQQ Trust"),
+        "11": ("CUSTOM", "Custom Stock Symbol")
+    }
+
+    while True:
+        asset_choice = input("Select asset type (1-2): ").strip()
+
+        if asset_choice == "1":  # Cryptocurrency
+            print("\n₿ Available Cryptocurrencies:")
+            print("============================")
+            for key, (symbol, name) in crypto_symbols.items():
+                if symbol == "CUSTOM":
+                    print(f"{key}. {name}")
+                else:
+                    print(f"{key}. {symbol} - {name}")
+
+            while True:
+                crypto_choice = input(f"\nSelect cryptocurrency (1-{len(crypto_symbols)}): ").strip()
+                if crypto_choice in crypto_symbols:
+                    if crypto_symbols[crypto_choice][0] == "CUSTOM":
+                        custom_symbol = input("Enter custom crypto symbol (e.g., ADA/USD): ").strip().upper()
+                        if "/" not in custom_symbol:
+                            custom_symbol += "/USD"
+                        return custom_symbol, 0.1  # Default quantity for custom crypto
+                    else:
+                        symbol = crypto_symbols[crypto_choice][0]
+                        # Set appropriate quantities based on crypto type
+                        if "BTC" in symbol:
+                            quantity = 0.01
+                        elif "ETH" in symbol:
+                            quantity = 0.1
+                        else:
+                            quantity = 1.0
+                        return symbol, quantity
+                print(f"❌ Invalid choice. Please enter 1-{len(crypto_symbols)}.")
+
+        elif asset_choice == "2":  # Stocks
+            print("\n📈 Available Stocks:")
+            print("===================")
+            for key, (symbol, name) in stock_symbols.items():
+                if symbol == "CUSTOM":
+                    print(f"{key}. {name}")
+                else:
+                    print(f"{key}. {symbol} - {name}")
+
+            while True:
+                stock_choice = input(f"\nSelect stock (1-{len(stock_symbols)}): ").strip()
+                if stock_choice in stock_symbols:
+                    if stock_symbols[stock_choice][0] == "CUSTOM":
+                        custom_symbol = input("Enter custom stock symbol (e.g., AMZN): ").strip().upper()
+                        return custom_symbol, 1  # Default quantity for custom stock
+                    else:
+                        symbol = stock_symbols[stock_choice][0]
+                        # Set appropriate quantities based on stock price ranges
+                        if symbol in ["SPY", "QQQ"]:
+                            quantity = 2  # ETFs - buy a few shares
+                        elif symbol in ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NFLX"]:
+                            quantity = 1  # High-priced stocks - buy 1 share
+                        elif symbol == "TSLA":
+                            quantity = 1  # Tesla - buy 1 share
+                        elif symbol == "NVDA":
+                            quantity = 1  # NVIDIA - buy 1 share
+                        else:
+                            quantity = 1  # Default for other stocks
+                        return symbol, quantity
+                print(f"❌ Invalid choice. Please enter 1-{len(stock_symbols)}.")
+
+        print("❌ Invalid choice. Please enter 1 or 2.")
+
+
+def select_trading_mode():
+    """Let user select trading mode"""
+    print("\n🔄 Trading Mode Selection:")
+    print("==========================")
+    print("1. Buy & Close Only (Long-only trading)")
+    print("   - Buy signals → Buy positions")
+    print("   - Sell signals → Close positions")
+    print("   - No short selling")
+    print()
+    print("2. Buy & Short Trading (Long/Short trading)")
+    print("   - Buy signals → Buy positions (or close short)")
+    print("   - Sell signals → Short positions (or close long)")
+    print("   - Requires margin account with short selling enabled")
+    print()
+
+    while True:
+        choice = input("Select trading mode (1-2): ").strip()
+        if choice == "1":
+            return "long_only"
+        elif choice == "2":
+            return "long_short"
+        print("❌ Invalid choice. Please enter 1 or 2.")
+
+
+def select_broker_type():
+    """Let user select broker type"""
+    print("\n🏦 Broker Type Selection:")
+    print("========================")
+    print("1. Alpaca Paper Trading")
+    print("   - Uses Alpaca's paper trading account")
+    print("   - Connects to real Alpaca API")
+    print("   - Real order execution in paper environment")
+    print()
+    print("2. Simulated Broker")
+    print("   - Uses live Alpaca market data")
+    print("   - Local account management")
+    print("   - Instant order fills (no slippage)")
+    print("   - Perfect for strategy testing")
+    print()
+
+    while True:
+        choice = input("Select broker type (1-2): ").strip()
+        if choice == "1":
+            return False  # use_simulated_broker = False
+        elif choice == "2":
+            return True   # use_simulated_broker = True
+        print("❌ Invalid choice. Please enter 1 or 2.")
+
+
 def main():
     """Main function to run live trading system"""
-    print("🚀 BTC/USD Live Trading System")
+    print("🚀 BAT Live Trading System")
     print("=" * 40)
 
     # Get API credentials
     api_key, secret_key = get_alpaca_credentials()
 
+    # Select symbol and quantity
+    symbol, quantity = select_symbol()
+
     # Select strategy
     strategy = select_strategy()
 
+    # Select trading mode
+    trading_mode = select_trading_mode()
+
+    # Select broker type
+    use_simulated_broker = select_broker_type()
+
     # Configuration
-    symbol = "BTC/USD"
-    paper_trading = True  # Always use paper trading for safety
+    paper_trading = True  # Always use paper trading for safety when using Alpaca
     initial_balance = 10000
-    quantity = 0.01  # Trade 0.01 BTC
+
+    # Determine asset type and unit for display
+    if "/" in symbol:
+        # Crypto
+        asset_unit = symbol.split("/")[0]
+        asset_type = "Cryptocurrency"
+    else:
+        # Stock
+        asset_unit = "shares"
+        asset_type = "Stock"
 
     print(f"\n⚙️  Configuration:")
+    print(f"Asset Type: {asset_type}")
     print(f"Symbol: {symbol}")
     print(f"Strategy: {strategy.name}")
-    print(f"Paper Trading: {paper_trading}")
+    print(f"Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+    print(f"Broker Type: {'SimulatedBroker' if use_simulated_broker else 'Alpaca Paper Trading'}")
     print(f"Initial Balance: ${initial_balance:,.2f}")
-    print(f"Position Size: {quantity} BTC")
+    if "/" in symbol:
+        print(f"Position Size: {quantity} {asset_unit}")
+    else:
+        print(f"Position Size: {quantity} {asset_unit}")
 
     if api_key:
         print(f"API Status: ✅ Connected to Alpaca")
@@ -105,8 +278,10 @@ def main():
             secret_key=secret_key,
             symbol=symbol,
             paper_trading=paper_trading,
-            initial_balance=initial_balance,
-            quantity=quantity
+            quantity=quantity,
+            trading_mode=trading_mode,
+            use_simulated_broker=use_simulated_broker,
+            initial_balance=initial_balance
         )
 
         print("\n🎯 Starting live trading...")
@@ -135,6 +310,10 @@ def main():
             print(f"Final Balance: ${performance['current_balance']:.2f}")
             print(f"Total Return: ${performance['total_return']:.2f}")
             print(f"Percent Return: {performance['percent_return']:.2f}%")
+
+            # Show detailed account summary for SimulatedBroker
+            if use_simulated_broker and hasattr(live_chart.broker, 'print_account_summary'):
+                live_chart.broker.print_account_summary()
 
             if len(trade_history) > 0:
                 print(f"\n📈 Trade History:")
