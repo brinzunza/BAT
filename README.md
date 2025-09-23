@@ -1,18 +1,64 @@
 # BAT - Bruninvestor Algorithmic Trading
 
-BAT is an algorithmic trading project that implements two distinct trading strategies using Python:
+<div align="center">
+  <img src="david.jpg" alt="BAT Trading System" width="400"/>
+</div>
 
-1. **Mean Reversion Strategy**
-2. **Moving Averages Strategy**
+BAT is a comprehensive algorithmic trading system that supports both **stocks and cryptocurrencies** with multiple trading strategies and execution modes.
 
-This project demonstrates the application of quantitative analysis and algorithmic decision-making in financial markets.
+## 🚀 Key Features
 
-## Features
+- **Unified Trading Platform** - Trade both stocks and crypto from one interface
+- **Multiple Strategies** - Bollinger Bands, RSI, MACD, Moving Averages
+- **Dual Trading Modes** - Backtesting and Live Trading
+- **Real-time Charts** - Interactive candlestick charts with indicators
+- **Multiple Brokers** - Alpaca Paper Trading and Simulated Broker
+- **Comprehensive Analysis** - Detailed performance metrics and visualizations
 
-- Data collection via Polygon API
-- Comprehensive data processing and analysis
-- Strategy implementation and backtesting
-- Performance analysis and visualization
+## 📊 Supported Assets
+
+### Cryptocurrencies
+- BTC/USD, ETH/USD, DOGE/USD, LTC/USD
+- BCH/USD, AVAX/USD, LINK/USD, UNI/USD
+- Custom crypto pairs supported
+
+### Stocks
+- Major stocks: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX
+- ETFs: SPY, QQQ
+- Custom stock symbols supported
+
+## 🎯 Quick Start
+
+### Main Application (Recommended)
+```bash
+python3 main.py
+```
+Choose between backtesting and live trading with full symbol selection.
+
+### Individual Scripts
+```bash
+# Backtesting only
+python3 run_backtest.py
+
+# Live trading only
+python3 run_live_trading.py
+```
+
+## 📈 Trading Modes
+
+### 1. Backtesting Mode
+- Test strategies on historical data
+- Multiple time periods (7 days to 1 year)
+- Risk-free strategy validation
+- Interactive performance charts
+- Detailed trade analysis
+
+### 2. Live Trading Mode
+- Real-time trading execution
+- Live candlestick charts
+- Automated signal processing
+- Real-time P&L tracking
+- Multiple broker options
 
 ## Strategies
 
