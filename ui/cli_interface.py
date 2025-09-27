@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import pandas as pd
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
@@ -43,7 +44,7 @@ class TradingCLI:
         """Display application banner"""
         print("=" * 60)
         print("         BAT - Backtesting & Automated Trading")
-        print("           📈 Stocks & Cryptocurrency Trading 📈")
+        print("            Stocks & Cryptocurrency Trading ")
         print("=" * 60)
         print()
     
@@ -111,7 +112,7 @@ class TradingCLI:
         secret_key = input("Alpaca Secret Key: ").strip()
 
         if not api_key or not secret_key:
-            print("❌ API credentials are required for live trading")
+            print(" API credentials are required for live trading")
             return False
 
         # Ask about paper trading
@@ -127,17 +128,17 @@ class TradingCLI:
             account_info = self.alpaca_broker.get_account()
             if account_info:
                 trading_mode = "Paper Trading" if paper_trading else "Live Trading"
-                print(f"✅ Connected to Alpaca ({trading_mode})")
+                print(f" Connected to Alpaca ({trading_mode})")
                 print(f"Account Status: {account_info.get('status', 'Unknown')}")
                 if 'buying_power' in account_info:
                     print(f"Buying Power: ${float(account_info['buying_power']):.2f}")
                 return True
             else:
-                print("❌ Failed to connect to Alpaca account")
+                print(" Failed to connect to Alpaca account")
                 return False
 
         except Exception as e:
-            print(f"❌ Error connecting to Alpaca: {e}")
+            print(f" Error connecting to Alpaca: {e}")
             return False
 
     def select_strategy(self):
@@ -192,7 +193,7 @@ class TradingCLI:
 
     def select_trading_mode(self):
         """Let user select trading mode"""
-        print("\n🔄 Trading Mode Selection:")
+        print("\nTrading Mode Selection:")
         print("==========================")
         print("1. Buy & Close Only (Long-only trading)")
         print("   - Buy signals → Buy positions")
@@ -211,11 +212,11 @@ class TradingCLI:
                 return "long_only"
             elif choice == "2":
                 return "long_short"
-            print("❌ Invalid choice. Please enter 1 or 2.")
+            print(" Invalid choice. Please enter 1 or 2.")
 
     def select_asset_type(self):
         """Let user select between crypto and stocks for backtesting (Polygon only)"""
-        print("\n📊 Asset Type Selection (Backtesting):")
+        print("\n Asset Type Selection (Backtesting):")
         print("======================================")
         print("1. Cryptocurrency (Polygon API)")
         print("2. Stocks (Polygon API)")
@@ -225,7 +226,7 @@ class TradingCLI:
             choice = input("Select asset type (1-2): ").strip()
             if choice in ['1', '2']:
                 return choice
-            print("❌ Invalid choice. Please enter 1 or 2.")
+            print(" Invalid choice. Please enter 1 or 2.")
 
     def configure_data_parameters(self):
         """Configure data parameters with support for both crypto and stocks"""
@@ -241,7 +242,7 @@ class TradingCLI:
             ticker = input("Enter crypto ticker (default X:BTCUSD): ").strip() or "X:BTCUSD"
             print("Common crypto tickers: X:BTCUSD, X:ETHUSD, X:DOGEUSD, X:LTCUSD")
         else:  # asset_choice == '2' - Stocks (Polygon)
-            print("\n📈 Stock Configuration (Polygon):")
+            print("\n Stock Configuration (Polygon):")
             ticker = input("Enter stock ticker (default AAPL): ").strip() or "AAPL"
             print("Common stock tickers: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX, SPY, QQQ")
 
@@ -288,10 +289,16 @@ class TradingCLI:
 
         # Get initial balance
         initial_balance = float(input("Enter initial balance (default 10000): ") or "10000")
+
+        # Get position sizing percentage
+        position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 100): ") or "100")
+        if position_percentage < 1 or position_percentage > 100:
+            print("Invalid percentage. Using 100% of account.")
+            position_percentage = 100
         
-        print(f"\n📊 Running backtest for {strategy.name}...")
-        print(f"📈 Ticker: {data_params['ticker']}")
-        print(f"🔄 Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+        print(f"\n Running backtest for {strategy.name}...")
+        print(f" Ticker: {data_params['ticker']}")
+        print(f"Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
         print(f"⏰ Timespan: {data_params['timespan']}")
         print(f"📅 From: {data_params['from_date']} To: {data_params['to_date']}")
 
@@ -304,21 +311,21 @@ class TradingCLI:
 
             # Backtesting only uses Polygon API now
             if not self.data_provider:
-                print("❌ Polygon data provider not configured. Please configure it first.")
+                print(" Polygon data provider not configured. Please configure it first.")
                 return
             df = self.data_provider.get_data(**data_params)
 
             print(f"✓ Retrieved {len(df)} data points")
 
             if df.empty:
-                print(f"❌ No data available for {data_params['ticker']} in the specified period.")
+                print(f" No data available for {data_params['ticker']} in the specified period.")
                 print("Please try a different ticker or time period.")
                 return
 
             # Run backtest
             print("Running backtest...")
             # Pass the ticker symbol to the engine for proper formatting
-            engine = BacktestEngine(initial_balance, trading_mode, data_params['ticker'])
+            engine = BacktestEngine(initial_balance, trading_mode, data_params['ticker'], position_percentage)
             results = engine.backtest(df, strategy)
             
             # Display results
@@ -332,8 +339,8 @@ class TradingCLI:
                 # Ask if user wants to see detailed results or plot
                 show_details = input("\nShow detailed trade results? (y/n): ").strip().lower() == 'y'
                 if show_details:
-                    print("\nDetailed Results:")
-                    print(results.to_string(index=False))
+                    print("\nDetailed Trade Overview:")
+                    self._print_detailed_trade_results(results)
 
                     # Create CSV export
                     self._export_trade_results_to_csv(results, strategy)
@@ -355,13 +362,13 @@ class TradingCLI:
     def run_live_trading(self):
         """Run live trading workflow with real-time charting"""
         print("\n" + "=" * 50)
-        print("      🚀 LIVE TRADING WITH REAL-TIME CHARTS")
+        print("       LIVE TRADING WITH REAL-TIME CHARTS")
         print("=" * 50)
 
         # Setup Alpaca credentials if not already configured
         if not self.alpaca_data_provider or not self.alpaca_broker:
             print("🔑 Alpaca credentials required for live trading.")
-            print("📊 Live trading uses Alpaca for both data and execution.")
+            print(" Live trading uses Alpaca for both data and execution.")
             if not self.setup_alpaca_credentials():
                 return
 
@@ -374,11 +381,11 @@ class TradingCLI:
         trading_mode = self.select_trading_mode()
 
         # Configure trading parameters
-        print("\n📊 Live Trading Configuration:")
+        print("\n Live Trading Configuration:")
         print("-" * 30)
 
         # Select asset type for live trading
-        print("📊 Asset Selection for Live Trading:")
+        print(" Asset Selection for Live Trading:")
         print("===================================")
         print("1. Cryptocurrency - BTC/USD")
         print("2. Cryptocurrency - ETH/USD")
@@ -417,16 +424,32 @@ class TradingCLI:
                     asset_type = "stock"
 
                 break
-            print("❌ Invalid choice. Please enter 1-9.")
+            print(" Invalid choice. Please enter 1-9.")
 
         print(f"Selected: {symbol}")
 
-        # Configure quantity based on asset type
-        if asset_type == "crypto":
-            unit = symbol.split("/")[0] if "/" in symbol else "units"
-            quantity = float(input(f"Enter {unit} position size (default {default_quantity}): ") or str(default_quantity))
-        else:  # stock
-            quantity = int(input(f"Enter number of shares (default {default_quantity}): ") or str(default_quantity))
+        # Configure position sizing method
+        print("\nPosition Sizing Options:")
+        print("1. Fixed quantity (shares/units)")
+        print("2. Percentage of account")
+
+        sizing_choice = input("Select position sizing method (1-2, default 2): ").strip() or "2"
+
+        if sizing_choice == "1":
+            # Fixed quantity method
+            if asset_type == "crypto":
+                unit = symbol.split("/")[0] if "/" in symbol else "units"
+                quantity = float(input(f"Enter {unit} position size (default {default_quantity}): ") or str(default_quantity))
+            else:  # stock
+                quantity = int(input(f"Enter number of shares (default {default_quantity}): ") or str(default_quantity))
+            position_percentage = None
+        else:
+            # Percentage method
+            position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 20): ") or "20")
+            if position_percentage < 1 or position_percentage > 100:
+                print("Invalid percentage. Using 20% of account.")
+                position_percentage = 20
+            quantity = None  # Will be calculated dynamically
 
         # Update interval
         update_interval = int(input("Chart update interval in seconds (default 60): ") or "60")
@@ -446,19 +469,22 @@ class TradingCLI:
             elif broker_choice == "2":
                 use_simulated_broker = True
                 break
-            print("❌ Invalid choice. Please enter 1 or 2.")
+            print(" Invalid choice. Please enter 1 or 2.")
 
-        print(f"\n⚙️  Configuration Summary:")
+        print(f"\n  Configuration Summary:")
         print(f"   Asset Type: {'Cryptocurrency' if asset_type == 'crypto' else 'Stock'}")
         print(f"   Strategy: {strategy.name}")
         print(f"   Symbol: {symbol}")
         print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
 
-        if asset_type == "crypto":
-            unit = symbol.split("/")[0] if "/" in symbol else "units"
-            print(f"   Position Size: {quantity} {unit}")
+        if position_percentage is not None:
+            print(f"   Position Size: {position_percentage}% of account per trade")
         else:
-            print(f"   Position Size: {quantity} shares")
+            if asset_type == "crypto":
+                unit = symbol.split("/")[0] if "/" in symbol else "units"
+                print(f"   Position Size: {quantity} {unit}")
+            else:
+                print(f"   Position Size: {quantity} shares")
 
         print(f"   Update Interval: {update_interval} seconds")
         print(f"   Broker Type: {'SimulatedBroker' if use_simulated_broker else 'Alpaca Paper Trading'}")
@@ -468,13 +494,13 @@ class TradingCLI:
         else:
             print(f"   Account Balance: Will be retrieved from Alpaca")
 
-        print(f"\n📈 Features:")
-        print(f"   ✅ Real-time candlestick chart")
-        print(f"   ✅ Strategy indicators overlay")
-        print(f"   ✅ Buy/sell signals on chart")
-        print(f"   ✅ Live P&L tracking")
-        print(f"   ✅ Automated trade execution")
-        print(f"   ✅ Console trade logging")
+        print(f"\n Features:")
+        print(f"    Real-time candlestick chart")
+        print(f"    Strategy indicators overlay")
+        print(f"    Buy/sell signals on chart")
+        print(f"    Live P&L tracking")
+        print(f"    Automated trade execution")
+        print(f"    Console trade logging")
 
         confirm = input(f"\nStart live trading? (y/n): ").strip().lower()
         if confirm != 'y':
@@ -492,21 +518,22 @@ class TradingCLI:
                 quantity=quantity,
                 trading_mode=trading_mode,
                 use_simulated_broker=use_simulated_broker,
-                initial_balance=10000
+                initial_balance=10000,
+                position_percentage=position_percentage
             )
 
-            print(f"\n🎯 Starting live trading with charts...")
-            print(f"📊 Chart will open in a new window")
-            print(f"🔄 Data updates every {update_interval} seconds")
-            print(f"💡 All trades will be logged to console")
-            print(f"⏹️  Press Ctrl+C to stop")
+            print(f"\nStarting live trading with charts...")
+            print(f"Chart will open in a new window")
+            print(f"Data updates every {update_interval} seconds")
+            print(f"All trades will be logged to console")
+            print(f"  Press Ctrl+C to stop")
             print(f"\n{'='*50}")
 
             # Start live trading with charts
             animation = live_chart.start_live_trading(update_interval * 1000)  # Convert to milliseconds
 
         except KeyboardInterrupt:
-            print(f"\n\n⏹️  Live trading stopped by user")
+            print(f"\n\n  Live trading stopped by user")
 
             # Show final performance
             if 'live_chart' in locals():
@@ -527,14 +554,65 @@ class TradingCLI:
                 print(f"Current Position: {performance['current_position']}")
 
                 if len(trade_history) > 0:
-                    print(f"\n📈 Recent Trades:")
-                    print(trade_history.tail().to_string(index=False))
+                    print(f"\n Recent Trades:")
+                    # Show last 5 trades with detailed format
+                    recent_trades = trade_history.tail()
+                    self._print_detailed_trade_results(recent_trades)
                 else:
-                    print(f"\n📊 No trades executed during this session")
+                    print(f"\n No trades executed during this session")
 
         except Exception as e:
-            print(f"\n❌ Live trading error: {e}")
+            print(f"\n Live trading error: {e}")
             print(f"Please check your Alpaca credentials and internet connection.")
+
+    def _print_detailed_trade_results(self, results):
+        """Print detailed trade overview with enhanced formatting"""
+        if len(results) == 0:
+            print("No trades executed.")
+            return
+
+        print("=" * 170)
+        print(f"{'#':<3} {'Time':<19} {'Price':<10} {'Position':<8} {'Action':<12} {'Shares':<12} {'Cost/Proceeds':<15} {'Last Trade P&L':<15} {'Cash Balance':<15} {'Total Worth*':<15} {'Total Profit*':<15} {'Result':<8}")
+        print("=" * 170)
+        print("=" * 170)
+
+        for i, (idx, trade) in enumerate(results.iterrows(), 1):
+            # Format values
+            time_str = trade['Time'].strftime('%Y-%m-%d %H:%M:%S') if hasattr(trade['Time'], 'strftime') else str(trade['Time'])
+            price = f"${trade['Price']:.4f}"
+            position = "LONG" if trade['Position'] == 1 else ("SHORT" if trade['Position'] == -1 else "FLAT")
+            action = trade['Action']
+            shares = f"{trade['Shares']:.6f}" if 'Shares' in trade else "N/A"
+
+            # Cost/Proceeds
+            if 'Cost' in trade and pd.notna(trade['Cost']):
+                cost_proceeds = f"${trade['Cost']:.2f}"
+            elif 'Proceeds' in trade and pd.notna(trade['Proceeds']):
+                cost_proceeds = f"${trade['Proceeds']:.2f}"
+            else:
+                cost_proceeds = "N/A"
+
+            # Last trade realized P&L
+            last_trade_pnl = f"${trade['Last_Trade_Realized']:.2f}" if 'Last_Trade_Realized' in trade and pd.notna(trade['Last_Trade_Realized']) else "N/A"
+
+            # Cash balance
+            cash_balance = f"${trade['Balance']:.2f}" if 'Balance' in trade else "N/A"
+
+            # Total account worth
+            total_worth = f"${trade['Total_Account_Worth']:.2f}" if 'Total_Account_Worth' in trade else "N/A"
+
+            # Total profit
+            total_profit = f"${trade['Total_Profit']:.2f}" if 'Total_Profit' in trade else "N/A"
+
+            # Trade result
+            trade_result = trade.get('Trade_Result', trade.get('Result', 'N/A'))
+
+            print(f"{i:<3} {time_str:<19} {price:<10} {position:<8} {action:<12} {shares:<12} {cost_proceeds:<15} {last_trade_pnl:<15} {cash_balance:<15} {total_worth:<15} {total_profit:<15} {trade_result:<8}")
+
+        print("=" * 170)
+        print(f"Total Trades: {len(results)}")
+        print("\nNote: This display shows account worth based on realized gains/losses only.")
+        print("Open positions do not affect the total worth until they are closed.")
 
     def _export_trade_results_to_csv(self, results, strategy):
         """Export detailed trade results to CSV file in a temporary folder"""
@@ -551,14 +629,14 @@ class TradingCLI:
             # Export to CSV
             results.to_csv(filepath, index=False)
 
-            print(f"\n📊 Trade results exported to CSV:")
+            print(f"\n Trade results exported to CSV:")
             print(f"   File: {filename}")
             print(f"   Location: {temp_dir}")
             print(f"   Full path: {filepath}")
             print(f"   Records: {len(results)} trades")
 
         except Exception as e:
-            print(f"❌ Error exporting to CSV: {e}")
+            print(f" Error exporting to CSV: {e}")
 
     def main_menu(self):
         """Main application menu"""

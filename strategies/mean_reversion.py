@@ -41,4 +41,4 @@ class MeanReversionStrategy(BaseStrategy):
     
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
-        return ['SMA', 'STD', 'Upper Band', 'Lower Band']
+        return ['SMA', 'Upper Band', 'Lower Band']

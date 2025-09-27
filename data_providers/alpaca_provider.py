@@ -232,7 +232,7 @@ class AlpacaDataProvider(BaseDataProvider):
             url = f"https://data.alpaca.markets/v2/stocks/bars?symbols={symbol}&timeframe=1Min&start={start_str}&end={end_str}&limit={limit}&adjustment=raw&feed=sip&sort=desc"
             symbol_key = ticker
 
-        print(f"🔍 Fetching {ticker} data from: {start_str} to {end_str}")
+        print(f" Fetching {ticker} data from: {start_str} to {end_str}")
 
         try:
             if is_crypto:
@@ -247,14 +247,14 @@ class AlpacaDataProvider(BaseDataProvider):
 
             if is_crypto:
                 if 'bars' in data:
-                    print(f"📊 Available symbols: {list(data['bars'].keys())}")
+                    print(f" Available symbols: {list(data['bars'].keys())}")
 
                 if 'bars' in data and symbol_key in data['bars']:
                     bars_data = data['bars'][symbol_key]
-                    print(f"✅ Found {len(bars_data)} bars for {symbol_key}")
+                    print(f" Found {len(bars_data)} bars for {symbol_key}")
 
                     if not bars_data:
-                        print(f"⚠️ No bars data returned for {symbol_key}")
+                        print(f"Warning: No bars data returned for {symbol_key}")
                         return pd.DataFrame()
 
                     # Convert to DataFrame
@@ -269,7 +269,7 @@ class AlpacaDataProvider(BaseDataProvider):
                             'Volume': float(bar['v'])
                         })
                 else:
-                    print(f"❌ No bars data found for {symbol_key} in response")
+                    print(f" No bars data found for {symbol_key} in response")
                     if 'bars' in data:
                         print(f"Available symbols in response: {list(data['bars'].keys())}")
                     else:
@@ -278,14 +278,14 @@ class AlpacaDataProvider(BaseDataProvider):
             else:
                 # Stock data format - similar to crypto, symbol is in bars dict
                 if 'bars' in data:
-                    print(f"📊 Available symbols: {list(data['bars'].keys())}")
+                    print(f" Available symbols: {list(data['bars'].keys())}")
 
                 if 'bars' in data and symbol_key in data['bars']:
                     bars_data = data['bars'][symbol_key]
-                    print(f"✅ Found {len(bars_data)} bars for {symbol_key}")
+                    print(f" Found {len(bars_data)} bars for {symbol_key}")
 
                     if not bars_data:
-                        print(f"⚠️ No bars data returned for {symbol_key}")
+                        print(f"Warning: No bars data returned for {symbol_key}")
                         return pd.DataFrame()
 
                     # Convert to DataFrame
@@ -300,7 +300,7 @@ class AlpacaDataProvider(BaseDataProvider):
                             'Volume': float(bar['v'])
                         })
                 else:
-                    print(f"❌ No bars data found for {symbol_key} in response")
+                    print(f" No bars data found for {symbol_key} in response")
                     if 'bars' in data:
                         print(f"Available symbols in response: {list(data['bars'].keys())}")
                     else:
@@ -310,20 +310,20 @@ class AlpacaDataProvider(BaseDataProvider):
             df = pd.DataFrame(df_data)
 
             if df.empty:
-                print(f"⚠️ DataFrame is empty after conversion")
+                print(f"Warning: DataFrame is empty after conversion")
                 return df
 
             # Sort by timestamp (desc gives us newest first, so reverse to get chronological order)
             df = df.sort_values('timestamp').reset_index(drop=True)
 
-            print(f"📊 Successfully fetched {len(df)} recent bars")
+            print(f" Successfully fetched {len(df)} recent bars")
             print(f"📅 Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-            print(f"💰 Latest price: ${df['Close'].iloc[-1]:,.2f}")
+            print(f" Latest price: ${df['Close'].iloc[-1]:,.2f}")
 
             return df
 
         except Exception as e:
-            print(f"❌ Error fetching recent bars for {ticker}: {e}")
+            print(f" Error fetching recent bars for {ticker}: {e}")
             import traceback
             traceback.print_exc()
             return pd.DataFrame()
@@ -407,15 +407,15 @@ class AlpacaBroker:
         """Test if API credentials are working"""
         print(f"🔐 Testing Alpaca authentication...")
         print(f"📡 Base URL: {self.base_url}")
-        print(f"🔑 API Key: {self.api_key[:8]}..." if self.api_key else "❌ No API Key")
-        print(f"🔑 Secret Key: {'✅ Present' if self.secret_key else '❌ Missing'}")
+        print(f" API Key: {self.api_key[:8]}..." if self.api_key else " No API Key")
+        print(f" Secret Key: {' Present' if self.secret_key else ' Missing'}")
 
         account = self.get_account()
         if account:
-            print(f"✅ Authentication successful!")
-            print(f"📊 Account ID: {account.get('id', 'Unknown')}")
-            print(f"💰 Buying Power: ${float(account.get('buying_power', 0)):,.2f}")
-            print(f"📈 Account Status: {account.get('status', 'Unknown')}")
+            print(f" Authentication successful!")
+            print(f" Account ID: {account.get('id', 'Unknown')}")
+            print(f" Buying Power: ${float(account.get('buying_power', 0)):,.2f}")
+            print(f" Account Status: {account.get('status', 'Unknown')}")
 
             # Check if crypto trading is enabled
             if 'crypto_status' in account:
@@ -432,16 +432,16 @@ class AlpacaBroker:
 
             # Check pattern day trader status
             if 'pattern_day_trader' in account:
-                print(f"📊 PDT Status: {account['pattern_day_trader']}")
+                print(f" PDT Status: {account['pattern_day_trader']}")
 
             return True
         else:
-            print(f"❌ Authentication failed!")
+            print(f" Authentication failed!")
             return False
 
     def check_crypto_permissions(self):
         """Check if crypto trading is enabled for this account"""
-        print(f"🔍 Checking crypto trading permissions...")
+        print(f" Checking crypto trading permissions...")
 
         # Try to get crypto positions (this will fail if crypto is not enabled)
         try:
@@ -450,7 +450,7 @@ class AlpacaBroker:
             response.raise_for_status()
             positions = response.json()
 
-            print(f"✅ Can access positions endpoint")
+            print(f" Can access positions endpoint")
 
             # Check if any crypto positions exist
             crypto_positions = [p for p in positions if p.get('symbol', '').endswith('USD') and p.get('symbol', '') in ['BTCUSD', 'ETHUSD']]
@@ -462,7 +462,7 @@ class AlpacaBroker:
             return True
 
         except Exception as e:
-            print(f"❌ Error checking crypto permissions: {e}")
+            print(f" Error checking crypto permissions: {e}")
             return False
 
     def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
@@ -473,7 +473,7 @@ class AlpacaBroker:
         if '/' in symbol:
             symbol = symbol.replace('/', '')
 
-        print(f"🔄 Placing buy order: {quantity} {original_symbol} using alpaca_trade_api")
+        print(f"Placing buy order: {quantity} {original_symbol} using alpaca_trade_api")
 
         try:
             # Use the official alpaca_trade_api library
@@ -488,13 +488,13 @@ class AlpacaBroker:
             # Add limit price for limit orders
             if order_type == "limit" and limit_price is not None:
                 order_params['limit_price'] = limit_price
-                print(f"💰 Limit price set to: ${limit_price:.2f}")
+                print(f" Limit price set to: ${limit_price:.2f}")
 
             order = self.trade_api.submit_order(**order_params)
 
-            print(f"✅ Buy order placed successfully!")
+            print(f" Buy order placed successfully!")
             print(f"📋 Order ID: {order.id}")
-            print(f"📊 Status: {order.status}")
+            print(f" Status: {order.status}")
 
             # Convert order object to dict for consistency
             result = {
@@ -510,7 +510,7 @@ class AlpacaBroker:
             return result
 
         except Exception as e:
-            print(f"❌ Error placing buy order: {e}")
+            print(f" Error placing buy order: {e}")
             print(f"📋 Error type: {type(e)}")
 
             # Try to get more detailed error information
@@ -528,7 +528,7 @@ class AlpacaBroker:
         if '/' in symbol:
             symbol = symbol.replace('/', '')
 
-        print(f"🔄 Placing sell order: {quantity} {original_symbol} using alpaca_trade_api")
+        print(f"Placing sell order: {quantity} {original_symbol} using alpaca_trade_api")
 
         try:
             # Use the official alpaca_trade_api library
@@ -543,13 +543,13 @@ class AlpacaBroker:
             # Add limit price for limit orders
             if order_type == "limit" and limit_price is not None:
                 order_params['limit_price'] = limit_price
-                print(f"💰 Limit price set to: ${limit_price:.2f}")
+                print(f" Limit price set to: ${limit_price:.2f}")
 
             order = self.trade_api.submit_order(**order_params)
 
-            print(f"✅ Sell order placed successfully!")
+            print(f" Sell order placed successfully!")
             print(f"📋 Order ID: {order.id}")
-            print(f"📊 Status: {order.status}")
+            print(f" Status: {order.status}")
 
             # Convert order object to dict for consistency
             result = {
@@ -565,7 +565,7 @@ class AlpacaBroker:
             return result
 
         except Exception as e:
-            print(f"❌ Error placing sell order: {e}")
+            print(f" Error placing sell order: {e}")
             print(f"📋 Error type: {type(e)}")
 
             # Try to get more detailed error information
@@ -794,7 +794,7 @@ class SimulatedBroker:
                 quote_data = self.data_provider.get_latest_quote(original_symbol)
                 return quote_data.get('close', 0)
         except Exception as e:
-            print(f"⚠️ Error getting current price for {symbol}: {e}")
+            print(f"Warning: Error getting current price for {symbol}: {e}")
             return 0
 
     def _generate_order_id(self) -> str:
@@ -874,8 +874,8 @@ class SimulatedBroker:
         # Execute the trade
         self._execute_buy(storage_symbol, quantity, execution_price, order_id)
 
-        print(f"✅ SIMULATED BUY EXECUTED - {quantity} {original_symbol} @ ${execution_price:.2f}")
-        print(f"💰 Cash Balance: ${self.cash_balance:.2f}")
+        print(f" SIMULATED BUY EXECUTED - {quantity} {original_symbol} @ ${execution_price:.2f}")
+        print(f" Cash Balance: ${self.cash_balance:.2f}")
 
         return {
             'id': order_id,
@@ -971,8 +971,8 @@ class SimulatedBroker:
         # Execute the trade
         self._execute_sell(storage_symbol, quantity, execution_price, order_id)
 
-        print(f"✅ SIMULATED SELL EXECUTED - {quantity} {original_symbol} @ ${execution_price:.2f}")
-        print(f"💰 Cash Balance: ${self.cash_balance:.2f}")
+        print(f" SIMULATED SELL EXECUTED - {quantity} {original_symbol} @ ${execution_price:.2f}")
+        print(f" Cash Balance: ${self.cash_balance:.2f}")
 
         return {
             'id': order_id,
@@ -1064,7 +1064,7 @@ class SimulatedBroker:
 
         # Remove from pending orders
         del self.orders[order_id]
-        print(f"✅ SIMULATED ORDER CANCELED - {order['side'].upper()} {order['qty']} {order['symbol']}")
+        print(f" SIMULATED ORDER CANCELED - {order['side'].upper()} {order['qty']} {order['symbol']}")
 
         return {'status': 'canceled', 'order_id': order_id}
 
@@ -1084,7 +1084,7 @@ class SimulatedBroker:
                     should_fill = True
 
                 if should_fill:
-                    print(f"🎯 LIMIT ORDER TRIGGERED - {order['side'].upper()} {order['qty']} {symbol} @ ${order['limit_price']:.2f}")
+                    print(f"LIMIT ORDER TRIGGERED - {order['side'].upper()} {order['qty']} {symbol} @ ${order['limit_price']:.2f}")
 
                     # Execute the order
                     if order['side'] == 'buy':
@@ -1169,13 +1169,13 @@ class SimulatedBroker:
         """Print a summary of the simulated account"""
         account = self.get_account()
         print(f"\n{'='*50}")
-        print(f"📊 SIMULATED ACCOUNT SUMMARY")
+        print(f" SIMULATED ACCOUNT SUMMARY")
         print(f"{'='*50}")
-        print(f"💰 Cash Balance: ${float(account['cash']):,.2f}")
-        print(f"📈 Portfolio Value: ${float(account['portfolio_value']):,.2f}")
+        print(f" Cash Balance: ${float(account['cash']):,.2f}")
+        print(f" Portfolio Value: ${float(account['portfolio_value']):,.2f}")
         print(f"💵 Equity: ${float(account['equity']):,.2f}")
         print(f"💲 Total P&L: ${float(account['equity']) - self.initial_balance:,.2f}")
-        print(f"📊 Return: {((float(account['equity']) / self.initial_balance) - 1) * 100:.2f}%")
+        print(f" Return: {((float(account['equity']) / self.initial_balance) - 1) * 100:.2f}%")
 
         if self.positions:
             print(f"\n📋 POSITIONS:")

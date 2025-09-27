@@ -10,10 +10,11 @@ from plotly.subplots import make_subplots
 class BacktestEngine:
     """Backtesting engine for trading strategies supporting stocks and crypto"""
 
-    def __init__(self, initial_balance: float = 10000, trading_mode: str = "long_only", symbol: str = ""):
+    def __init__(self, initial_balance: float = 10000, trading_mode: str = "long_only", symbol: str = "", position_percentage: float = 100.0):
         self.initial_balance = initial_balance
         self.trading_mode = trading_mode
         self.symbol = symbol
+        self.position_percentage = position_percentage / 100.0  # Convert to decimal
         self.is_crypto = '/' in symbol  # Determine if it's crypto based on symbol format
         self.reset()
     
@@ -24,6 +25,32 @@ class BacktestEngine:
         self.realized_gains = 0
         self.trades = []
         self.balance_history = []
+        self.current_balance = self.initial_balance
+        self.shares_held = 0  # Track actual shares/units held
+
+    def _calculate_account_worth_realized_only(self):
+        """Calculate total account worth based on REALIZED gains/losses only"""
+        # Total worth = initial balance + all realized gains/losses
+        return self.initial_balance + self.realized_gains
+
+    def _calculate_account_worth(self, current_price=None):
+        """Calculate total account worth including open positions (for final analysis only)"""
+        if self.position == 0:
+            # No open positions
+            return self.current_balance
+        elif self.position == 1:
+            # Long position: cash + position value
+            if current_price is None:
+                current_price = self.entry_price  # Fallback
+            return self.current_balance + (self.shares_held * current_price)
+        elif self.position == -1:
+            # Short position: cash - liability (current value of borrowed shares)
+            if current_price is None:
+                current_price = self.entry_price  # Fallback
+            liability_value = self.shares_held * current_price
+            return self.current_balance - liability_value
+        else:
+            return self.current_balance
     
     def backtest(self, df: pd.DataFrame, strategy: BaseStrategy) -> pd.DataFrame:
         """
@@ -63,102 +90,247 @@ class BacktestEngine:
         return pd.DataFrame(self.trades)
 
     def _process_long_only_signals(self, current_row, buy_signal, sell_signal, i):
-        """Process signals for long-only trading mode"""
+        """Process signals for long-only trading mode with percentage-based position sizing"""
         trade_data = {}
 
-        # Buy signal - only buy if no position exists
-        if buy_signal and self.position == 0:
-            trade_data['Time'] = current_row['timestamp']
-            trade_data['Price'] = current_row['Close']
-            trade_data['Position'] = 1
-            trade_data['Index'] = i
-            trade_data['Action'] = 'BUY'
-            trade_data['Realized'] = 0
-            trade_data['Balance'] = self.initial_balance + self.realized_gains
+        # Buy signal - only buy if no position exists and account has funds
+        if buy_signal and self.position == 0 and self.current_balance > 0:
+            # Calculate position size based on percentage of current balance
+            trade_amount = self.current_balance * self.position_percentage
+            price = current_row['Close']
 
-            self.trades.append(trade_data)
-            self.balance_history.append(trade_data['Balance'])
+            # Ensure we have enough funds for the trade
+            if trade_amount > self.current_balance:
+                trade_amount = self.current_balance
 
-            self.position = 1
-            self.entry_price = current_row['Close']
+            # Calculate shares/units to buy
+            shares_to_buy = trade_amount / price
+            actual_cost = shares_to_buy * price
+
+            # Check if we have enough for at least minimal trade
+            if actual_cost > 0 and self.current_balance >= actual_cost:
+                # Update account balance first
+                self.current_balance -= actual_cost
+
+                # For open positions, use realized-only calculation
+                total_account_worth = self._calculate_account_worth_realized_only()
+                total_profit = total_account_worth - self.initial_balance
+
+                trade_data['Time'] = current_row['timestamp']
+                trade_data['Price'] = price
+                trade_data['Position'] = 1
+                trade_data['Index'] = i
+                trade_data['Action'] = 'BUY'
+                trade_data['Shares'] = shares_to_buy
+                trade_data['Cost'] = actual_cost
+                trade_data['Last_Trade_Realized'] = 0
+                trade_data['Balance'] = self.current_balance
+                trade_data['Total_Account_Worth'] = total_account_worth
+                trade_data['Total_Profit'] = total_profit
+                trade_data['Trade_Result'] = 'OPEN'
+
+                self.trades.append(trade_data)
+                self.balance_history.append(trade_data['Balance'])
+
+                self.position = 1
+                self.entry_price = price
+                self.shares_held = shares_to_buy
 
         # Sell signal - close position if it exists
         elif sell_signal and self.position == 1:
+            price = current_row['Close']
+            proceeds = self.shares_held * price
+
             trade_data['Time'] = current_row['timestamp']
-            trade_data['Price'] = current_row['Close']
+            trade_data['Price'] = price
             trade_data['Position'] = 0
             trade_data['Index'] = i
             trade_data['Action'] = 'CLOSE'
+            trade_data['Shares'] = self.shares_held
+            trade_data['Proceeds'] = proceeds
 
             # Calculate profit from closing long position
-            profit = current_row['Close'] - self.entry_price
-            trade_data['Profit'] = profit
+            cost_basis = self.shares_held * self.entry_price
+            profit = proceeds - cost_basis
+
+            # Update account balance
+            self.current_balance += proceeds
+
+            # Update realized gains for closed position
             self.realized_gains += profit
-            trade_data['Realized'] = self.realized_gains
+
+            # Calculate total account worth with new realized gains
+            total_account_worth = self._calculate_account_worth_realized_only()
+            total_profit = total_account_worth - self.initial_balance
+
+            trade_data['Profit'] = profit
+            trade_data['Last_Trade_Realized'] = profit
             trade_data['Result'] = "Win" if profit > 0 else "Loss"
-            trade_data['Balance'] = self.initial_balance + self.realized_gains
+            trade_data['Balance'] = self.current_balance
+            trade_data['Total_Account_Worth'] = total_account_worth
+            trade_data['Total_Profit'] = total_profit
+            trade_data['Trade_Result'] = "Win" if profit > 0 else "Loss"
 
             self.trades.append(trade_data)
             self.balance_history.append(trade_data['Balance'])
 
             self.position = 0
             self.entry_price = 0
+            self.shares_held = 0
 
     def _process_long_short_signals(self, current_row, buy_signal, sell_signal, i):
-        """Process signals for long/short trading mode"""
+        """Process signals for long/short trading mode with percentage-based position sizing"""
         trade_data = {}
+        price = current_row['Close']
 
         # Buy signal
-        if buy_signal and self.position != 1:
-            trade_data['Time'] = current_row['timestamp']
-            trade_data['Price'] = current_row['Close']
-            trade_data['Position'] = 1
-            trade_data['Index'] = i
-
+        if buy_signal and self.position != 1 and self.current_balance > 0:
             # Close short position if exists
             if self.position == -1:
-                profit = self.entry_price - current_row['Close']
-                trade_data['Profit'] = profit
+                # Close short: buy back shares at current price to return them
+                cost_to_close = self.shares_held * price  # Cost to buy back shares
+                profit = self.shares_held * (self.entry_price - price)  # Short profit calculation
+
+                # Pay to buy back the shares (this removes the liability)
+                self.current_balance -= cost_to_close
+
+                # Update realized gains for closed position
                 self.realized_gains += profit
-                trade_data['Realized'] = self.realized_gains
+
+                # Calculate total account worth with new realized gains
+                total_account_worth = self._calculate_account_worth_realized_only()
+                total_profit = total_account_worth - self.initial_balance
+
+                trade_data['Time'] = current_row['timestamp']
+                trade_data['Price'] = price
+                trade_data['Position'] = 0  # Flat first
+                trade_data['Index'] = i
+                trade_data['Action'] = 'CLOSE_SHORT'
+                trade_data['Shares'] = self.shares_held
+                trade_data['Profit'] = profit
+                trade_data['Last_Trade_Realized'] = profit
                 trade_data['Result'] = "Win" if profit > 0 else "Loss"
-                trade_data['Action'] = 'CLOSE_SHORT_BUY_LONG'
-            else:
-                trade_data['Realized'] = 0
-                trade_data['Action'] = 'BUY'
+                trade_data['Balance'] = self.current_balance
+                trade_data['Total_Account_Worth'] = total_account_worth
+                trade_data['Total_Profit'] = total_profit
+                trade_data['Trade_Result'] = "Win" if profit > 0 else "Loss"
 
-            trade_data['Balance'] = self.initial_balance + self.realized_gains
-            self.trades.append(trade_data)
-            self.balance_history.append(trade_data['Balance'])
+                self.trades.append(trade_data.copy())
+                self.balance_history.append(trade_data['Balance'])
 
-            self.position = 1
-            self.entry_price = current_row['Close']
+                self.position = 0
+                self.shares_held = 0
+
+            # Now open long position if we have funds
+            if self.current_balance > 0:
+                trade_amount = self.current_balance * self.position_percentage
+                if trade_amount > self.current_balance:
+                    trade_amount = self.current_balance
+
+                shares_to_buy = trade_amount / price
+                actual_cost = shares_to_buy * price
+
+                if actual_cost > 0 and self.current_balance >= actual_cost:
+                    self.current_balance -= actual_cost
+
+                    # For open positions, use realized-only calculation
+                    total_account_worth = self._calculate_account_worth_realized_only()
+                    total_profit = total_account_worth - self.initial_balance
+
+                    trade_data = {}  # Reset for new trade
+                    trade_data['Time'] = current_row['timestamp']
+                    trade_data['Price'] = price
+                    trade_data['Position'] = 1
+                    trade_data['Index'] = i
+                    trade_data['Action'] = 'BUY'
+                    trade_data['Shares'] = shares_to_buy
+                    trade_data['Cost'] = actual_cost
+                    trade_data['Last_Trade_Realized'] = 0
+                    trade_data['Balance'] = self.current_balance
+                    trade_data['Total_Account_Worth'] = total_account_worth
+                    trade_data['Total_Profit'] = total_profit
+                    trade_data['Trade_Result'] = 'OPEN'
+
+                    self.trades.append(trade_data)
+                    self.balance_history.append(trade_data['Balance'])
+
+                    self.position = 1
+                    self.entry_price = price
+                    self.shares_held = shares_to_buy
 
         # Sell signal
         elif sell_signal and self.position != -1:
-            trade_data['Time'] = current_row['timestamp']
-            trade_data['Price'] = current_row['Close']
-            trade_data['Position'] = -1
-            trade_data['Index'] = i
-
             # Close long position if exists
             if self.position == 1:
-                profit = current_row['Close'] - self.entry_price
-                trade_data['Profit'] = profit
+                proceeds = self.shares_held * price
+                cost_basis = self.shares_held * self.entry_price
+                profit = proceeds - cost_basis
+
+                self.current_balance += proceeds
+
+                # Update realized gains for closed position
                 self.realized_gains += profit
-                trade_data['Realized'] = self.realized_gains
+
+                # Calculate total account worth with new realized gains
+                total_account_worth = self._calculate_account_worth_realized_only()
+                total_profit = total_account_worth - self.initial_balance
+
+                trade_data['Time'] = current_row['timestamp']
+                trade_data['Price'] = price
+                trade_data['Position'] = 0  # Flat first
+                trade_data['Index'] = i
+                trade_data['Action'] = 'CLOSE_LONG'
+                trade_data['Shares'] = self.shares_held
+                trade_data['Proceeds'] = proceeds
+                trade_data['Profit'] = profit
+                trade_data['Last_Trade_Realized'] = profit
                 trade_data['Result'] = "Win" if profit > 0 else "Loss"
-                trade_data['Action'] = 'CLOSE_LONG_SELL_SHORT'
-            else:
-                trade_data['Realized'] = 0
-                trade_data['Action'] = 'SELL_SHORT'
+                trade_data['Balance'] = self.current_balance
+                trade_data['Total_Account_Worth'] = total_account_worth
+                trade_data['Total_Profit'] = total_profit
+                trade_data['Trade_Result'] = "Win" if profit > 0 else "Loss"
 
-            trade_data['Balance'] = self.initial_balance + self.realized_gains
-            self.trades.append(trade_data)
-            self.balance_history.append(trade_data['Balance'])
+                self.trades.append(trade_data.copy())
+                self.balance_history.append(trade_data['Balance'])
 
-            self.position = -1
-            self.entry_price = current_row['Close']
+                self.position = 0
+                self.shares_held = 0
+
+            # Now open short position if we have funds for margin
+            if self.current_balance > 0:
+                trade_amount = self.current_balance * self.position_percentage
+                shares_to_short = trade_amount / price
+
+                if shares_to_short > 0:
+                    # For short selling: receive cash but create liability
+                    proceeds_from_short = shares_to_short * price
+                    self.current_balance += proceeds_from_short  # Add cash from sale
+
+                    # Set position details BEFORE calculating account worth
+                    self.position = -1
+                    self.entry_price = price
+                    self.shares_held = shares_to_short
+
+                    # For open positions, use realized-only calculation
+                    total_account_worth = self._calculate_account_worth_realized_only()
+                    total_profit = total_account_worth - self.initial_balance
+
+                    trade_data = {}  # Reset for new trade
+                    trade_data['Time'] = current_row['timestamp']
+                    trade_data['Price'] = price
+                    trade_data['Position'] = -1
+                    trade_data['Index'] = i
+                    trade_data['Action'] = 'SELL_SHORT'
+                    trade_data['Shares'] = shares_to_short
+                    trade_data['Proceeds'] = proceeds_from_short
+                    trade_data['Last_Trade_Realized'] = 0
+                    trade_data['Balance'] = self.current_balance
+                    trade_data['Total_Account_Worth'] = total_account_worth
+                    trade_data['Total_Profit'] = total_profit
+                    trade_data['Trade_Result'] = 'OPEN'
+
+                    self.trades.append(trade_data)
+                    self.balance_history.append(trade_data['Balance'])
     
     def analyze_results(self, trade_df: pd.DataFrame) -> Dict[str, Any]:
         """Analyze backtest results - only count completed trades with profit/loss"""
@@ -196,7 +368,20 @@ class BacktestEngine:
 
         wins = completed_trades[completed_trades['Result'] == "Win"]
         winrate = len(wins) / num_trades * 100
-        final_balance = float(trade_df['Balance'].iloc[-1])
+
+        # Calculate final balance including any open positions
+        final_balance = self.current_balance
+        if self.position != 0 and self.shares_held > 0:
+            # Add value of current position (using last price from dataframe)
+            last_price = self.df_with_signals.iloc[-1]['Close'] if hasattr(self, 'df_with_signals') else 0
+            if self.position == 1:  # Long position
+                final_balance += self.shares_held * last_price
+            elif self.position == -1:  # Short position
+                # For short positions: we have cash but owe shares
+                # Net worth = cash - current liability (current value of borrowed shares)
+                liability_value = self.shares_held * last_price
+                final_balance = self.current_balance - liability_value
+
         net_returns = final_balance - self.initial_balance
         percent_return = (final_balance - self.initial_balance) / self.initial_balance * 100
         avg_profit_per_trade = net_returns / num_trades if num_trades > 0 else 0
@@ -220,7 +405,7 @@ class BacktestEngine:
         """Print analysis results with appropriate formatting"""
         analysis = self.analyze_results(trade_df)
 
-        print(f"📊 Strategy Performance Analysis")
+        print(f" Strategy Performance Analysis")
         print("=" * 35)
         print(f"Win Rate: {analysis['winrate']:.1f}%")
 
@@ -248,27 +433,83 @@ class BacktestEngine:
 
         # Performance rating
         if analysis['percent_return'] > 20:
-            print("🎉 Excellent performance!")
+            print("Excellent performance!")
         elif analysis['percent_return'] > 10:
-            print("✅ Good performance!")
+            print("Good performance!")
         elif analysis['percent_return'] > 0:
-            print("👍 Positive returns!")
+            print("Positive returns!")
         else:
-            print("📉 Strategy needs improvement.")
+            print("Strategy needs improvement.")
     
     def plot_results(self, trade_df: pd.DataFrame):
-        """Plot balance over time"""
+        """Plot total worth vs trades placed"""
         if len(trade_df) == 0:
             print("No trades to plot")
             return
 
-        plt.figure(figsize=(12, 6))
-        plt.plot(trade_df['Time'], trade_df['Balance'], marker='o', linestyle='-')
-        plt.title("Balance vs Time")
-        plt.xlabel("Time")
-        plt.ylabel("Balance ($)")
-        plt.grid(True)
-        plt.xticks(rotation=45)
+        # Create trade numbers (x-axis)
+        trade_numbers = list(range(1, len(trade_df) + 1))
+
+        plt.figure(figsize=(12, 8))
+
+        # Main plot - Total Worth vs Trades
+        plt.subplot(2, 1, 1)
+        plt.plot(trade_numbers, trade_df['Total_Account_Worth'],
+                marker='o', linestyle='-', linewidth=2, markersize=6, color='blue')
+
+        # Add horizontal line for initial balance
+        plt.axhline(y=self.initial_balance, color='red', linestyle='--', alpha=0.7,
+                   label=f'Initial Balance: ${self.initial_balance:,.0f}')
+
+        # Color code markers based on trade result
+        for i, (idx, trade) in enumerate(trade_df.iterrows()):
+            if trade.get('Trade_Result') == 'Win':
+                plt.scatter(i+1, trade['Total_Account_Worth'], color='green', s=100, zorder=5)
+            elif trade.get('Trade_Result') == 'Loss':
+                plt.scatter(i+1, trade['Total_Account_Worth'], color='red', s=100, zorder=5)
+            else:  # OPEN positions
+                plt.scatter(i+1, trade['Total_Account_Worth'], color='gray', s=60, zorder=5)
+
+        plt.title(f"Account Worth vs Trades Placed - {self.strategy.name if hasattr(self, 'strategy') else 'Strategy'}")
+        plt.xlabel("Trade Number")
+        plt.ylabel("Total Account Worth ($)")
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+
+        # Format y-axis as currency
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+        # Profit/Loss bar chart
+        plt.subplot(2, 1, 2)
+
+        # Extract profits/losses for completed trades only
+        profits = []
+        trade_nums = []
+        colors = []
+
+        for i, (idx, trade) in enumerate(trade_df.iterrows()):
+            if 'Last_Trade_Realized' in trade and trade['Last_Trade_Realized'] != 0:
+                profits.append(trade['Last_Trade_Realized'])
+                trade_nums.append(i+1)
+                colors.append('green' if trade['Last_Trade_Realized'] > 0 else 'red')
+
+        if profits:
+            plt.bar(trade_nums, profits, color=colors, alpha=0.7)
+            plt.title("Individual Trade P&L (Realized Only)")
+            plt.xlabel("Trade Number")
+            plt.ylabel("Profit/Loss ($)")
+            plt.grid(True, alpha=0.3)
+            plt.axhline(y=0, color='black', linestyle='-', alpha=0.5)
+
+            # Format y-axis as currency
+            ax2 = plt.gca()
+            ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+        else:
+            plt.text(0.5, 0.5, 'No completed trades to show P&L',
+                    transform=plt.gca().transAxes, ha='center', va='center')
+            plt.title("Individual Trade P&L (Realized Only)")
+
         plt.tight_layout()
         plt.show()
 
