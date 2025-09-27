@@ -26,7 +26,8 @@ class LiveTradingChart:
                  quantity: float = 0.01,
                  trading_mode: str = "long_only",
                  use_simulated_broker: bool = False,
-                 initial_balance: float = 10000):
+                 initial_balance: float = 10000,
+                 position_percentage: float = None):
 
         self.strategy = strategy
         self.symbol = symbol
@@ -34,13 +35,14 @@ class LiveTradingChart:
         self.paper_trading = paper_trading
         self.trading_mode = trading_mode
         self.use_simulated_broker = use_simulated_broker
+        self.position_percentage = position_percentage
 
         # Initialize data provider and broker
         self.data_provider = AlpacaDataProvider(api_key, secret_key)
 
         if use_simulated_broker:
             self.broker = SimulatedBroker(api_key, secret_key, initial_balance) if api_key else None
-            print(f"🎮 Using SimulatedBroker with ${initial_balance:,.2f} initial balance")
+            print(f"Using SimulatedBroker with ${initial_balance:,.2f} initial balance")
         else:
             self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
 
@@ -48,18 +50,19 @@ class LiveTradingChart:
         if self.broker:
             account_info = self.broker.get_account_api() if hasattr(self.broker, 'get_account_api') else self.broker.get_account()
             initial_balance = float(account_info.get('equity', 10000))
-            print(f"💰 Account Equity: ${initial_balance:,.2f}")
-            print(f"💰 Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
+            print(f"Account Equity: ${initial_balance:,.2f}")
+            print(f"Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
         else:
             initial_balance = 10000
-            print(f"💰 Simulation Balance: ${initial_balance:,.2f}")
+            print(f"Simulation Balance: ${initial_balance:,.2f}")
 
         # Initialize trading engine
         self.trading_engine = LiveTradingEngine(
             data_provider=self.data_provider,
             broker_interface=self.broker,
             initial_balance=initial_balance,
-            trading_mode=trading_mode
+            trading_mode=trading_mode,
+            position_percentage=position_percentage or 100.0
         )
 
         # Chart setup
@@ -125,7 +128,7 @@ class LiveTradingChart:
         try:
             # Initial data loading phase
             if self.data_history.empty:
-                print(f"🚀 Initializing {self.symbol} data...")
+                print(f"Initializing {self.symbol} data...")
 
                 # Use the public endpoint to get recent bars immediately
                 initial_df = self.data_provider.get_recent_bars_public(self.symbol, limit=self.min_data_points + 10)
@@ -137,9 +140,9 @@ class LiveTradingChart:
                     # Mark as ready since we have enough data
                     if len(self.data_history) >= self.min_data_points:
                         self.data_ready = True
-                        print(f"✅ Ready for live trading with {len(self.data_history)} bars")
+                        print(f"Ready for live trading with {len(self.data_history)} bars")
                 else:
-                    print(f"❌ Failed to get initial data")
+                    print(f"Failed to get initial data")
                     return None
 
             # Live data update phase (after initial load)
@@ -166,7 +169,7 @@ class LiveTradingChart:
 
                     if latest_ts > last_historical_ts:
                         # Display OHLCV data
-                        print(f"\n📊 NEW DATA - {self.symbol} at {latest_bar['timestamp'].strftime('%H:%M:%S')}")
+                        print(f"\nNEW DATA - {self.symbol} at {latest_bar['timestamp'].strftime('%H:%M:%S')}")
                         print(f"    O: ${latest_bar['Open']:.2f} | H: ${latest_bar['High']:.2f} | L: ${latest_bar['Low']:.2f} | C: ${latest_bar['Close']:.2f} | V: {latest_bar['Volume']:.0f}")
 
                         # Check for active position and display unrealized PnL
@@ -192,13 +195,13 @@ class LiveTradingChart:
                     # Process trading signals
                     self._process_trading_signals()
                 except Exception as e:
-                    print(f"⚠️ Error generating signals: {e}")
+                    print(f"Warning: Error generating signals: {e}")
                     # Continue with existing data
 
             return self.data_history
 
         except Exception as e:
-            print(f"❌ Error in fetch_and_process_data: {e}")
+            print(f"Error in fetch_and_process_data: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -228,16 +231,18 @@ class LiveTradingChart:
 
             # Execute trades through trading engine (only show signals when they trigger)
             if buy_signal or sell_signal:
+                # Use percentage-based position sizing if configured, otherwise use fixed quantity
+                quantity_to_use = None if self.position_percentage is not None else self.quantity
                 self.trading_engine.process_signals(
                     self.data_history,
                     self.strategy,
                     self.symbol,
-                    self.quantity
+                    quantity_to_use
                 )
                 self.last_trade_time = current_time
 
         except Exception as e:
-            print(f"❌ Error processing trading signals: {e}")
+            print(f"Error processing trading signals: {e}")
 
     def _display_position_update(self, current_price: float):
         """Display position and unrealized PnL update with new price data"""
@@ -256,8 +261,8 @@ class LiveTradingChart:
                     account_balance = float(account_info.get('equity', 0))
                     session_pnl = account_balance - self.trading_engine.initial_balance
 
-                    print(f"    📈 POSITION: {current_qty} {self.symbol} @ ${avg_entry_price:.2f} | Current: ${current_price:.2f}")
-                    print(f"    💰 Market Value: ${market_value:.2f} | Unrealized P&L: ${unrealized_pnl:.2f} | Session P&L: ${session_pnl:.2f}")
+                    print(f"    POSITION: {current_qty} {self.symbol} @ ${avg_entry_price:.2f} | Current: ${current_price:.2f}")
+                    print(f"    Market Value: ${market_value:.2f} | Unrealized P&L: ${unrealized_pnl:.2f} | Session P&L: ${session_pnl:.2f}")
 
         except Exception as e:
             # Silently continue if position check fails
@@ -426,13 +431,6 @@ class LiveTradingChart:
             self.main_ax.plot(x_axis, df['Lower Band'], label='Lower Band (-2σ)', color='green', alpha=0.6, linestyle='--')
             self.main_ax.fill_between(x_axis, df['Upper Band'], df['Lower Band'], alpha=0.1, color='gray', label='±2σ Range')
 
-        # Draw standard deviation in indicator panel
-        if 'STD' in df.columns:
-            self.indicator_ax.plot(x_axis, df['STD'], label='Standard Deviation', color='orange', linewidth=2)
-            self.indicator_ax.set_ylabel('Standard Deviation')
-            # Add reference lines for volatility levels
-            std_mean = df['STD'].mean()
-            self.indicator_ax.axhline(y=std_mean, color='orange', linestyle=':', alpha=0.5, label=f'Avg STD ({std_mean:.2f})')
 
     def _draw_rsi_indicators(self, df: pd.DataFrame, x_axis):
         """Draw RSI strategy indicators"""
@@ -683,13 +681,13 @@ class LiveTradingChart:
                 self.draw_candlesticks()
 
         except Exception as e:
-            print(f"❌ Animation error: {e}")
+            print(f"Animation error: {e}")
 
         return []
 
     def start_live_trading(self, update_interval: int = 60000):
         """Start live trading with chart updates"""
-        print(f"\n🚀 Starting live trading for {self.symbol}")
+        print(f"\nStarting live trading for {self.symbol}")
         print(f"Strategy: {self.strategy.name}")
         print(f"Update interval: {update_interval/1000} seconds")
         print(f"Paper trading: {self.paper_trading}")
@@ -715,7 +713,7 @@ class LiveTradingChart:
     def stop_trading(self):
         """Stop live trading"""
         self.trading_engine.stop()
-        print("🛑 Live trading stopped")
+        print("Live trading stopped")
 
     def get_trade_history(self):
         """Get trading history"""

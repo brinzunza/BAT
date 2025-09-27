@@ -14,11 +14,13 @@ class LiveTradingEngine:
                  data_provider: BaseDataProvider,
                  broker_interface: Optional[object] = None,
                  initial_balance: float = 10000,
-                 trading_mode: str = "long_only"):
+                 trading_mode: str = "long_only",
+                 position_percentage: float = 100.0):
         self.data_provider = data_provider
         self.broker_interface = broker_interface
         self.initial_balance = initial_balance
         self.trading_mode = trading_mode
+        self.position_percentage = position_percentage / 100.0  # Convert to decimal
         self.reset()
         
         # Setup logging
@@ -143,9 +145,9 @@ class LiveTradingEngine:
             print(f"\n⏰ CANCELING EXPIRED ORDER - {order_info.get('side', 'unknown').upper()} order for {symbol} (expired after {timeout_minutes} minute(s))")
             result = self.cancel_order(order_id)
             if result.get('status') != 'failed':
-                print(f"✅ ORDER CANCELED - Order ID: {order_id}")
+                print(f" ORDER CANCELED - Order ID: {order_id}")
             else:
-                print(f"❌ CANCEL FAILED - {result.get('error', 'Unknown error')}")
+                print(f" CANCEL FAILED - {result.get('error', 'Unknown error')}")
 
         return len(expired_orders)
 
@@ -227,11 +229,19 @@ class LiveTradingEngine:
             # Get account info for buying power check
             account_info = self.get_alpaca_account()
             buying_power = float(account_info.get('buying_power', 0))
+            account_balance = float(account_info.get('equity', 0))
+
+            # Prevent trading if account balance is zero or negative
+            if account_balance <= 0:
+                return False
 
             # For buy orders, check buying power
             if action == 'BUY':
                 trade_value = quantity * current_price
                 if trade_value > buying_power:
+                    return False
+                # Additional check: ensure trade value doesn't exceed account equity
+                if trade_value > account_balance:
                     return False
 
             # For close position, just check that position exists (handled in main logic)
@@ -244,7 +254,7 @@ class LiveTradingEngine:
                        df: pd.DataFrame,
                        strategy: BaseStrategy,
                        symbol: str,
-                       quantity: float = 1):
+                       quantity: float = None):
         """Process trading signals from strategy"""
         if len(df) == 0:
             return
@@ -261,11 +271,29 @@ class LiveTradingEngine:
         current_price = latest_row['Close']
         timestamp = latest_row['timestamp']
 
+        # Calculate quantity based on position percentage if not provided
+        if quantity is None:
+            account_info = self.get_alpaca_account()
+            account_balance = float(account_info.get('equity', self.initial_balance))
+
+            # Prevent trading if account balance is zero or negative
+            if account_balance <= 0:
+                return
+
+            trade_amount = account_balance * self.position_percentage
+            quantity = trade_amount / current_price
+
+            # Ensure minimum quantity for the asset type
+            if '/' in symbol:  # Crypto
+                quantity = max(0.001, quantity)  # Minimum crypto quantity
+            else:  # Stock
+                quantity = max(1, int(quantity))  # Minimum 1 share for stocks
+
         # Check for pending limit order fills (for SimulatedBroker)
         if hasattr(self.broker_interface, 'check_pending_orders'):
             filled_orders = self.broker_interface.check_pending_orders()
             if filled_orders > 0:
-                print(f"🎯 {filled_orders} limit order(s) filled")
+                print(f"{filled_orders} limit order(s) filled")
 
         # Check for expired orders and cancel them (for long-only mode: 1 minute timeout)
         if self.trading_mode == "long_only":
@@ -277,17 +305,17 @@ class LiveTradingEngine:
 
         # Debug output for signal detection
         if buy_signal or sell_signal:
-            print(f"\n🔍 SIGNAL DETECTED:")
-            print(f"    📈 Buy Signal: {buy_signal}")
-            print(f"    📉 Sell Signal: {sell_signal}")
-            print(f"    📊 Current Position: {current_qty} {symbol}")
-            print(f"    💰 Current Price: ${current_price:.2f}")
+            print(f"\n SIGNAL DETECTED:")
+            print(f"     Buy Signal: {buy_signal}")
+            print(f"     Sell Signal: {sell_signal}")
+            print(f"     Current Position: {current_qty} {symbol}")
+            print(f"     Current Price: ${current_price:.2f}")
 
         # Validate signals before acting
         signals_valid = self._validate_signals(df_with_signals, strategy)
         if not signals_valid:
             if buy_signal or sell_signal:
-                print(f"    ❌ SIGNAL VALIDATION FAILED - Signal rejected")
+                print(f"     SIGNAL VALIDATION FAILED - Signal rejected")
             return
 
         # Process signals based on trading mode
@@ -312,11 +340,11 @@ class LiveTradingEngine:
 
         # Debug output if position changed without engine action (manual closure)
         if previous_position != self.position and not (buy_signal or sell_signal):
-            print(f"\n🔄 POSITION SYNC - Position changed externally")
-            print(f"    📊 Previous: {previous_position} → Current: {self.position}")
-            print(f"    💰 Alpaca Qty: {current_qty}")
+            print(f"\nPOSITION SYNC - Position changed externally")
+            print(f"     Previous: {previous_position} → Current: {self.position}")
+            print(f"     Alpaca Qty: {current_qty}")
             if self.position == 0 and previous_position != 0:
-                print(f"    ✂️ Position was manually closed - ready for new signals")
+                print(f"     Position was manually closed - ready for new signals")
 
     def _process_long_only_signals(self, buy_signal, sell_signal, current_qty, alpaca_position,
                                  symbol, quantity, current_price, timestamp):
@@ -330,7 +358,7 @@ class LiveTradingEngine:
         # Process buy signal - only buy if no position exists
         if buy_signal and current_qty == 0:
             print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at ${current_price:.2f}")
-            print(f"    💰 Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+            print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
             # Final trade confirmation (silent)
             if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
@@ -342,8 +370,8 @@ class LiveTradingEngine:
                     updated_balance = float(updated_account.get('equity', account_balance))
                     updated_session_pnl = updated_balance - self.initial_balance
 
-                    print(f"✅ BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
-                    print(f"    💰 Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                    print(f" BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                    print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
 
                     self.trades.append({
                         'timestamp': timestamp,
@@ -353,20 +381,20 @@ class LiveTradingEngine:
                         'order_details': result
                     })
                 else:
-                    print(f"❌ BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
+                    print(f" BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
             else:
-                print(f"❌ BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
+                print(f" BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
 
         # Debug output when buy signal is ignored due to existing position
         elif buy_signal and current_qty != 0:
             print(f"\n🔵 BUY SIGNAL IGNORED - Already have position: {current_qty} {symbol}")
-            print(f"    💰 Current Position Value: ${float(alpaca_position.get('market_value', 0)):.2f}")
-            print(f"    📈 Unrealized P&L: ${unrealized_pnl:.2f}")
+            print(f"     Current Position Value: ${float(alpaca_position.get('market_value', 0)):.2f}")
+            print(f"     Unrealized P&L: ${unrealized_pnl:.2f}")
 
         # Process sell signal - close position if it exists
         elif sell_signal and current_qty > 0:
             print(f"\n🔴 SELL SIGNAL - Attempting to close position for {symbol} at ${current_price:.2f}")
-            print(f"    💰 Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+            print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
             # Close the existing long position
             result = self.close_position(symbol)
@@ -376,8 +404,8 @@ class LiveTradingEngine:
                 updated_balance = float(updated_account.get('equity', account_balance))
                 updated_session_pnl = updated_balance - self.initial_balance
 
-                print(f"✅ POSITION CLOSED - {current_qty} {symbol} at market price")
-                print(f"    💰 Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                print(f" POSITION CLOSED - {current_qty} {symbol} at market price")
+                print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
 
                 self.trades.append({
                     'timestamp': timestamp,
@@ -387,7 +415,7 @@ class LiveTradingEngine:
                     'order_details': result
                 })
             else:
-                print(f"❌ CLOSE POSITION FAILED - {result.get('error', 'Unknown error')}")
+                print(f" CLOSE POSITION FAILED - {result.get('error', 'Unknown error')}")
 
     def _process_long_short_signals(self, buy_signal, sell_signal, current_qty, alpaca_position,
                                   symbol, quantity, current_price, timestamp):
@@ -408,11 +436,11 @@ class LiveTradingEngine:
         if buy_signal:
             if current_qty < 0:  # Currently short, close short position first
                 print(f"\n🔵 BUY SIGNAL - Closing short position for {symbol} at ${current_price:.2f}")
-                print(f"    💰 Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+                print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 result = self.close_position(symbol)
                 if result.get('status') != 'failed':
-                    print(f"✅ SHORT POSITION CLOSED - {abs(current_qty)} {symbol}")
+                    print(f" SHORT POSITION CLOSED - {abs(current_qty)} {symbol}")
                     self.trades.append({
                         'timestamp': timestamp,
                         'action': 'close_short',
@@ -423,7 +451,7 @@ class LiveTradingEngine:
 
             elif current_qty == 0:  # No position, open long
                 print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at ${current_price:.2f} (LIMIT ORDER)")
-                print(f"    💰 Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+                print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
                     result = self.execute_buy_order(symbol, quantity, order_type="limit", limit_price=current_price)
@@ -432,8 +460,8 @@ class LiveTradingEngine:
                         updated_balance = float(updated_account.get('equity', account_balance))
                         updated_session_pnl = updated_balance - self.initial_balance
 
-                        print(f"✅ BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
-                        print(f"    💰 Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                        print(f" BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                        print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
 
                         self.trades.append({
                             'timestamp': timestamp,
@@ -443,19 +471,19 @@ class LiveTradingEngine:
                             'order_details': result
                         })
                     else:
-                        print(f"❌ BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
+                        print(f" BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
                 else:
-                    print(f"❌ BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
+                    print(f" BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
 
         # Process sell signal
         elif sell_signal:
             if current_qty > 0:  # Currently long, close long position first
                 print(f"\n🔴 SELL SIGNAL - Closing long position for {symbol} at ${current_price:.2f}")
-                print(f"    💰 Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+                print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 result = self.close_position(symbol)
                 if result.get('status') != 'failed':
-                    print(f"✅ LONG POSITION CLOSED - {current_qty} {symbol}")
+                    print(f" LONG POSITION CLOSED - {current_qty} {symbol}")
                     self.trades.append({
                         'timestamp': timestamp,
                         'action': 'close_long',
@@ -466,7 +494,7 @@ class LiveTradingEngine:
 
             elif current_qty == 0:  # No position, open short
                 print(f"\n🔴 SELL SIGNAL - Attempting to short {quantity} {symbol} at ${current_price:.2f} (LIMIT ORDER)")
-                print(f"    💰 Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+                print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 if self._confirm_trade_execution('SELL', symbol, quantity, current_price, alpaca_position):
                     result = self.execute_sell_order(symbol, quantity, order_type="limit", limit_price=current_price)
@@ -475,8 +503,8 @@ class LiveTradingEngine:
                         updated_balance = float(updated_account.get('equity', account_balance))
                         updated_session_pnl = updated_balance - self.initial_balance
 
-                        print(f"✅ SHORT ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
-                        print(f"    💰 Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                        print(f" SHORT ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                        print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
 
                         self.trades.append({
                             'timestamp': timestamp,
@@ -486,9 +514,9 @@ class LiveTradingEngine:
                             'order_details': result
                         })
                     else:
-                        print(f"❌ SHORT ORDER FAILED - {result.get('error', 'Unknown error')}")
+                        print(f" SHORT ORDER FAILED - {result.get('error', 'Unknown error')}")
                 else:
-                    print(f"❌ SELL SIGNAL REJECTED - Invalid conditions")
+                    print(f" SELL SIGNAL REJECTED - Invalid conditions")
 
     def run_strategy(self, 
                     strategy: BaseStrategy,
@@ -547,8 +575,74 @@ class LiveTradingEngine:
         self.logger.info("Live trading engine stopped")
     
     def get_trade_history(self) -> pd.DataFrame:
-        """Get trade history as DataFrame"""
-        return pd.DataFrame(self.trades)
+        """Get trade history as DataFrame with enhanced formatting"""
+        if not self.trades:
+            return pd.DataFrame()
+
+        # Convert trades to enhanced format
+        enhanced_trades = []
+
+        for i, trade in enumerate(self.trades):
+            # Get account info for this trade
+            account_info = self.get_alpaca_account()
+            current_balance = float(account_info.get('equity', self.initial_balance))
+
+            # Map action to consistent format
+            action_map = {
+                'buy_long': 'BUY',
+                'sell_short': 'SELL_SHORT',
+                'close_position': 'CLOSE',
+                'close_long': 'CLOSE_LONG',
+                'close_short': 'CLOSE_SHORT'
+            }
+
+            # Determine position from action
+            position_map = {
+                'buy_long': 1,
+                'sell_short': -1,
+                'close_position': 0,
+                'close_long': 0,
+                'close_short': 0
+            }
+
+            # Calculate total account worth and profit
+            total_account_worth = current_balance
+            total_profit = current_balance - self.initial_balance
+
+            # Determine if this is a closing trade and calculate realized P&L
+            last_trade_realized = 0
+            trade_result = "OPEN"
+
+            if trade['action'] in ['close_position', 'close_long', 'close_short']:
+                # For closing trades, try to calculate profit from the previous opening trade
+                if i > 0:
+                    prev_trade = self.trades[i-1]
+                    if prev_trade['action'] in ['buy_long', 'sell_short']:
+                        if prev_trade['action'] == 'buy_long':
+                            last_trade_realized = (trade['price'] - prev_trade['price']) * trade['quantity']
+                        else:  # sell_short
+                            last_trade_realized = (prev_trade['price'] - trade['price']) * trade['quantity']
+                        trade_result = "Win" if last_trade_realized > 0 else "Loss"
+
+            enhanced_trade = {
+                'Time': trade['timestamp'],
+                'Price': trade['price'],
+                'Position': position_map.get(trade['action'], 0),
+                'Index': i,
+                'Action': action_map.get(trade['action'], trade['action'].upper()),
+                'Shares': trade['quantity'],
+                'Cost': trade['quantity'] * trade['price'] if trade['action'] in ['buy_long'] else None,
+                'Proceeds': trade['quantity'] * trade['price'] if trade['action'] in ['sell_short', 'close_position', 'close_long'] else None,
+                'Last_Trade_Realized': last_trade_realized,
+                'Balance': current_balance,
+                'Total_Account_Worth': total_account_worth,
+                'Total_Profit': total_profit,
+                'Trade_Result': trade_result
+            }
+
+            enhanced_trades.append(enhanced_trade)
+
+        return pd.DataFrame(enhanced_trades)
     
     def _get_completed_trades(self) -> List[Dict]:
         """Parse trade history to identify completed trade pairs (buy/close cycles)"""
@@ -660,7 +754,7 @@ class LiveTradingEngine:
 
         # Print stats
         print("\n" + "=" * 60)
-        print(f"📊 LIVE TRADING STATS - Iteration {iteration} (Alpaca Data)")
+        print(f" LIVE TRADING STATS - Iteration {iteration} (Alpaca Data)")
         print("=" * 60)
         print(f"Symbol: {symbol}")
         print(f"Position: {position_status}")
