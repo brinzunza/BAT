@@ -10,12 +10,14 @@ from plotly.subplots import make_subplots
 class BacktestEngine:
     """Backtesting engine for trading strategies supporting stocks and crypto"""
 
-    def __init__(self, initial_balance: float = 10000, trading_mode: str = "long_only", symbol: str = "", position_percentage: float = 100.0):
+    def __init__(self, initial_balance: float = 10000, trading_mode: str = "long_only", symbol: str = "", position_percentage: float = 100.0, spread_pips: float = 0.0):
         self.initial_balance = initial_balance
         self.trading_mode = trading_mode
         self.symbol = symbol
         self.position_percentage = position_percentage / 100.0  # Convert to decimal
         self.is_crypto = '/' in symbol  # Determine if it's crypto based on symbol format
+        self.is_forex = symbol.startswith('C:')  # Determine if it's forex based on symbol format
+        self.spread_pips = spread_pips  # Spread in pips for forex trading
         self.reset()
     
     def reset(self):
@@ -99,6 +101,12 @@ class BacktestEngine:
             trade_amount = self.current_balance * self.position_percentage
             price = current_row['Close']
 
+            # Apply spread for forex (buy at ask price)
+            if self.is_forex and self.spread_pips > 0:
+                pip_value = 0.0001 if 'JPY' not in self.symbol else 0.01
+                spread_cost = self.spread_pips * pip_value
+                price = price + spread_cost  # Buy at ask price
+
             # Ensure we have enough funds for the trade
             if trade_amount > self.current_balance:
                 trade_amount = self.current_balance
@@ -139,6 +147,13 @@ class BacktestEngine:
         # Sell signal - close position if it exists
         elif sell_signal and self.position == 1:
             price = current_row['Close']
+
+            # Apply spread for forex (sell at bid price)
+            if self.is_forex and self.spread_pips > 0:
+                pip_value = 0.0001 if 'JPY' not in self.symbol else 0.01
+                spread_cost = self.spread_pips * pip_value
+                price = price - spread_cost  # Sell at bid price
+
             proceeds = self.shares_held * price
 
             trade_data['Time'] = current_row['timestamp']
@@ -187,9 +202,16 @@ class BacktestEngine:
         if buy_signal and self.position != 1 and self.current_balance > 0:
             # Close short position if exists
             if self.position == -1:
+                # Apply spread for forex when closing short (buy at ask price)
+                close_price = price
+                if self.is_forex and self.spread_pips > 0:
+                    pip_value = 0.0001 if 'JPY' not in self.symbol else 0.01
+                    spread_cost = self.spread_pips * pip_value
+                    close_price = price + spread_cost  # Buy at ask price
+
                 # Close short: buy back shares at current price to return them
-                cost_to_close = self.shares_held * price  # Cost to buy back shares
-                profit = self.shares_held * (self.entry_price - price)  # Short profit calculation
+                cost_to_close = self.shares_held * close_price  # Cost to buy back shares
+                profit = self.shares_held * (self.entry_price - close_price)  # Short profit calculation
 
                 # Pay to buy back the shares (this removes the liability)
                 self.current_balance -= cost_to_close
@@ -223,12 +245,19 @@ class BacktestEngine:
 
             # Now open long position if we have funds
             if self.current_balance > 0:
+                # Apply spread for forex when opening long (buy at ask price)
+                buy_price = price
+                if self.is_forex and self.spread_pips > 0:
+                    pip_value = 0.0001 if 'JPY' not in self.symbol else 0.01
+                    spread_cost = self.spread_pips * pip_value
+                    buy_price = price + spread_cost  # Buy at ask price
+
                 trade_amount = self.current_balance * self.position_percentage
                 if trade_amount > self.current_balance:
                     trade_amount = self.current_balance
 
-                shares_to_buy = trade_amount / price
-                actual_cost = shares_to_buy * price
+                shares_to_buy = trade_amount / buy_price
+                actual_cost = shares_to_buy * buy_price
 
                 if actual_cost > 0 and self.current_balance >= actual_cost:
                     self.current_balance -= actual_cost
@@ -239,7 +268,7 @@ class BacktestEngine:
 
                     trade_data = {}  # Reset for new trade
                     trade_data['Time'] = current_row['timestamp']
-                    trade_data['Price'] = price
+                    trade_data['Price'] = buy_price
                     trade_data['Position'] = 1
                     trade_data['Index'] = i
                     trade_data['Action'] = 'BUY'
@@ -255,14 +284,21 @@ class BacktestEngine:
                     self.balance_history.append(trade_data['Balance'])
 
                     self.position = 1
-                    self.entry_price = price
+                    self.entry_price = buy_price
                     self.shares_held = shares_to_buy
 
         # Sell signal
         elif sell_signal and self.position != -1:
             # Close long position if exists
             if self.position == 1:
-                proceeds = self.shares_held * price
+                # Apply spread for forex when closing long (sell at bid price)
+                sell_price = price
+                if self.is_forex and self.spread_pips > 0:
+                    pip_value = 0.0001 if 'JPY' not in self.symbol else 0.01
+                    spread_cost = self.spread_pips * pip_value
+                    sell_price = price - spread_cost  # Sell at bid price
+
+                proceeds = self.shares_held * sell_price
                 cost_basis = self.shares_held * self.entry_price
                 profit = proceeds - cost_basis
 
@@ -298,17 +334,24 @@ class BacktestEngine:
 
             # Now open short position if we have funds for margin
             if self.current_balance > 0:
+                # Apply spread for forex when opening short (sell at bid price)
+                short_price = price
+                if self.is_forex and self.spread_pips > 0:
+                    pip_value = 0.0001 if 'JPY' not in self.symbol else 0.01
+                    spread_cost = self.spread_pips * pip_value
+                    short_price = price - spread_cost  # Sell at bid price
+
                 trade_amount = self.current_balance * self.position_percentage
-                shares_to_short = trade_amount / price
+                shares_to_short = trade_amount / short_price
 
                 if shares_to_short > 0:
                     # For short selling: receive cash but create liability
-                    proceeds_from_short = shares_to_short * price
+                    proceeds_from_short = shares_to_short * short_price
                     self.current_balance += proceeds_from_short  # Add cash from sale
 
                     # Set position details BEFORE calculating account worth
                     self.position = -1
-                    self.entry_price = price
+                    self.entry_price = short_price
                     self.shares_held = shares_to_short
 
                     # For open positions, use realized-only calculation
@@ -369,18 +412,23 @@ class BacktestEngine:
         wins = completed_trades[completed_trades['Result'] == "Win"]
         winrate = len(wins) / num_trades * 100
 
-        # Calculate final balance including any open positions
-        final_balance = self.current_balance
-        if self.position != 0 and self.shares_held > 0:
-            # Add value of current position (using last price from dataframe)
-            last_price = self.df_with_signals.iloc[-1]['Close'] if hasattr(self, 'df_with_signals') else 0
-            if self.position == 1:  # Long position
-                final_balance += self.shares_held * last_price
-            elif self.position == -1:  # Short position
-                # For short positions: we have cash but owe shares
-                # Net worth = cash - current liability (current value of borrowed shares)
-                liability_value = self.shares_held * last_price
-                final_balance = self.current_balance - liability_value
+        # Use the Total_Account_Worth from the last trade entry (matches the detailed trade overview)
+        # This ensures consistency between the performance analysis and the detailed trade table
+        if 'Total_Account_Worth' in trade_df.columns and len(trade_df) > 0:
+            final_balance = float(trade_df['Total_Account_Worth'].iloc[-1])
+        else:
+            # Fallback: calculate final balance including any open positions
+            final_balance = self.current_balance
+            if self.position != 0 and self.shares_held > 0:
+                # Add value of current position (using last price from dataframe)
+                last_price = self.df_with_signals.iloc[-1]['Close'] if hasattr(self, 'df_with_signals') else 0
+                if self.position == 1:  # Long position
+                    final_balance += self.shares_held * last_price
+                elif self.position == -1:  # Short position
+                    # For short positions: we have cash but owe shares
+                    # Net worth = cash - current liability (current value of borrowed shares)
+                    liability_value = self.shares_held * last_price
+                    final_balance = self.current_balance - liability_value
 
         net_returns = final_balance - self.initial_balance
         percent_return = (final_balance - self.initial_balance) / self.initial_balance * 100
@@ -511,7 +559,29 @@ class BacktestEngine:
             plt.title("Individual Trade P&L (Realized Only)")
 
         plt.tight_layout()
-        plt.show()
+
+        # Add text instruction for easy closing
+        plt.figtext(0.5, 0.02, 'Press ESC or Q to close, or simply close the window',
+                   ha='center', va='bottom', fontsize=10, style='italic')
+
+        # Add event handlers for safe closing
+        def on_key_press(event):
+            if event.key in ['escape', 'q']:
+                plt.close('all')
+
+        def on_close(event):
+            plt.close('all')
+
+        fig = plt.gcf()
+        fig.canvas.mpl_connect('key_press_event', on_key_press)
+        fig.canvas.mpl_connect('close_event', on_close)
+
+        try:
+            plt.show(block=False)
+            print("Chart displayed. Press ESC or Q to close, or simply close the window.")
+        except Exception as e:
+            print(f"Error displaying chart: {e}")
+            plt.close('all')
 
     def plot_interactive_chart(self, trade_df: pd.DataFrame):
         """Plot interactive candlestick chart with trade markers and strategy indicators using Plotly"""
@@ -757,4 +827,25 @@ class BacktestEngine:
         ax2.set_xlabel('Time')
 
         plt.tight_layout()
-        plt.show()
+
+        # Add text instruction for easy closing
+        plt.figtext(0.5, 0.02, 'Press ESC or Q to close, or simply close the window',
+                   ha='center', va='bottom', fontsize=10, style='italic')
+
+        # Add event handlers for safe closing
+        def on_key_press(event):
+            if event.key in ['escape', 'q']:
+                plt.close('all')
+
+        def on_close(event):
+            plt.close('all')
+
+        fig.canvas.mpl_connect('key_press_event', on_key_press)
+        fig.canvas.mpl_connect('close_event', on_close)
+
+        try:
+            plt.show(block=False)
+            print("Chart displayed. Press ESC or Q to close, or simply close the window.")
+        except Exception as e:
+            print(f"Error displaying chart: {e}")
+            plt.close('all')

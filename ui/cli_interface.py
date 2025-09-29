@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from strategies.mean_reversion import MeanReversionStrategy
+from strategies.mean_reversion import MeanReversionStrategy, MeanReversionExtremeStrategy
 from strategies.moving_average import MovingAverageStrategy
 from strategies.rsi_strategy import RSIStrategy
 from strategies.macd_strategy import MACDStrategy
@@ -27,12 +27,13 @@ class TradingCLI:
     
     def __init__(self):
         self.strategies = {
-            '1': ('Mean Reversion', MeanReversionStrategy),
-            '2': ('Moving Average', MovingAverageStrategy),
-            '3': ('RSI', RSIStrategy),
-            '4': ('MACD', MACDStrategy),
-            '5': ('Bollinger Bands', BollingerBandsStrategy),
-            '6': ('Candlestick Patterns', CandlestickPatternsStrategy)
+            '1': ('Mean Reversion (Conservative)', MeanReversionStrategy),
+            '2': ('Mean Reversion (Extreme)', MeanReversionExtremeStrategy),
+            '3': ('Moving Average', MovingAverageStrategy),
+            '4': ('RSI', RSIStrategy),
+            '5': ('MACD', MACDStrategy),
+            '6': ('Bollinger Bands', BollingerBandsStrategy),
+            '7': ('Candlestick Patterns', CandlestickPatternsStrategy)
         }
         
         self.data_provider = None
@@ -144,49 +145,54 @@ class TradingCLI:
     def select_strategy(self):
         """Strategy selection menu"""
         print("\nAvailable Strategies:")
-        print("-" * 20)
-        
+        print("-" * 50)
+
         for key, (name, _) in self.strategies.items():
             print(f"{key}. {name}")
-        
-        choice = input("Select strategy (1-6): ").strip()
+
+        choice = input("Select strategy (1-7): ").strip()
         
         if choice not in self.strategies:
             print("Invalid choice")
             return None
         
         strategy_name, strategy_class = self.strategies[choice]
-        
+
         # Get strategy parameters
-        if choice == '1':  # Mean Reversion
+        if choice == '1':  # Mean Reversion (Conservative)
             window = int(input("Enter window size (default 20): ") or "20")
             num_std = float(input("Enter standard deviations (default 2.0): ") or "2.0")
             return strategy_class(window=window, num_std=num_std)
-        
-        elif choice == '2':  # Moving Average
+
+        elif choice == '2':  # Mean Reversion (Extreme)
+            window = int(input("Enter window size (default 20): ") or "20")
+            num_std = float(input("Enter standard deviations (default 2.0): ") or "2.0")
+            return strategy_class(window=window, num_std=num_std)
+
+        elif choice == '3':  # Moving Average
             short = int(input("Enter short window (default 1): ") or "1")
             medium = int(input("Enter medium window (default 5): ") or "5")
             long_win = int(input("Enter long window (default 25): ") or "25")
             return strategy_class(short_window=short, medium_window=medium, long_window=long_win)
         
-        elif choice == '3':  # RSI
+        elif choice == '4':  # RSI
             window = int(input("Enter RSI window (default 14): ") or "14")
             oversold = float(input("Enter oversold threshold (default 30): ") or "30")
             overbought = float(input("Enter overbought threshold (default 70): ") or "70")
             return strategy_class(window=window, oversold_threshold=oversold, overbought_threshold=overbought)
 
-        elif choice == '4':  # MACD
+        elif choice == '5':  # MACD
             fast = int(input("Enter fast EMA period (default 12): ") or "12")
             slow = int(input("Enter slow EMA period (default 26): ") or "26")
             signal = int(input("Enter signal line period (default 9): ") or "9")
             return strategy_class(fast=fast, slow=slow, signal=signal)
 
-        elif choice == '5':  # Bollinger Bands
+        elif choice == '6':  # Bollinger Bands
             window = int(input("Enter window size (default 20): ") or "20")
             num_std = float(input("Enter standard deviations (default 2): ") or "2")
             return strategy_class(window=window, num_std=num_std)
 
-        elif choice == '6':  # Candlestick Patterns
+        elif choice == '7':  # Candlestick Patterns
             return strategy_class()
 
         return None
@@ -215,21 +221,22 @@ class TradingCLI:
             print(" Invalid choice. Please enter 1 or 2.")
 
     def select_asset_type(self):
-        """Let user select between crypto and stocks for backtesting (Polygon only)"""
+        """Let user select between crypto, stocks, and forex for backtesting (Polygon only)"""
         print("\n Asset Type Selection (Backtesting):")
         print("======================================")
         print("1. Cryptocurrency (Polygon API)")
         print("2. Stocks (Polygon API)")
+        print("3. Forex (Polygon API)")
         print()
 
         while True:
-            choice = input("Select asset type (1-2): ").strip()
-            if choice in ['1', '2']:
+            choice = input("Select asset type (1-3): ").strip()
+            if choice in ['1', '2', '3']:
                 return choice
-            print(" Invalid choice. Please enter 1 or 2.")
+            print(" Invalid choice. Please enter 1, 2, or 3.")
 
     def configure_data_parameters(self):
-        """Configure data parameters with support for both crypto and stocks"""
+        """Configure data parameters with support for crypto, stocks, and forex"""
         print("\nData Configuration:")
         print("-" * 20)
 
@@ -241,10 +248,30 @@ class TradingCLI:
             print("\n₿ Cryptocurrency Configuration (Polygon):")
             ticker = input("Enter crypto ticker (default X:BTCUSD): ").strip() or "X:BTCUSD"
             print("Common crypto tickers: X:BTCUSD, X:ETHUSD, X:DOGEUSD, X:LTCUSD")
-        else:  # asset_choice == '2' - Stocks (Polygon)
+        elif asset_choice == '2':  # Stocks (Polygon)
             print("\n Stock Configuration (Polygon):")
             ticker = input("Enter stock ticker (default AAPL): ").strip() or "AAPL"
             print("Common stock tickers: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX, SPY, QQQ")
+        else:  # asset_choice == '3' - Forex (Polygon)
+            print("\n Forex Configuration (Polygon):")
+            ticker = input("Enter forex pair (default C:EURUSD): ").strip() or "C:EURUSD"
+
+            # Show available forex pairs if data provider is set up
+            if hasattr(self.data_provider, 'get_available_forex_pairs'):
+                try:
+                    forex_pairs = self.data_provider.get_available_forex_pairs()
+                    print("Available forex pairs:")
+                    for i, pair in enumerate(forex_pairs):
+                        if i % 4 == 0 and i > 0:
+                            print()  # New line every 4 pairs
+                        print(f"{pair:<12}", end=" ")
+                    print()  # Final newline
+                except:
+                    print("Common forex pairs: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF, C:AUDUSD, C:USDCAD")
+                    print("                    C:NZDUSD, C:EURGBP, C:EURJPY, C:GBPJPY, C:CHFJPY, C:EURCHF")
+            else:
+                print("Common forex pairs: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF, C:AUDUSD, C:USDCAD")
+                print("                    C:NZDUSD, C:EURGBP, C:EURJPY, C:GBPJPY, C:CHFJPY, C:EURCHF")
 
         # Configure timespan (Polygon API only)
         timespan = input("Enter timespan (minute/hour/day, default minute): ").strip() or "minute"
@@ -295,12 +322,24 @@ class TradingCLI:
         if position_percentage < 1 or position_percentage > 100:
             print("Invalid percentage. Using 100% of account.")
             position_percentage = 100
-        
+
+        # Get spread in pips for forex
+        spread_pips = 0.0
+        if data_params['asset_type'] == '3':  # Forex
+            print("\n💱 Forex Spread Configuration:")
+            print("Typical spreads: EUR/USD: 0.5-2 pips, GBP/USD: 1-3 pips, USD/JPY: 0.5-2 pips")
+            spread_pips = float(input("Enter spread in pips (default 1.0): ") or "1.0")
+            if spread_pips < 0:
+                print("Invalid spread. Using 1.0 pip.")
+                spread_pips = 1.0
+
         print(f"\n Running backtest for {strategy.name}...")
         print(f" Ticker: {data_params['ticker']}")
         print(f"Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
         print(f"⏰ Timespan: {data_params['timespan']}")
         print(f"📅 From: {data_params['from_date']} To: {data_params['to_date']}")
+        if data_params['asset_type'] == '3':
+            print(f"💱 Spread: {spread_pips} pips")
 
         try:
             # Get data based on asset type
@@ -325,7 +364,7 @@ class TradingCLI:
             # Run backtest
             print("Running backtest...")
             # Pass the ticker symbol to the engine for proper formatting
-            engine = BacktestEngine(initial_balance, trading_mode, data_params['ticker'], position_percentage)
+            engine = BacktestEngine(initial_balance, trading_mode, data_params['ticker'], position_percentage, spread_pips)
             results = engine.backtest(df, strategy)
             
             # Display results
