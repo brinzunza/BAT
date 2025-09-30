@@ -22,10 +22,15 @@ class LiveTradingEngine:
         self.trading_mode = trading_mode
         self.position_percentage = position_percentage / 100.0  # Convert to decimal
         self.reset()
-        
+
         # Setup logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+
+        # Debug: Log broker interface type
+        if self.broker_interface:
+            broker_type = type(self.broker_interface).__name__
+            print(f"[DEBUG] LiveTradingEngine initialized with broker: {broker_type}")
     
     def reset(self):
         """Reset engine state"""
@@ -36,18 +41,32 @@ class LiveTradingEngine:
         self.running = False
         self.current_balance = self.initial_balance
         self.use_alpaca_data = True  # Flag to use only Alpaca data
+        self.quiet_mode = False  # Set quiet mode flag
 
         # Order tracking for limit orders
         self.pending_orders = {}  # Track pending limit orders by order_id
         self.order_timestamps = {}  # Track order placement times
+
+    def _print_trade_msg(self, message: str, quiet_alternative: str = None):
+        """Print trade message with quiet mode support"""
+        if not self.quiet_mode:
+            print(message)
+        elif quiet_alternative:
+            print(quiet_alternative)
     
     def set_broker_interface(self, broker_interface):
         """Set the broker interface for live trading"""
         self.broker_interface = broker_interface
     
     def execute_buy_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None) -> dict:
-        """Execute buy order and return order details from Alpaca"""
+        """Execute buy order and return order details"""
         try:
+            # Debug logging
+            if self.broker_interface:
+                broker_type = type(self.broker_interface).__name__
+                print(f"[DEBUG] Broker Interface: {broker_type}")
+                print(f"[DEBUG] Executing BUY via {broker_type}")
+
             if self.broker_interface:
                 if order_type == "limit" and limit_price is not None:
                     # For limit orders, pass the limit price to the broker interface
@@ -73,8 +92,14 @@ class LiveTradingEngine:
             return {'status': 'failed', 'error': str(e)}
 
     def execute_sell_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None) -> dict:
-        """Execute sell order and return order details from Alpaca"""
+        """Execute sell order and return order details"""
         try:
+            # Debug logging
+            if self.broker_interface:
+                broker_type = type(self.broker_interface).__name__
+                print(f"[DEBUG] Broker Interface: {broker_type}")
+                print(f"[DEBUG] Executing SELL via {broker_type}")
+
             if self.broker_interface:
                 if order_type == "limit" and limit_price is not None:
                     # For limit orders, pass the limit price to the broker interface
@@ -299,12 +324,28 @@ class LiveTradingEngine:
         if self.trading_mode == "long_only":
             self.check_and_cancel_expired_orders(symbol, timeout_minutes=1)
 
-        # Get current position from Alpaca
+        # Get current position from broker (IB or Alpaca)
         alpaca_position = self.get_alpaca_position(symbol)
         current_qty = float(alpaca_position['qty'])
 
-        # Debug output for signal detection
+        # ALWAYS log position check for debugging
         if buy_signal or sell_signal:
+            print(f"\n🔍 POSITION CHECK:")
+            print(f"     Symbol: {symbol}")
+            print(f"     Current Position: {current_qty}")
+            print(f"     Buy Signal: {buy_signal}")
+            print(f"     Sell Signal: {sell_signal}")
+            print(f"     Current Price: ${current_price:.5f}")
+
+            # Check for pending orders
+            if self.pending_orders:
+                print(f"     Pending Orders: {len(self.pending_orders)}")
+                for order_id, order_info in self.pending_orders.items():
+                    if order_info['symbol'] == symbol:
+                        print(f"       - {order_info['side'].upper()} order pending")
+
+        # Debug output for signal detection (only in non-quiet mode)
+        if (buy_signal or sell_signal) and not getattr(self, 'quiet_mode', False):
             print(f"\n SIGNAL DETECTED:")
             print(f"     Buy Signal: {buy_signal}")
             print(f"     Sell Signal: {sell_signal}")
@@ -355,10 +396,21 @@ class LiveTradingEngine:
         unrealized_pnl = float(alpaca_position.get('unrealized_pl', 0))
         session_pnl = account_balance - self.initial_balance
 
-        # Process buy signal - only buy if no position exists
-        if buy_signal and current_qty == 0:
-            print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at ${current_price:.2f}")
-            print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+        # Check for pending orders for this symbol
+        has_pending_buy = any(
+            order['symbol'] == symbol and order['side'] == 'buy'
+            for order in self.pending_orders.values()
+        )
+        has_pending_sell = any(
+            order['symbol'] == symbol and order['side'] == 'sell'
+            for order in self.pending_orders.values()
+        )
+
+        # Process buy signal - only buy if NO position exists AND no pending buy orders
+        if buy_signal and current_qty == 0 and not has_pending_buy:
+            if not getattr(self, 'quiet_mode', False):
+                print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at ${current_price:.2f}")
+                print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
             # Final trade confirmation (silent)
             if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
@@ -370,8 +422,11 @@ class LiveTradingEngine:
                     updated_balance = float(updated_account.get('equity', account_balance))
                     updated_session_pnl = updated_balance - self.initial_balance
 
-                    print(f" BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
-                    print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                    if not getattr(self, 'quiet_mode', False):
+                        print(f" BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                        print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                    else:
+                        print(f"\n[BUY] {quantity} {symbol} @ ${current_price:.5f}")
 
                     self.trades.append({
                         'timestamp': timestamp,
@@ -385,16 +440,23 @@ class LiveTradingEngine:
             else:
                 print(f" BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
 
-        # Debug output when buy signal is ignored due to existing position
-        elif buy_signal and current_qty != 0:
-            print(f"\n🔵 BUY SIGNAL IGNORED - Already have position: {current_qty} {symbol}")
-            print(f"     Current Position Value: ${float(alpaca_position.get('market_value', 0)):.2f}")
-            print(f"     Unrealized P&L: ${unrealized_pnl:.2f}")
+        # Debug output when buy signal is ignored
+        elif buy_signal:
+            if current_qty != 0:
+                print(f"\n🔵 BUY SIGNAL IGNORED - Already have position: {current_qty} {symbol}")
+                print(f"     Cannot add to existing position (position limit enforced)")
+                if not getattr(self, 'quiet_mode', False):
+                    print(f"     Current Position Value: ${float(alpaca_position.get('market_value', 0)):.2f}")
+                    print(f"     Unrealized P&L: ${unrealized_pnl:.2f}")
+            elif has_pending_buy:
+                print(f"\n🔵 BUY SIGNAL IGNORED - Already have pending BUY order for {symbol}")
+                print(f"     Cannot place multiple buy orders (position limit enforced)")
 
         # Process sell signal - close position if it exists
         elif sell_signal and current_qty > 0:
-            print(f"\n🔴 SELL SIGNAL - Attempting to close position for {symbol} at ${current_price:.2f}")
-            print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
+            if not getattr(self, 'quiet_mode', False):
+                print(f"\n🔴 SELL SIGNAL - Attempting to close position for {symbol} at ${current_price:.2f}")
+                print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
             # Close the existing long position
             result = self.close_position(symbol)
@@ -404,8 +466,11 @@ class LiveTradingEngine:
                 updated_balance = float(updated_account.get('equity', account_balance))
                 updated_session_pnl = updated_balance - self.initial_balance
 
-                print(f" POSITION CLOSED - {current_qty} {symbol} at market price")
-                print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                if not getattr(self, 'quiet_mode', False):
+                    print(f" POSITION CLOSED - {current_qty} {symbol} at market price")
+                    print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+                else:
+                    print(f"\n[CLOSE] {current_qty} {symbol} @ ${current_price:.5f}")
 
                 self.trades.append({
                     'timestamp': timestamp,
@@ -425,6 +490,16 @@ class LiveTradingEngine:
         account_balance = float(account_info.get('equity', 0))
         unrealized_pnl = float(alpaca_position.get('unrealized_pl', 0))
         session_pnl = account_balance - self.initial_balance
+
+        # Check for pending orders for this symbol
+        has_pending_buy = any(
+            order['symbol'] == symbol and order['side'] == 'buy'
+            for order in self.pending_orders.values()
+        )
+        has_pending_sell = any(
+            order['symbol'] == symbol and order['side'] == 'sell'
+            for order in self.pending_orders.values()
+        )
 
         # Cancel any conflicting pending orders for opposite direction
         if buy_signal:
@@ -449,7 +524,7 @@ class LiveTradingEngine:
                         'order_details': result
                     })
 
-            elif current_qty == 0:  # No position, open long
+            elif current_qty == 0 and not has_pending_buy:  # No position and no pending buy, open long
                 print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at ${current_price:.2f} (LIMIT ORDER)")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
@@ -475,6 +550,16 @@ class LiveTradingEngine:
                 else:
                     print(f" BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
 
+            elif current_qty > 0:
+                # Already long - ignore signal
+                print(f"\n🔵 BUY SIGNAL IGNORED - Already have LONG position: {current_qty} {symbol}")
+                print(f"     Cannot add to existing position (position limit enforced)")
+
+            elif has_pending_buy:
+                # Already have pending buy order
+                print(f"\n🔵 BUY SIGNAL IGNORED - Already have pending BUY order for {symbol}")
+                print(f"     Cannot place multiple buy orders (position limit enforced)")
+
         # Process sell signal
         elif sell_signal:
             if current_qty > 0:  # Currently long, close long position first
@@ -492,7 +577,7 @@ class LiveTradingEngine:
                         'order_details': result
                     })
 
-            elif current_qty == 0:  # No position, open short
+            elif current_qty == 0 and not has_pending_sell:  # No position and no pending sell, open short
                 print(f"\n🔴 SELL SIGNAL - Attempting to short {quantity} {symbol} at ${current_price:.2f} (LIMIT ORDER)")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
@@ -518,55 +603,81 @@ class LiveTradingEngine:
                 else:
                     print(f" SELL SIGNAL REJECTED - Invalid conditions")
 
-    def run_strategy(self, 
+            elif current_qty < 0:
+                # Already short - ignore signal
+                print(f"\n🔴 SELL SIGNAL IGNORED - Already have SHORT position: {abs(current_qty)} {symbol}")
+                print(f"     Cannot add to existing position (position limit enforced)")
+
+            elif has_pending_sell:
+                # Already have pending sell order
+                print(f"\n🔴 SELL SIGNAL IGNORED - Already have pending SELL order for {symbol}")
+                print(f"     Cannot place multiple sell orders (position limit enforced)")
+
+    def run_strategy(self,
                     strategy: BaseStrategy,
                     symbol: str,
                     quantity: float = 1,
                     sleep_interval: int = 60,
-                    max_iterations: Optional[int] = None):
+                    max_iterations: Optional[int] = None,
+                    quiet_mode: bool = False,
+                    chart_callback: Optional[Callable] = None):
         """
         Run strategy continuously
-        
+
         Args:
             strategy: Strategy instance
             symbol: Trading symbol
             quantity: Position size
             sleep_interval: Seconds between iterations
             max_iterations: Maximum iterations (None for infinite)
+            quiet_mode: If True, minimize terminal output
+            chart_callback: Optional callback to update chart
         """
         self.running = True
         iteration = 0
-        
-        self.logger.info(f"Starting live trading for {strategy.name} on {symbol}")
-        
+        self.quiet_mode = quiet_mode
+
+        if not quiet_mode:
+            self.logger.info(f"Starting live trading for {strategy.name} on {symbol}")
+
         try:
             while self.running:
                 # Check max iterations
                 if max_iterations and iteration >= max_iterations:
-                    self.logger.info("Max iterations reached, stopping...")
+                    if not quiet_mode:
+                        self.logger.info("Max iterations reached, stopping...")
                     break
-                
+
                 try:
                     # Get latest data
                     df = self.data_provider.get_live_data(symbol)
-                    
+
                     # Process signals
                     self.process_signals(df, strategy, symbol, quantity)
 
-                    # Display trading stats every iteration
-                    self._display_trading_stats(iteration + 1, symbol)
-                    
+                    # Display trading stats
+                    if quiet_mode:
+                        self._display_quiet_stats(iteration + 1, symbol)
+                    else:
+                        self._display_trading_stats(iteration + 1, symbol)
+
+                    # Update chart if callback provided
+                    if chart_callback:
+                        chart_callback()
+
                 except Exception as e:
-                    self.logger.error(f"Error in iteration {iteration + 1}: {e}")
-                
+                    if not quiet_mode:
+                        self.logger.error(f"Error in iteration {iteration + 1}: {e}")
+
                 iteration += 1
-                
+
                 # Wait before next iteration
                 if self.running:
                     time.sleep(sleep_interval)
-        
+
         except KeyboardInterrupt:
-            self.logger.info("Received keyboard interrupt, stopping...")
+            if not quiet_mode:
+                self.logger.info("Received keyboard interrupt, stopping...")
             self.stop()
     
     def stop(self):
@@ -769,3 +880,61 @@ class LiveTradingEngine:
         print(f"Percent Return: {performance['percent_return']:.2f}%")
         print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 60)
+
+    def _display_quiet_stats(self, iteration: int, symbol: str):
+        """Display minimal trading statistics for quiet mode"""
+        if iteration % 1 != 0:  # Display every iteration
+            return
+
+        alpaca_position = self.get_alpaca_position(symbol)
+        performance = self.get_performance_summary()
+
+        # Get current price
+        try:
+            df = self.data_provider.get_live_data(symbol)
+            if len(df) > 0:
+                current_price = df.iloc[-1]['Close']
+            else:
+                current_price = 0
+        except:
+            current_price = 0
+
+        # Get position info
+        current_qty = float(alpaca_position['qty'])
+        unrealized_pnl = float(alpaca_position['unrealized_pl'])
+        avg_entry_price = float(alpaca_position['avg_entry_price'])
+
+        # Position status
+        position_status = "FLAT"
+        if current_qty > 0:
+            position_status = f"LONG {abs(current_qty):,.0f}"
+        elif current_qty < 0:
+            position_status = f"SHORT {abs(current_qty):,.0f}"
+
+        # Color codes for terminal
+        GREEN = '\033[92m'
+        RED = '\033[91m'
+        YELLOW = '\033[93m'
+        CYAN = '\033[96m'
+        RESET = '\033[0m'
+        BOLD = '\033[1m'
+
+        # Determine P&L color
+        total_pnl = unrealized_pnl + performance['total_return']
+        pnl_color = GREEN if total_pnl >= 0 else RED
+        unrealized_color = GREEN if unrealized_pnl >= 0 else RED
+        realized_color = GREEN if performance['total_return'] >= 0 else RED
+
+        # Single line output
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        print(f"\r{CYAN}[{timestamp}]{RESET} "
+              f"{BOLD}{symbol}{RESET} "
+              f"Price: {YELLOW}{current_price:.5f}{RESET} | "
+              f"Position: {BOLD}{position_status}{RESET} "
+              f"@ {avg_entry_price:.5f} | "
+              f"Unrealized: {unrealized_color}{unrealized_pnl:+.2f}{RESET} | "
+              f"Realized: {realized_color}{performance['total_return']:+.2f}{RESET} | "
+              f"Total: {pnl_color}{BOLD}{total_pnl:+.2f}{RESET} | "
+              f"Trades: {performance['total_trades']} "
+              f"(W:{performance['profitable_trades']} L:{performance['losing_trades']})",
+              end='', flush=True)

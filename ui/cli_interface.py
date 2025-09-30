@@ -16,10 +16,12 @@ from strategies.bollinger_bands_strategy import BollingerBandsStrategy
 from strategies.candlestick_strategy import CandlestickPatternsStrategy
 from data_providers.polygon_provider import PolygonDataProvider
 from data_providers.alpaca_provider import AlpacaDataProvider, AlpacaBroker
+from data_providers.oanda_provider import OandaProvider
 from engines.backtest_engine import BacktestEngine
 from engines.live_trading_engine import LiveTradingEngine
 from engines.brokers import SimulatedBroker
-from live_trading_chart import LiveTradingChart
+from engines.ib_broker import IBBroker
+from ui.live_trading_chart import LiveTradingChart
 
 
 class TradingCLI:
@@ -40,13 +42,14 @@ class TradingCLI:
         self.broker = None
         self.alpaca_data_provider = None
         self.alpaca_broker = None
+        self.oanda_provider = None
+        self.ib_broker = None
         
     def display_banner(self):
         """Display application banner"""
-        print("=" * 60)
-        print("         BAT - Backtesting & Automated Trading")
-        print("            Stocks & Cryptocurrency Trading ")
-        print("=" * 60)
+        print("\n" + "=" * 50)
+        print("            BAT - Backtesting & Automated Trading")
+        print("=" * 50)
         print()
     
     def setup_data_provider(self):
@@ -140,6 +143,82 @@ class TradingCLI:
 
         except Exception as e:
             print(f" Error connecting to Alpaca: {e}")
+            return False
+
+    def setup_forex_credentials(self):
+        """Setup OANDA and Interactive Brokers for forex trading"""
+        print("\n💱 Forex Trading Setup (OANDA + Interactive Brokers)")
+        print("=" * 60)
+        print("This setup requires:")
+        print("  1. OANDA account for live forex data")
+        print("  2. Interactive Brokers TWS/Gateway for trade execution")
+        print()
+
+        # OANDA Setup
+        print("📊 OANDA Configuration:")
+        print("-" * 30)
+
+        oanda_token = input("OANDA Access Token (or press Enter for default): ").strip()
+        if not oanda_token:
+            oanda_token = "4783ce686cc4960d43f7ac27c3e9c542-7a14009cdf2d7109a793fab7b4d0d462"
+
+        oanda_account = input("OANDA Account ID (or press Enter for default): ").strip()
+        if not oanda_account:
+            oanda_account = "101-001-27040015-001"
+
+        oanda_env = input("Environment (practice/live, default: practice): ").strip().lower() or "practice"
+
+        try:
+            # Test OANDA connection
+            self.oanda_provider = OandaProvider(
+                access_token=oanda_token,
+                account_id=oanda_account,
+                environment=oanda_env
+            )
+
+            # Test by fetching latest candle
+            test_candle = self.oanda_provider.get_latest_candle("EURUSD")
+            if test_candle:
+                print(f"✓ Connected to OANDA ({oanda_env})")
+                print(f"  Latest EUR/USD: {test_candle['close']:.5f}")
+            else:
+                print("✗ Failed to fetch data from OANDA")
+                return False
+
+        except Exception as e:
+            print(f"✗ OANDA connection failed: {e}")
+            return False
+
+        # Interactive Brokers Setup
+        print("\n🏦 Interactive Brokers Configuration:")
+        print("-" * 30)
+        print("Make sure TWS or IB Gateway is running with API enabled")
+        print()
+
+        ib_host = input("IB Host (default: 127.0.0.1): ").strip() or "127.0.0.1"
+        ib_port = input("IB Port (7497=paper, 7496=live, default: 7497): ").strip()
+        ib_port = int(ib_port) if ib_port else 7497
+        ib_client_id = input("IB Client ID (default: 1): ").strip()
+        ib_client_id = int(ib_client_id) if ib_client_id else 1
+
+        try:
+            # Test IB connection
+            self.ib_broker = IBBroker()
+            if self.ib_broker.connect_to_tws(ib_host, ib_port, ib_client_id):
+                print(f"✓ Connected to IB TWS")
+
+                # Get account info
+                account = self.ib_broker.get_account()
+                print(f"  Account Equity: ${account['equity']:,.2f}")
+                print(f"  Buying Power: ${account['buying_power']:,.2f}")
+                return True
+            else:
+                print("✗ Failed to connect to IB TWS")
+                print("  Make sure TWS/Gateway is running and API is enabled")
+                return False
+
+        except Exception as e:
+            print(f"✗ IB connection failed: {e}")
             return False
 
     def select_strategy(self):
@@ -398,6 +477,140 @@ class TradingCLI:
         except Exception as e:
             print(f"✗ Backtest failed: {e}")
     
+    def run_forex_live_trading(self):
+        """Run forex live trading with OANDA data + IB execution"""
+        print("\n" + "=" * 60)
+        print("       💱 FOREX LIVE TRADING")
+        print("          OANDA Data + Interactive Brokers Execution")
+        print("=" * 60)
+
+        # Setup credentials if not already configured
+        if not self.oanda_provider or not self.ib_broker:
+            print("\n🔑 Forex trading requires OANDA + IB credentials")
+            if not self.setup_forex_credentials():
+                return
+
+        # Select strategy
+        strategy = self.select_strategy()
+        if not strategy:
+            return
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
+        # Configure trading parameters
+        print("\n⚙️  Forex Trading Configuration:")
+        print("-" * 30)
+
+        # Forex pair selection
+        forex_pair = input("Enter forex pair (default EURUSD): ").strip().upper() or "EURUSD"
+
+        # Historical lookback
+        lookback = int(input("Historical candles to fetch (default 200): ") or "200")
+
+        # Position sizing
+        print("\nPosition Sizing:")
+        print("1. Percentage of account")
+        print("2. Fixed quantity (base currency units)")
+
+        sizing_choice = input("Select method (1-2, default 1): ").strip() or "1"
+
+        if sizing_choice == "2":
+            quantity = float(input(f"Enter {forex_pair[:3]} quantity (e.g., 20000 = 20K): ") or "20000")
+            position_percentage = None
+        else:
+            position_percentage = float(input("Position size as % of account (1-100, default 100): ") or "100")
+            if position_percentage < 1 or position_percentage > 100:
+                print("Invalid percentage. Using 100%.")
+                position_percentage = 100
+            quantity = None
+
+        # Update interval
+        update_interval = int(input("Update interval in seconds (default 60): ") or "60")
+
+        print(f"\n📋 Configuration Summary:")
+        print(f"   Strategy: {strategy.name}")
+        print(f"   Symbol: {forex_pair}")
+        print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+        print(f"   Historical Lookback: {lookback} candles")
+        if position_percentage:
+            print(f"   Position Size: {position_percentage}% of account")
+        else:
+            print(f"   Position Size: {quantity:,.0f} {forex_pair[:3]}")
+        print(f"   Update Interval: {update_interval}s")
+
+        confirm = input("\nStart forex live trading? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Forex trading cancelled.")
+            return
+
+        try:
+            # Get account info
+            initial_balance = self.ib_broker.get_account()['equity']
+
+            print(f"\n🚀 Initializing live trading chart...")
+            print(f"Chart will open in a new window")
+            print(f"Data updates every {update_interval} seconds")
+            print(f"All trades will be logged to console")
+            print(f"  Press Ctrl+C or close chart window to stop")
+            print(f"\n{'='*60}")
+
+            # Create live trading chart with forex support
+            forex_chart = LiveTradingChart(
+                strategy=strategy,
+                symbol=forex_pair,
+                trading_mode=trading_mode,
+                position_percentage=position_percentage if position_percentage else 100,
+                quantity=quantity,
+                data_provider=self.oanda_provider,
+                broker_interface=self.ib_broker,
+                lookback=lookback
+            )
+
+            print("✓ Trading engine ready")
+            print("✓ Live chart ready")
+            print("\n" + "=" * 60)
+            print(" 🟢 LIVE TRADING STARTED")
+            print("=" * 60)
+            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Symbol: {forex_pair}")
+            print("Chart will show: Price candles | Strategy indicators | Buy/Sell signals")
+            print("Terminal shows: Price | Position | Unrealized P&L | Realized P&L\n")
+
+            # Start live chart with animation (this will block until chart closed)
+            forex_chart.start_live_trading(update_interval * 1000)  # Convert to milliseconds
+
+        except KeyboardInterrupt:
+            print("\n\n" + "=" * 60)
+            print(" 🛑 STOPPING FOREX LIVE TRADING")
+            print("=" * 60)
+
+        finally:
+            # Print final summary
+            if 'forex_chart' in locals():
+                print("\n" + "=" * 60)
+                print(" 📊 FOREX TRADING SESSION SUMMARY")
+                print("=" * 60)
+
+                performance = forex_chart.get_performance_summary()
+                trade_history = forex_chart.get_trade_history()
+
+                print(f"\nStrategy: {strategy.name}")
+                print(f"Symbol: {forex_pair}")
+                print(f"Total Trades: {performance['total_trades']}")
+                print(f"Profitable Trades: {performance['profitable_trades']}")
+                print(f"Losing Trades: {performance['losing_trades']}")
+                print(f"Win Rate: {performance['win_rate']:.1f}%")
+                print(f"Final Balance: ${performance['current_balance']:,.2f}")
+                print(f"Total Return: ${performance['total_return']:,.2f}")
+                print(f"Percent Return: {performance['percent_return']:.2f}%")
+
+                if len(trade_history) > 0:
+                    print(f"\n📝 Recent Trades:")
+                    self._print_detailed_trade_results(trade_history.tail(10))
+
+                print("\n" + "=" * 60)
+
     def run_live_trading(self):
         """Run live trading workflow with real-time charting"""
         print("\n" + "=" * 50)
@@ -677,21 +890,40 @@ class TradingCLI:
         except Exception as e:
             print(f" Error exporting to CSV: {e}")
 
+    def run_live_trading_menu(self):
+        """Consolidated live trading menu"""
+        print("\n" + "=" * 50)
+        print("           LIVE TRADING")
+        print("=" * 50)
+        print("\nSelect market type:")
+        print("1. Stocks/Crypto (Alpaca)")
+        print("2. Forex (OANDA + Interactive Brokers)")
+        print("3. Back to Main Menu")
+
+        choice = input("\nSelect option (1-3): ").strip()
+
+        if choice == '1':
+            self.run_live_trading()
+        elif choice == '2':
+            self.run_forex_live_trading()
+        elif choice == '3':
+            return
+        else:
+            print("Invalid choice. Please try again.")
+
     def main_menu(self):
         """Main application menu"""
         while True:
             self.display_banner()
-            
+
             print("Main Menu:")
             print("-" * 10)
-            print("1. Run Backtest")
-            print("2. Run Live Trading")
-            print("3. Setup Data Provider")
-            print("4. Setup Broker")
-            print("5. Exit")
-            
-            choice = input("\nSelect option (1-5): ").strip()
-            
+            print("1. Backtest")
+            print("2. Live Trading")
+            print("3. Exit")
+
+            choice = input("\nSelect option (1-3): ").strip()
+
             if choice == '1':
                 if not self.data_provider:
                     print("Data provider not configured. Setting up now...")
@@ -699,24 +931,19 @@ class TradingCLI:
                         continue
                 self.run_backtest()
                 input("\nPress Enter to continue...")
-            
+
             elif choice == '2':
-                # Live trading uses Alpaca directly, no need for general data provider
-                self.run_live_trading()
+                self.run_live_trading_menu()
                 input("\nPress Enter to continue...")
-            
+
             elif choice == '3':
-                self.setup_data_provider()
-                input("\nPress Enter to continue...")
-            
-            elif choice == '4':
-                self.setup_broker()
-                input("\nPress Enter to continue...")
-            
-            elif choice == '5':
                 print("Thank you for using BAT!")
+                # Disconnect IB if connected
+                if self.ib_broker and self.ib_broker.connected:
+                    print("Disconnecting from IB TWS...")
+                    self.ib_broker.disconnect_from_tws()
                 break
-            
+
             else:
                 print("Invalid choice. Please try again.")
                 input("\nPress Enter to continue...")
