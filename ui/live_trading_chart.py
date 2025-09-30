@@ -15,7 +15,7 @@ from engines.live_trading_engine import LiveTradingEngine
 
 
 class LiveTradingChart:
-    """Live trading chart with strategy indicators and Alpaca integration"""
+    """Live trading chart with strategy indicators - supports Alpaca and OANDA/IB"""
 
     def __init__(self,
                  strategy: BaseStrategy,
@@ -27,7 +27,10 @@ class LiveTradingChart:
                  trading_mode: str = "long_only",
                  use_simulated_broker: bool = False,
                  initial_balance: float = 10000,
-                 position_percentage: float = None):
+                 position_percentage: float = None,
+                 data_provider = None,
+                 broker_interface = None,
+                 lookback: int = 100):
 
         self.strategy = strategy
         self.symbol = symbol
@@ -36,25 +39,40 @@ class LiveTradingChart:
         self.trading_mode = trading_mode
         self.use_simulated_broker = use_simulated_broker
         self.position_percentage = position_percentage
+        self.lookback = lookback
 
-        # Initialize data provider and broker
-        self.data_provider = AlpacaDataProvider(api_key, secret_key)
+        # Use provided data provider and broker, or initialize Alpaca
+        if data_provider is not None and broker_interface is not None:
+            # External provider (e.g., OANDA/IB for forex)
+            self.data_provider = data_provider
+            self.broker = broker_interface
+            self.is_forex = True
 
-        if use_simulated_broker:
-            self.broker = SimulatedBroker(api_key, secret_key, initial_balance) if api_key else None
-            print(f"Using SimulatedBroker with ${initial_balance:,.2f} initial balance")
-        else:
-            self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
-
-        # Get initial balance from Alpaca account
-        if self.broker:
-            account_info = self.broker.get_account_api() if hasattr(self.broker, 'get_account_api') else self.broker.get_account()
+            # Get initial balance from broker
+            account_info = self.broker.get_account()
             initial_balance = float(account_info.get('equity', 10000))
             print(f"Account Equity: ${initial_balance:,.2f}")
             print(f"Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
         else:
-            initial_balance = 10000
-            print(f"Simulation Balance: ${initial_balance:,.2f}")
+            # Alpaca provider for stocks/crypto
+            self.data_provider = AlpacaDataProvider(api_key, secret_key)
+            self.is_forex = False
+
+            if use_simulated_broker:
+                self.broker = SimulatedBroker(api_key, secret_key, initial_balance) if api_key else None
+                print(f"Using SimulatedBroker with ${initial_balance:,.2f} initial balance")
+            else:
+                self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
+
+            # Get initial balance from Alpaca account
+            if self.broker:
+                account_info = self.broker.get_account_api() if hasattr(self.broker, 'get_account_api') else self.broker.get_account()
+                initial_balance = float(account_info.get('equity', 10000))
+                print(f"Account Equity: ${initial_balance:,.2f}")
+                print(f"Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
+            else:
+                initial_balance = 10000
+                print(f"Simulation Balance: ${initial_balance:,.2f}")
 
         # Initialize trading engine
         self.trading_engine = LiveTradingEngine(
@@ -130,8 +148,17 @@ class LiveTradingChart:
             if self.data_history.empty:
                 print(f"Initializing {self.symbol} data...")
 
-                # Use the public endpoint to get recent bars immediately
-                initial_df = self.data_provider.get_recent_bars_public(self.symbol, limit=self.min_data_points + 10)
+                # Check if using forex (OANDA) or stocks/crypto (Alpaca)
+                if self.is_forex:
+                    # Use OANDA data provider
+                    initial_df = self.data_provider.get_data(
+                        ticker=self.symbol,
+                        timespan='M1',
+                        limit=self.lookback
+                    )
+                else:
+                    # Use the public endpoint to get recent bars immediately (Alpaca)
+                    initial_df = self.data_provider.get_recent_bars_public(self.symbol, limit=self.min_data_points + 10)
 
                 if not initial_df.empty:
                     # Use the fetched data, keep only what we need
@@ -148,7 +175,28 @@ class LiveTradingChart:
             # Live data update phase (after initial load)
             else:
                 # Get latest bar for live updates
-                latest_bar = self.data_provider.get_latest_bar(self.symbol)
+                if self.is_forex:
+                    # Use OANDA get_latest_candle
+                    latest_candle = self.data_provider.get_latest_candle(self.symbol)
+                    if latest_candle:
+                        # Convert OANDA timestamp string to datetime
+                        timestamp = latest_candle.get('time', datetime.now())
+                        if isinstance(timestamp, str):
+                            timestamp = pd.to_datetime(timestamp)
+
+                        latest_bar = {
+                            'timestamp': timestamp,
+                            'Open': latest_candle['open'],
+                            'High': latest_candle['high'],
+                            'Low': latest_candle['low'],
+                            'Close': latest_candle['close'],
+                            'Volume': latest_candle.get('volume', 0)
+                        }
+                    else:
+                        latest_bar = None
+                else:
+                    # Use Alpaca get_latest_bar
+                    latest_bar = self.data_provider.get_latest_bar(self.symbol)
 
                 if not latest_bar:
                     # Continue with existing data silently
@@ -168,9 +216,13 @@ class LiveTradingChart:
                         last_historical_ts = last_historical_ts.tz_localize('UTC')
 
                     if latest_ts > last_historical_ts:
-                        # Display OHLCV data
-                        print(f"\nNEW DATA - {self.symbol} at {latest_bar['timestamp'].strftime('%H:%M:%S')}")
-                        print(f"    O: ${latest_bar['Open']:.2f} | H: ${latest_bar['High']:.2f} | L: ${latest_bar['Low']:.2f} | C: ${latest_bar['Close']:.2f} | V: {latest_bar['Volume']:.0f}")
+                        # Convert timestamp to datetime for display
+                        display_time = pd.to_datetime(latest_bar['timestamp'])
+
+                        # Display OHLCV data (use 5 decimals for forex precision)
+                        decimals = 5 if self.is_forex else 2
+                        print(f"\nNEW DATA - {self.symbol} at {display_time.strftime('%H:%M:%S')}")
+                        print(f"    O: ${latest_bar['Open']:.{decimals}f} | H: ${latest_bar['High']:.{decimals}f} | L: ${latest_bar['Low']:.{decimals}f} | C: ${latest_bar['Close']:.{decimals}f} | V: {latest_bar['Volume']:.0f}")
 
                         # Check for active position and display unrealized PnL
                         self._display_position_update(latest_bar['Close'])
