@@ -1,10 +1,9 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base_strategy import BaseStrategy
 from indicators.technical_indicators import detect_candlestick_patterns
 
 
-class CandlestickPatternsStrategy(BaseStrategy):
+class CandlestickPatternsStrategy:
     """
     Candlestick Patterns strategy
     Buy on bullish patterns (hammer, bullish engulfing)
@@ -12,7 +11,8 @@ class CandlestickPatternsStrategy(BaseStrategy):
     """
 
     def __init__(self, **kwargs):
-        super().__init__("Candlestick Patterns", {**kwargs})
+        self.name = "Candlestick Patterns"
+        self.params = {**kwargs}
 
     def generate_signals(self, df: pd.DataFrame) -> pd.DataFrame:
         """Generate candlestick pattern trading signals"""
@@ -54,3 +54,8 @@ class CandlestickPatternsStrategy(BaseStrategy):
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['doji', 'hammer', 'hanging_man', 'shooting_star', 'bullish_engulfing', 'bearish_engulfing']
+
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)

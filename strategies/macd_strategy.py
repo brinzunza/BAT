@@ -1,10 +1,9 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base_strategy import BaseStrategy
 from indicators.technical_indicators import macd
 
 
-class MACDStrategy(BaseStrategy):
+class MACDStrategy:
     """
     MACD (Moving Average Convergence Divergence) strategy
     Buy when MACD line crosses above signal line
@@ -12,12 +11,13 @@ class MACDStrategy(BaseStrategy):
     """
 
     def __init__(self, fast: int = 12, slow: int = 26, signal: int = 9, **kwargs):
-        super().__init__("MACD", {
+        self.name = "MACD"
+        self.params = {
             "fast": fast,
             "slow": slow,
             "signal": signal,
             **kwargs
-        })
+        }
         self.fast = fast
         self.slow = slow
         self.signal = signal
@@ -51,3 +51,8 @@ class MACDStrategy(BaseStrategy):
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['macd_line', 'signal_line', 'histogram']
+
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)

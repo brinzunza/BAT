@@ -1,10 +1,9 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base_strategy import BaseStrategy
 from indicators.technical_indicators import rsi
 
 
-class RSIStrategy(BaseStrategy):
+class RSIStrategy:
     """
     RSI (Relative Strength Index) strategy
     Buy when RSI is oversold (< oversold_threshold)
@@ -12,12 +11,13 @@ class RSIStrategy(BaseStrategy):
     """
 
     def __init__(self, window: int = 14, oversold_threshold: float = 30, overbought_threshold: float = 70, **kwargs):
-        super().__init__("RSI", {
+        self.name = "RSI"
+        self.params = {
             "window": window,
             "oversold_threshold": oversold_threshold,
             "overbought_threshold": overbought_threshold,
             **kwargs
-        })
+        }
         self.window = window
         self.oversold_threshold = oversold_threshold
         self.overbought_threshold = overbought_threshold
@@ -47,3 +47,8 @@ class RSIStrategy(BaseStrategy):
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['rsi']
+
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)

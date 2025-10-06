@@ -1,22 +1,22 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base_strategy import BaseStrategy
 from indicators.technical_indicators import sma
 
 
-class MovingAverageStrategy(BaseStrategy):
+class MovingAverageStrategy:
     """
     Moving average crossover strategy
     Based on the movingAverage.ipynb notebook
     """
     
     def __init__(self, short_window: int = 1, medium_window: int = 5, long_window: int = 25, **kwargs):
-        super().__init__("Moving Average", {
+        self.name = "Moving Average"
+        self.params = {
             "short_window": short_window,
-            "medium_window": medium_window, 
+            "medium_window": medium_window,
             "long_window": long_window,
             **kwargs
-        })
+        }
         self.short_window = short_window
         self.medium_window = medium_window
         self.long_window = long_window
@@ -61,3 +61,8 @@ class MovingAverageStrategy(BaseStrategy):
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['short_mavg', 'medium_mavg', 'long_mavg']
+
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)

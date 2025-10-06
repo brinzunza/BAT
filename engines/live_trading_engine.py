@@ -1,7 +1,6 @@
 import time
 import pandas as pd
 from typing import Dict, Any, Optional, Callable, List
-from strategies.base_strategy import BaseStrategy
 from data_providers.base_provider import BaseDataProvider
 from datetime import datetime
 import logging
@@ -220,7 +219,7 @@ class LiveTradingEngine:
             self.logger.error(f"Error getting Alpaca account: {e}")
             return {'equity': self.current_balance, 'buying_power': self.current_balance, 'portfolio_value': self.current_balance}
 
-    def _validate_signals(self, df: pd.DataFrame, strategy: BaseStrategy) -> bool:
+    def _validate_signals(self, df: pd.DataFrame, strategy) -> bool:
         """Validate signals before executing trades (silent)"""
         try:
             # Ensure we have enough data for reliable signals
@@ -277,7 +276,7 @@ class LiveTradingEngine:
 
     def process_signals(self,
                        df: pd.DataFrame,
-                       strategy: BaseStrategy,
+                       strategy,
                        symbol: str,
                        quantity: float = None):
         """Process trading signals from strategy"""
@@ -614,7 +613,7 @@ class LiveTradingEngine:
                 print(f"     Cannot place multiple sell orders (position limit enforced)")
 
     def run_strategy(self,
-                    strategy: BaseStrategy,
+                    strategy,
                     symbol: str,
                     quantity: float = 1,
                     sleep_interval: int = 60,
