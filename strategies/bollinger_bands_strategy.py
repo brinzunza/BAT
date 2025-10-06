@@ -1,10 +1,9 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base_strategy import BaseStrategy
 from indicators.technical_indicators import bollinger_bands
 
 
-class BollingerBandsStrategy(BaseStrategy):
+class BollingerBandsStrategy:
     """
     Bollinger Bands strategy
     Buy when price touches lower band (oversold)
@@ -12,11 +11,12 @@ class BollingerBandsStrategy(BaseStrategy):
     """
 
     def __init__(self, window: int = 20, num_std: float = 2, **kwargs):
-        super().__init__("Bollinger Bands", {
+        self.name = "Bollinger Bands"
+        self.params = {
             "window": window,
             "num_std": num_std,
             **kwargs
-        })
+        }
         self.window = window
         self.num_std = num_std
 
@@ -48,3 +48,8 @@ class BollingerBandsStrategy(BaseStrategy):
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['bb_upper', 'bb_middle', 'bb_lower']
+
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)

@@ -10,7 +10,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from data_providers.alpaca_provider import AlpacaDataProvider, AlpacaBroker, SimulatedBroker
-from strategies.base_strategy import BaseStrategy
 from engines.live_trading_engine import LiveTradingEngine
 
 
@@ -18,7 +17,7 @@ class LiveTradingChart:
     """Live trading chart with strategy indicators - supports Alpaca and OANDA/IB"""
 
     def __init__(self,
-                 strategy: BaseStrategy,
+                 strategy,
                  api_key: str = None,
                  secret_key: str = None,
                  symbol: str = "BTC/USD",

@@ -1,9 +1,8 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from .base_strategy import BaseStrategy
 
 
-class MeanReversionStrategy(BaseStrategy):
+class MeanReversionStrategy:
     """
     Mean reversion strategy (Conservative) - Closes at mean
     Enters when price touches extreme bands, exits when price returns to SMA
@@ -11,7 +10,8 @@ class MeanReversionStrategy(BaseStrategy):
     """
 
     def __init__(self, window: int = 20, num_std: float = 2.0, **kwargs):
-        super().__init__("Mean Reversion (Conservative)", {"window": window, "num_std": num_std, **kwargs})
+        self.name = "Mean Reversion (Conservative)"
+        self.params = {"window": window, "num_std": num_std, **kwargs}
         self.window = window
         self.num_std = num_std
 
@@ -47,8 +47,13 @@ class MeanReversionStrategy(BaseStrategy):
         """Return list of indicator columns this strategy creates"""
         return ['SMA', 'Upper Band', 'Lower Band']
 
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)
 
-class MeanReversionExtremeStrategy(BaseStrategy):
+
+class MeanReversionExtremeStrategy:
     """
     Mean reversion strategy (Extreme) - Closes at opposite extreme
     Enters when price touches extreme bands, exits when price touches opposite extreme band
@@ -56,7 +61,8 @@ class MeanReversionExtremeStrategy(BaseStrategy):
     """
 
     def __init__(self, window: int = 20, num_std: float = 2.0, **kwargs):
-        super().__init__("Mean Reversion (Extreme)", {"window": window, "num_std": num_std, **kwargs})
+        self.name = "Mean Reversion (Extreme)"
+        self.params = {"window": window, "num_std": num_std, **kwargs}
         self.window = window
         self.num_std = num_std
 
@@ -88,3 +94,8 @@ class MeanReversionExtremeStrategy(BaseStrategy):
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['SMA', 'Upper Band', 'Lower Band']
+
+    def validate_data(self, df: pd.DataFrame) -> bool:
+        """Validate that the DataFrame has required columns"""
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
+        return all(col in df.columns for col in required_columns)

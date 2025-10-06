@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, List
-from strategies.base_strategy import BaseStrategy
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -54,7 +53,7 @@ class BacktestEngine:
         else:
             return self.current_balance
     
-    def backtest(self, df: pd.DataFrame, strategy: BaseStrategy) -> pd.DataFrame:
+    def backtest(self, df: pd.DataFrame, strategy) -> pd.DataFrame:
         """
         Run backtest with given data and strategy
 
@@ -198,10 +197,10 @@ class BacktestEngine:
         trade_data = {}
         price = current_row['Close']
 
-        # Buy signal
-        if buy_signal and self.position != 1 and self.current_balance > 0:
-            # Close short position if exists
-            if self.position == -1:
+        # Buy signal - enter long (or reverse from short to long)
+        if buy_signal and self.position != 1:
+            # Close short position if exists (using ALL shares held)
+            if self.position == -1 and self.shares_held > 0:
                 # Apply spread for forex when closing short (buy at ask price)
                 close_price = price
                 if self.is_forex and self.spread_pips > 0:
@@ -224,11 +223,11 @@ class BacktestEngine:
                 total_profit = total_account_worth - self.initial_balance
 
                 trade_data['Time'] = current_row['timestamp']
-                trade_data['Price'] = price
+                trade_data['Price'] = close_price
                 trade_data['Position'] = 0  # Flat first
                 trade_data['Index'] = i
                 trade_data['Action'] = 'CLOSE_SHORT'
-                trade_data['Shares'] = self.shares_held
+                trade_data['Shares'] = self.shares_held  # Close ALL shares
                 trade_data['Profit'] = profit
                 trade_data['Last_Trade_Realized'] = profit
                 trade_data['Result'] = "Win" if profit > 0 else "Loss"
@@ -287,10 +286,10 @@ class BacktestEngine:
                     self.entry_price = buy_price
                     self.shares_held = shares_to_buy
 
-        # Sell signal
+        # Sell signal - enter short (or reverse from long to short)
         elif sell_signal and self.position != -1:
-            # Close long position if exists
-            if self.position == 1:
+            # Close long position if exists (using ALL shares held)
+            if self.position == 1 and self.shares_held > 0:
                 # Apply spread for forex when closing long (sell at bid price)
                 sell_price = price
                 if self.is_forex and self.spread_pips > 0:
@@ -312,11 +311,11 @@ class BacktestEngine:
                 total_profit = total_account_worth - self.initial_balance
 
                 trade_data['Time'] = current_row['timestamp']
-                trade_data['Price'] = price
+                trade_data['Price'] = sell_price
                 trade_data['Position'] = 0  # Flat first
                 trade_data['Index'] = i
                 trade_data['Action'] = 'CLOSE_LONG'
-                trade_data['Shares'] = self.shares_held
+                trade_data['Shares'] = self.shares_held  # Close ALL shares
                 trade_data['Proceeds'] = proceeds
                 trade_data['Profit'] = profit
                 trade_data['Last_Trade_Realized'] = profit
