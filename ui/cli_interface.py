@@ -53,22 +53,53 @@ class TradingCLI:
         print()
     
     def setup_data_provider(self):
-        """Setup data provider"""
-        print("Data Provider Setup")
-        print("-" * 20)
-        
-        api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
-        if not api_key:
-            api_key = "your-api-key-here"  # Default placeholder
-        
-        try:
-            self.data_provider = PolygonDataProvider(api_key)
-            print("✓ Data provider configured successfully")
-        except Exception as e:
-            print(f"✗ Error setting up data provider: {e}")
-            return False
-        
-        return True
+        """Setup data provider with API key validation"""
+        while True:
+            print("\nData Provider Setup")
+            print("-" * 20)
+
+            api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
+            if not api_key:
+                api_key = "your-api-key-here"  # Default placeholder
+
+            try:
+                # Create data provider instance
+                self.data_provider = PolygonDataProvider(api_key)
+
+                # Test the connection
+                print("Testing API key...")
+                success, message = self.data_provider.test_connection()
+
+                if success:
+                    print(f"✓ {message}")
+                    print("✓ Data provider configured successfully")
+                    return True
+                else:
+                    # API key validation failed
+                    print(f"✗ {message}")
+                    print("\nWhat would you like to do?")
+                    print("1. Retry with a different API key")
+                    print("2. Return to main menu")
+
+                    choice = input("\nSelect option (1-2): ").strip()
+
+                    if choice == '2':
+                        self.data_provider = None
+                        return False
+                    # If choice is '1' or anything else, loop continues
+
+            except Exception as e:
+                print(f"✗ Error setting up data provider: {e}")
+                print("\nWhat would you like to do?")
+                print("1. Retry with a different API key")
+                print("2. Return to main menu")
+
+                choice = input("\nSelect option (1-2): ").strip()
+
+                if choice == '2':
+                    self.data_provider = None
+                    return False
+                # If choice is '1' or anything else, loop continues
     
     def setup_broker(self):
         """Setup broker interface"""

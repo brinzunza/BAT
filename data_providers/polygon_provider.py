@@ -95,3 +95,55 @@ class PolygonDataProvider(BaseDataProvider):
     def is_forex_pair(self, ticker: str) -> bool:
         """Check if ticker is a forex pair"""
         return ticker.startswith('C:') and len(ticker) == 8  # Format: C:EURUSD
+
+    def test_connection(self) -> tuple[bool, str]:
+        """
+        Test the API connection with a simple request
+        Returns: (success: bool, message: str)
+        """
+        try:
+            # Use a simple request to get recent data for a common ticker
+            test_ticker = "AAPL"
+            today = datetime.now().strftime('%Y-%m-%d')
+            yesterday = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+            url = (f"{self.base_url}/{test_ticker}/range/1/day/{yesterday}/{today}"
+                   f"?adjusted=true&sort=asc&limit=5&apiKey={self.api_key}")
+
+            response = requests.get(url, timeout=10)
+
+            # Check for authentication/authorization errors
+            if response.status_code == 401:
+                return False, "Invalid API key - Authentication failed"
+            elif response.status_code == 403:
+                return False, "Access forbidden - Check API key permissions"
+            elif response.status_code == 429:
+                return False, "Rate limit exceeded - API key may be invalid or overused"
+            elif response.status_code != 200:
+                return False, f"API request failed with status code {response.status_code}"
+
+            # Parse response
+            data = response.json()
+
+            # Use the same validation logic as get_data() method
+            if self.validate_response(data):
+                # Valid response with results
+                return True, "API key validated successfully"
+            elif data.get('status') == 'ERROR':
+                # API returned an error
+                error_msg = data.get('error', data.get('message', 'Unknown error'))
+                return False, f"API error: {error_msg}"
+            elif data.get('status') == 'OK' and data.get('resultsCount', 0) == 0:
+                # Valid API key but no data for this period (e.g., weekend)
+                # This still means the key is valid
+                return True, "API key validated successfully"
+            else:
+                # Unexpected response format
+                return False, f"Unexpected API response format. Status: {data.get('status', 'none')}"
+
+        except requests.exceptions.Timeout:
+            return False, "Connection timeout - Check your internet connection"
+        except requests.exceptions.ConnectionError:
+            return False, "Connection error - Check your internet connection"
+        except Exception as e:
+            return False, f"Connection test failed: {str(e)}"
