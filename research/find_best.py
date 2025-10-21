@@ -129,7 +129,8 @@ def run_backtest(csv_file: str, sma_period: int, std_multiplier: float) -> Dict:
             'win_rate': 0.0,
             'avg_win': 0.0,
             'avg_loss': 0.0,
-            'profit_factor': 0.0
+            'profit_factor': 0.0,
+            'expectancy': 0.0
         }
 
         # Parse output line by line
@@ -167,6 +168,12 @@ def run_backtest(csv_file: str, sma_period: int, std_multiplier: float) -> Dict:
                         metrics['profit_factor'] = float(pf_str)
                 except:
                     metrics['profit_factor'] = 0.0
+            elif 'Expectancy:' in line:
+                exp_str = line.split(':')[1].strip().replace('$', '').replace(',', '')
+                try:
+                    metrics['expectancy'] = float(exp_str)
+                except:
+                    metrics['expectancy'] = 0.0
 
         return metrics
 
@@ -242,7 +249,7 @@ def optimize_parameters(train_file: str) -> List[Dict]:
 
             if metrics and metrics['total_trades'] > 0:
                 results.append(metrics)
-                print(f"P&L=${metrics['total_pnl']:>10.2f}, Trades={metrics['total_trades']:4d}, WR={metrics['win_rate']:5.1f}%")
+                print(f"P&L=${metrics['total_pnl']:>10.2f}, Trades={metrics['total_trades']:4d}, WR={metrics['win_rate']:5.1f}%, Exp=${metrics['expectancy']:6.2f}")
             else:
                 print("No trades")
 
@@ -260,13 +267,13 @@ def optimize_parameters(train_file: str) -> List[Dict]:
     print(f"\nTested {total_combinations} combinations in {minutes}m {seconds}s")
     print(f"Valid results: {len(results)}")
     print(f"\nTop 20 parameter combinations (by P&L):\n")
-    print(f"{'Rank':<6} {'SMA':<6} {'Std':<7} {'P&L':<14} {'Trades':<8} {'Win%':<8} {'PF':<8}")
-    print(f"{'-'*65}")
+    print(f"{'Rank':<6} {'SMA':<6} {'Std':<7} {'P&L':<14} {'Trades':<8} {'Win%':<8} {'PF':<8} {'Expectancy':<12}")
+    print(f"{'-'*78}")
 
     for i, result in enumerate(results[:20], 1):
         print(f"{i:<6} {result['sma_period']:<6} {result['std_multiplier']:<7.2f} "
               f"${result['total_pnl']:<13,.2f} {result['total_trades']:<8} "
-              f"{result['win_rate']:<7.1f}% {result['profit_factor']:<8.2f}")
+              f"{result['win_rate']:<7.1f}% {result['profit_factor']:<8.2f} ${result['expectancy']:<11.2f}")
 
     return results
 
