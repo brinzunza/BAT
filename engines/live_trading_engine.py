@@ -413,19 +413,24 @@ class LiveTradingEngine:
 
             # Final trade confirmation (silent)
             if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
-                # Open long position with LIMIT order at current price
-                result = self.execute_buy_order(symbol, quantity, order_type="limit", limit_price=current_price)
-                if result.get('status') != 'failed':
+                # Open long position with MARKET order for reliable execution
+                result = self.execute_buy_order(symbol, quantity, order_type="market")
+                if result.get('status') not in ['failed', 'pending']:
+                    # Force position refresh for IB broker
+                    if hasattr(self.broker_interface, 'refresh_positions'):
+                        self.broker_interface.refresh_positions()
+
                     # Get updated account info after trade
                     updated_account = self.get_alpaca_account()
                     updated_balance = float(updated_account.get('equity', account_balance))
                     updated_session_pnl = updated_balance - self.initial_balance
 
                     if not getattr(self, 'quiet_mode', False):
-                        print(f" BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                        print(f" BUY ORDER FILLED - {quantity} {symbol} at market")
+                        print(f"     Fill Price: ${result.get('avg_fill_price', current_price):.5f}")
                         print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
                     else:
-                        print(f"\n[BUY] {quantity} {symbol} @ ${current_price:.5f}")
+                        print(f"\n[BUY] {quantity} {symbol} @ ${result.get('avg_fill_price', current_price):.5f}")
 
                     self.trades.append({
                         'timestamp': timestamp,
@@ -459,17 +464,22 @@ class LiveTradingEngine:
 
             # Close the existing long position
             result = self.close_position(symbol)
-            if result.get('status') != 'failed':
+            if result.get('status') not in ['failed', 'pending']:
+                # Force position refresh for IB broker
+                if hasattr(self.broker_interface, 'refresh_positions'):
+                    self.broker_interface.refresh_positions()
+
                 # Get updated account info after trade
                 updated_account = self.get_alpaca_account()
                 updated_balance = float(updated_account.get('equity', account_balance))
                 updated_session_pnl = updated_balance - self.initial_balance
 
                 if not getattr(self, 'quiet_mode', False):
-                    print(f" POSITION CLOSED - {current_qty} {symbol} at market price")
+                    print(f" POSITION CLOSED - {current_qty} {symbol} at market")
+                    print(f"     Exit Price: ${result.get('avg_fill_price', current_price):.5f}")
                     print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
                 else:
-                    print(f"\n[CLOSE] {current_qty} {symbol} @ ${current_price:.5f}")
+                    print(f"\n[CLOSE] {current_qty} {symbol} @ ${result.get('avg_fill_price', current_price):.5f}")
 
                 self.trades.append({
                     'timestamp': timestamp,
@@ -524,17 +534,22 @@ class LiveTradingEngine:
                     })
 
             elif current_qty == 0 and not has_pending_buy:  # No position and no pending buy, open long
-                print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at ${current_price:.2f} (LIMIT ORDER)")
+                print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at market price")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
-                    result = self.execute_buy_order(symbol, quantity, order_type="limit", limit_price=current_price)
-                    if result.get('status') != 'failed':
+                    result = self.execute_buy_order(symbol, quantity, order_type="market")
+                    if result.get('status') not in ['failed', 'pending']:
+                        # Force position refresh for IB broker
+                        if hasattr(self.broker_interface, 'refresh_positions'):
+                            self.broker_interface.refresh_positions()
+
                         updated_account = self.get_alpaca_account()
                         updated_balance = float(updated_account.get('equity', account_balance))
                         updated_session_pnl = updated_balance - self.initial_balance
 
-                        print(f" BUY ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                        print(f" BUY ORDER FILLED - {quantity} {symbol} at market")
+                        print(f"     Fill Price: ${result.get('avg_fill_price', current_price):.5f}")
                         print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
 
                         self.trades.append({
@@ -577,17 +592,22 @@ class LiveTradingEngine:
                     })
 
             elif current_qty == 0 and not has_pending_sell:  # No position and no pending sell, open short
-                print(f"\n🔴 SELL SIGNAL - Attempting to short {quantity} {symbol} at ${current_price:.2f} (LIMIT ORDER)")
+                print(f"\n🔴 SELL SIGNAL - Attempting to short {quantity} {symbol} at market price")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 if self._confirm_trade_execution('SELL', symbol, quantity, current_price, alpaca_position):
-                    result = self.execute_sell_order(symbol, quantity, order_type="limit", limit_price=current_price)
-                    if result.get('status') != 'failed':
+                    result = self.execute_sell_order(symbol, quantity, order_type="market")
+                    if result.get('status') not in ['failed', 'pending']:
+                        # Force position refresh for IB broker
+                        if hasattr(self.broker_interface, 'refresh_positions'):
+                            self.broker_interface.refresh_positions()
+
                         updated_account = self.get_alpaca_account()
                         updated_balance = float(updated_account.get('equity', account_balance))
                         updated_session_pnl = updated_balance - self.initial_balance
 
-                        print(f" SHORT ORDER FILLED - {quantity} {symbol} at ${current_price:.2f}")
+                        print(f" SHORT ORDER FILLED - {quantity} {symbol} at market")
+                        print(f"     Fill Price: ${result.get('avg_fill_price', current_price):.5f}")
                         print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
 
                         self.trades.append({

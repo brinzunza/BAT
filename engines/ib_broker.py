@@ -25,6 +25,8 @@ class IBBroker(EWrapper, EClient):
         self.position_event = threading.Event()
         self.account_event = threading.Event()
         self.order_status = {}
+        self.order_fill_events = {}  # Track fill events per order
+        self._positions_lock = threading.Lock()  # Thread safety for positions
 
     # IB API Callbacks
     def nextValidId(self, orderId: int):
@@ -46,16 +48,17 @@ class IBBroker(EWrapper, EClient):
             print(f"IB Error {errorCode}: {errorString}")
 
     def position(self, account: str, contract: Contract, position: float, avgCost: float):
-        """Position callback"""
+        """Position callback - update positions thread-safely"""
         symbol = contract.symbol
         if contract.secType == 'CASH':
             symbol = f"{contract.symbol}_{contract.currency}"
 
-        self.positions[symbol] = {
-            'qty': float(position),
-            'avg_entry_price': float(avgCost),
-            'contract': contract
-        }
+        with self._positions_lock:
+            self.positions[symbol] = {
+                'qty': float(position),
+                'avg_entry_price': float(avgCost),
+                'contract': contract
+            }
 
     def positionEnd(self):
         """Called when all positions received"""
@@ -79,6 +82,11 @@ class IBBroker(EWrapper, EClient):
             'avg_fill_price': avgFillPrice
         }
         print(f"IB Order {orderId}: {status} | Filled: {filled} | Remaining: {remaining} | Avg Price: {avgFillPrice}")
+
+        # Set event when order is filled
+        if status in ['Filled', 'PreSubmitted', 'Submitted']:
+            if orderId in self.order_fill_events:
+                self.order_fill_events[orderId].set()
 
     # Connection methods
     def connect_to_tws(self, host: str = '127.0.0.1', port: int = 7497, client_id: int = 1) -> bool:
@@ -142,7 +150,7 @@ class IBBroker(EWrapper, EClient):
 
     def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
         """
-        Place buy order
+        Place buy order and wait for confirmation
 
         Args:
             symbol: Currency pair
@@ -169,21 +177,44 @@ class IBBroker(EWrapper, EClient):
         order_id = self.next_order_id
         self.next_order_id += 1
 
-        self.placeOrder(order_id, contract, order)
-        time.sleep(1)  # Wait for order submission
+        # Create event to track this order
+        self.order_fill_events[order_id] = threading.Event()
 
-        return {
-            'id': str(order_id),
-            'status': 'submitted',
-            'symbol': symbol,
-            'side': 'buy',
-            'qty': quantity,
-            'order_type': order_type
-        }
+        # Place order
+        self.placeOrder(order_id, contract, order)
+
+        # Wait for order acknowledgment (shorter for market, longer for limit)
+        timeout = 2 if order_type.lower() == "market" else 5
+        if self.order_fill_events[order_id].wait(timeout=timeout):
+            order_info = self.order_status.get(order_id, {})
+            # Request position update after fill
+            self.reqPositions()
+            time.sleep(0.5)  # Give time for position update
+
+            return {
+                'id': str(order_id),
+                'status': order_info.get('status', 'submitted'),
+                'symbol': symbol,
+                'side': 'buy',
+                'qty': quantity,
+                'order_type': order_type,
+                'avg_fill_price': order_info.get('avg_fill_price', limit_price)
+            }
+        else:
+            # Order not confirmed within timeout
+            return {
+                'id': str(order_id),
+                'status': 'pending',
+                'symbol': symbol,
+                'side': 'buy',
+                'qty': quantity,
+                'order_type': order_type,
+                'message': 'Order placed but not confirmed yet'
+            }
 
     def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
         """
-        Place sell order
+        Place sell order and wait for confirmation
 
         Args:
             symbol: Currency pair
@@ -210,21 +241,44 @@ class IBBroker(EWrapper, EClient):
         order_id = self.next_order_id
         self.next_order_id += 1
 
-        self.placeOrder(order_id, contract, order)
-        time.sleep(1)  # Wait for order submission
+        # Create event to track this order
+        self.order_fill_events[order_id] = threading.Event()
 
-        return {
-            'id': str(order_id),
-            'status': 'submitted',
-            'symbol': symbol,
-            'side': 'sell',
-            'qty': quantity,
-            'order_type': order_type
-        }
+        # Place order
+        self.placeOrder(order_id, contract, order)
+
+        # Wait for order acknowledgment (shorter for market, longer for limit)
+        timeout = 2 if order_type.lower() == "market" else 5
+        if self.order_fill_events[order_id].wait(timeout=timeout):
+            order_info = self.order_status.get(order_id, {})
+            # Request position update after fill
+            self.reqPositions()
+            time.sleep(0.5)  # Give time for position update
+
+            return {
+                'id': str(order_id),
+                'status': order_info.get('status', 'submitted'),
+                'symbol': symbol,
+                'side': 'sell',
+                'qty': quantity,
+                'order_type': order_type,
+                'avg_fill_price': order_info.get('avg_fill_price', limit_price)
+            }
+        else:
+            # Order not confirmed within timeout
+            return {
+                'id': str(order_id),
+                'status': 'pending',
+                'symbol': symbol,
+                'side': 'sell',
+                'qty': quantity,
+                'order_type': order_type,
+                'message': 'Order placed but not confirmed yet'
+            }
 
     def close_position(self, symbol: str) -> dict:
         """
-        Close position for symbol
+        Close position for symbol using market order
 
         Args:
             symbol: Currency pair
@@ -232,16 +286,19 @@ class IBBroker(EWrapper, EClient):
         Returns:
             Order details
         """
+        # Get current position first
         position = self.get_position_for_symbol(symbol)
         qty = float(position.get('qty', 0))
 
         if qty == 0:
             return {'status': 'failed', 'error': 'No position to close'}
 
-        # Close position by placing opposite order
+        # Close position by placing opposite MARKET order (faster execution)
         if qty > 0:
+            print(f"[IB] Closing LONG position: selling {abs(qty)} {symbol}")
             return self.sell(symbol, abs(qty), order_type="market")
         else:
+            print(f"[IB] Closing SHORT position: buying {abs(qty)} {symbol}")
             return self.buy(symbol, abs(qty), order_type="market")
 
     def cancel_order(self, order_id: str) -> dict:
@@ -275,20 +332,27 @@ class IBBroker(EWrapper, EClient):
         if '_' not in symbol and len(symbol) == 6:
             symbol = f"{symbol[:3]}_{symbol[3:]}"
 
-        self.positions = {}
+        # Request fresh position data (but don't clear existing cache)
         self.position_event.clear()
         self.reqPositions()
 
+        # Wait for position updates
         self.position_event.wait(timeout=3)
         self.cancelPositions()
 
-        position = self.positions.get(symbol, {})
+        # Get position from cache (thread-safe)
+        with self._positions_lock:
+            position = self.positions.get(symbol, {})
+
+        qty = position.get('qty', 0)
+        avg_price = position.get('avg_entry_price', 0)
+
         return {
-            'qty': str(position.get('qty', 0)),
-            'avg_entry_price': str(position.get('avg_entry_price', 0)),
-            'side': 'long' if position.get('qty', 0) > 0 else 'short',
-            'market_value': '0',
-            'unrealized_pl': '0'
+            'qty': str(qty),
+            'avg_entry_price': str(avg_price),
+            'side': 'long' if qty > 0 else ('short' if qty < 0 else 'flat'),
+            'market_value': '0',  # IB doesn't provide this directly for forex
+            'unrealized_pl': '0'   # Would need current market price to calculate
         }
 
     def get_account(self) -> dict:
@@ -317,3 +381,10 @@ class IBBroker(EWrapper, EClient):
     def get_account_api(self) -> dict:
         """Alias for get_account"""
         return self.get_account()
+
+    def refresh_positions(self):
+        """Force a position refresh from IB"""
+        self.position_event.clear()
+        self.reqPositions()
+        self.position_event.wait(timeout=2)
+        self.cancelPositions()
