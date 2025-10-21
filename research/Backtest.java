@@ -287,16 +287,25 @@ public class Backtest {
             if (state.winningTrades > 0) {
                 double avgWin = state.totalWins / state.winningTrades;
                 System.out.println("  Average Win:       $" + DF2.format(avgWin));
+            } else {
+                System.out.println("  Average Win:       $0.00");
             }
 
             if (state.losingTrades > 0) {
                 double avgLoss = state.totalLosses / state.losingTrades;
                 System.out.println("  Average Loss:      $" + DF2.format(avgLoss));
+            } else {
+                System.out.println("  Average Loss:      $0.00");
             }
 
             if (state.winningTrades > 0 && state.losingTrades > 0) {
                 double profitFactor = state.totalWins / state.totalLosses;
                 System.out.println("  Profit Factor:     " + DF2.format(profitFactor));
+            } else if (state.winningTrades > 0 && state.losingTrades == 0) {
+                // Perfect strategy - all wins, no losses
+                System.out.println("  Profit Factor:     ∞ (no losses)");
+            } else {
+                System.out.println("  Profit Factor:     0.00");
             }
         }
 

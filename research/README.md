@@ -58,9 +58,12 @@ python3 find_best.py btc_data.csv
 
 The optimizer will:
 - Split data into train (50%), validation (25%), test (25%)
-- Test 35 parameter combinations on training data
-- Validate top 5 on both validation and test sets
+- Test **680+ parameter combinations** on training data
+  - SMA periods: 1-100 (28 values tested)
+  - Std multipliers: 0.1-4.0 (22 values tested)
+- Validate top 10 on both validation and test sets
 - Recommend best parameters with robustness analysis
+- Display progress with ETA estimates
 
 ## Mean Reversion Strategy
 
@@ -92,9 +95,15 @@ Data Split:
 ```
 
 **Parameter Ranges Tested:**
-- SMA Periods: [10, 15, 20, 25, 30, 40, 50]
-- Std Multipliers: [1.0, 1.5, 2.0, 2.5, 3.0]
-- Total combinations: 35
+- **SMA Periods:** 28 values from 1 to 100
+  - 1-10: Every value (high frequency scalping)
+  - 12-20: Every 2 (short-term trading)
+  - 25-50: Every 5 (medium-term trading)
+  - 60-100: Every 10 (long-term trading)
+- **Std Multipliers:** 22 values from 0.1 to 4.0
+  - 0.1-1.0: Every 0.1 (tight bands)
+  - 1.25-4.0: Every 0.25 (wide bands)
+- **Total combinations:** 616 parameter sets
 
 **Selection Criteria:**
 1. Positive P&L on training set
@@ -148,20 +157,30 @@ The `fetch_polygon_data.py` script automatically formats data correctly.
 - Automatic memory management (no memory leaks)
 
 ### Python Optimizer
-- Tests 35 parameter combinations × 3 data splits = 105 backtests
-- Expected runtime: 10-30 seconds depending on data size
+- Tests 616 parameter combinations × 3 data splits = 1,848 backtests
+- Expected runtime: 3-8 minutes depending on data size
+- Progress displayed with ETA estimates
 - Results saved to timestamped CSV for later analysis
+- Parallel processing potential for future optimization
 
 ## Advanced Usage
 
 ### Custom Parameter Ranges
 
-Edit `find_best.py` to test different parameter ranges:
+Edit `find_best.py` (lines 193-204) to test different parameter ranges:
 
 ```python
-# Line 164-165
-sma_periods = [10, 15, 20, 25, 30, 40, 50, 60, 75, 100]  # Add more values
-std_multipliers = [1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]  # Add more values
+# Example: Test only high-frequency parameters (faster optimization)
+sma_periods = list(range(1, 21))  # 1-20
+std_multipliers = [round(x * 0.1, 1) for x in range(1, 31)]  # 0.1-3.0
+
+# Example: Test only long-term parameters
+sma_periods = list(range(50, 201, 10))  # 50-200
+std_multipliers = [round(x * 0.5, 1) for x in range(2, 9)]  # 1.0-4.0
+
+# Example: Dense grid search around known good values
+sma_periods = list(range(15, 36))  # 15-35 (every value)
+std_multipliers = [round(1.0 + x * 0.1, 1) for x in range(21)]  # 1.0-3.0
 ```
 
 ### Analyzing Results
