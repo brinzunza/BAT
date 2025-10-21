@@ -409,6 +409,7 @@ class BacktestEngine:
             }
 
         wins = completed_trades[completed_trades['Result'] == "Win"]
+        losses = completed_trades[completed_trades['Result'] == "Loss"]
         winrate = len(wins) / num_trades * 100
 
         # Use the Total_Account_Worth from the last trade entry (matches the detailed trade overview)
@@ -437,6 +438,13 @@ class BacktestEngine:
         largest_win = float(profits.max()) if len(profits) > 0 else 0.0
         largest_loss = float(profits.min()) if len(profits) > 0 else 0.0
 
+        # Calculate Expectancy: (WinRate × AverageWin) - (LossRate × AverageLoss)
+        # Extract just the Profit column from winning and losing trades
+        avg_win = float(wins['Profit'].mean()) if len(wins) > 0 else 0.0
+        avg_loss = float(abs(losses['Profit'].mean())) if len(losses) > 0 else 0.0
+        loss_rate = len(losses) / num_trades * 100 if num_trades > 0 else 0.0
+        expectancy = (winrate / 100.0 * avg_win) - (loss_rate / 100.0 * avg_loss)
+
         return {
             'num_trades': int(num_trades),
             'winrate': float(winrate),
@@ -445,7 +453,10 @@ class BacktestEngine:
             'percent_return': float(percent_return),
             'avg_profit_per_trade': float(avg_profit_per_trade),
             'largest_win': float(largest_win),
-            'largest_loss': float(largest_loss)
+            'largest_loss': float(largest_loss),
+            'expectancy': float(expectancy),
+            'avg_win': float(avg_win),
+            'avg_loss': float(avg_loss)
         }
     
     def print_analysis(self, trade_df: pd.DataFrame):
@@ -464,6 +475,9 @@ class BacktestEngine:
             print(f"Percentage Return: {analysis['percent_return']:.2f}%")
             print(f"Total Completed Trades: {analysis['num_trades']}")
             if analysis['num_trades'] > 0:
+                print(f"Average Win: ${analysis['avg_win']:.8f}")
+                print(f"Average Loss: ${analysis['avg_loss']:.8f}")
+                print(f"Expectancy: ${analysis['expectancy']:.8f}")
                 print(f"Average Profit per Trade: ${analysis['avg_profit_per_trade']:.8f}")
                 print(f"Largest Win: ${analysis['largest_win']:.8f}")
                 print(f"Largest Loss: ${analysis['largest_loss']:.8f}")
@@ -474,6 +488,9 @@ class BacktestEngine:
             print(f"Percentage Return: {analysis['percent_return']:.2f}%")
             print(f"Total Completed Trades: {analysis['num_trades']}")
             if analysis['num_trades'] > 0:
+                print(f"Average Win: ${analysis['avg_win']:.4f}")
+                print(f"Average Loss: ${analysis['avg_loss']:.4f}")
+                print(f"Expectancy: ${analysis['expectancy']:.4f}")
                 print(f"Average Profit per Trade: ${analysis['avg_profit_per_trade']:.4f}")
                 print(f"Largest Win: ${analysis['largest_win']:.4f}")
                 print(f"Largest Loss: ${analysis['largest_loss']:.4f}")

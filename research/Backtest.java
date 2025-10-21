@@ -307,6 +307,13 @@ public class Backtest {
             } else {
                 System.out.println("  Profit Factor:     0.00");
             }
+
+            // Calculate Expectancy: (WinRate × AverageWin) - (LossRate × AverageLoss)
+            double avgWin = state.winningTrades > 0 ? state.totalWins / state.winningTrades : 0.0;
+            double avgLoss = state.losingTrades > 0 ? state.totalLosses / state.losingTrades : 0.0;
+            double lossRate = (double) state.losingTrades / state.totalTrades * 100;
+            double expectancy = (winRate / 100.0 * avgWin) - (lossRate / 100.0 * avgLoss);
+            System.out.println("  Expectancy:        $" + DF2.format(expectancy));
         }
 
         System.out.println();
