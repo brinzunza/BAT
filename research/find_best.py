@@ -160,7 +160,11 @@ def run_backtest(csv_file: str, sma_period: int, std_multiplier: float) -> Dict:
             elif 'Profit Factor:' in line:
                 pf_str = line.split(':')[1].strip()
                 try:
-                    metrics['profit_factor'] = float(pf_str)
+                    # Handle infinity symbol or "no losses" text
+                    if '∞' in pf_str or 'no losses' in pf_str.lower():
+                        metrics['profit_factor'] = 999.99  # Very high value to indicate perfect strategy
+                    else:
+                        metrics['profit_factor'] = float(pf_str)
                 except:
                     metrics['profit_factor'] = 0.0
 
@@ -188,52 +192,86 @@ def optimize_parameters(train_file: str) -> List[Dict]:
     print("PARAMETER OPTIMIZATION (Training Set)")
     print(f"{'='*60}\n")
 
-    # Parameter ranges to test
-    sma_periods = [10, 15, 20, 25, 30, 40, 50]
-    std_multipliers = [1.0, 1.5, 2.0, 2.5, 3.0]
+    # Parameter ranges to test - comprehensive search
+    # SMA periods: from 1 to 100 with strategic spacing
+    sma_periods = (
+        list(range(1, 11)) +           # 1-10: every value (high frequency)
+        list(range(12, 21, 2)) +       # 12-20: every 2 (short-term)
+        list(range(25, 51, 5)) +       # 25-50: every 5 (medium-term)
+        list(range(60, 101, 10))       # 60-100: every 10 (long-term)
+    )
+
+    # Std multipliers: from 0.1 to 4.0 with fine granularity
+    std_multipliers = (
+        [round(x * 0.1, 1) for x in range(1, 11)] +    # 0.1-1.0: every 0.1
+        [round(x * 0.25, 2) for x in range(5, 17)]     # 1.25-4.0: every 0.25
+    )
 
     total_combinations = len(sma_periods) * len(std_multipliers)
     print(f"Testing {total_combinations} parameter combinations...")
-    print(f"SMA periods: {sma_periods}")
-    print(f"Std multipliers: {std_multipliers}")
+    print(f"SMA periods: {len(sma_periods)} values from 1 to 100")
+    print(f"  Range: {min(sma_periods)} to {max(sma_periods)}")
+    print(f"Std multipliers: {len(std_multipliers)} values from 0.1 to 4.0")
+    print(f"  Range: {min(std_multipliers)} to {max(std_multipliers)}")
     print()
 
     results = []
     tested = 0
+    start_time = datetime.now()
 
     # Test all combinations
     for sma_period in sma_periods:
         for std_mult in std_multipliers:
             tested += 1
-            print(f"[{tested}/{total_combinations}] Testing SMA={sma_period}, Std={std_mult}...", end=' ')
+
+            # Progress indicator with ETA
+            if tested > 1:
+                elapsed = (datetime.now() - start_time).total_seconds()
+                avg_time_per_test = elapsed / (tested - 1)
+                remaining = total_combinations - tested
+                eta_seconds = int(avg_time_per_test * remaining)
+                eta_minutes = eta_seconds // 60
+                eta_seconds = eta_seconds % 60
+                eta_str = f"ETA: {eta_minutes}m {eta_seconds}s"
+            else:
+                eta_str = "ETA: calculating..."
+
+            print(f"[{tested}/{total_combinations}] SMA={sma_period:3d}, Std={std_mult:.2f} | {eta_str}...", end=' ')
 
             metrics = run_backtest(train_file, sma_period, std_mult)
 
             if metrics and metrics['total_trades'] > 0:
                 results.append(metrics)
-                print(f"P&L=${metrics['total_pnl']:.2f}, Trades={metrics['total_trades']}, WR={metrics['win_rate']:.1f}%")
+                print(f"P&L=${metrics['total_pnl']:>10.2f}, Trades={metrics['total_trades']:4d}, WR={metrics['win_rate']:5.1f}%")
             else:
                 print("No trades")
 
     # Sort by total P&L (descending)
     results.sort(key=lambda x: x['total_pnl'], reverse=True)
 
+    # Calculate total time
+    total_time = (datetime.now() - start_time).total_seconds()
+    minutes = int(total_time // 60)
+    seconds = int(total_time % 60)
+
     print(f"\n{'='*60}")
     print("OPTIMIZATION RESULTS")
     print(f"{'='*60}")
-    print(f"\nTop 10 parameter combinations (by P&L):\n")
-    print(f"{'Rank':<6} {'SMA':<6} {'Std':<6} {'P&L':<12} {'Trades':<8} {'Win%':<8} {'PF':<8}")
-    print(f"{'-'*60}")
+    print(f"\nTested {total_combinations} combinations in {minutes}m {seconds}s")
+    print(f"Valid results: {len(results)}")
+    print(f"\nTop 20 parameter combinations (by P&L):\n")
+    print(f"{'Rank':<6} {'SMA':<6} {'Std':<7} {'P&L':<14} {'Trades':<8} {'Win%':<8} {'PF':<8}")
+    print(f"{'-'*65}")
 
-    for i, result in enumerate(results[:10], 1):
-        print(f"{i:<6} {result['sma_period']:<6} {result['std_multiplier']:<6.1f} "
-              f"${result['total_pnl']:<11.2f} {result['total_trades']:<8} "
+    for i, result in enumerate(results[:20], 1):
+        print(f"{i:<6} {result['sma_period']:<6} {result['std_multiplier']:<7.2f} "
+              f"${result['total_pnl']:<13,.2f} {result['total_trades']:<8} "
               f"{result['win_rate']:<7.1f}% {result['profit_factor']:<8.2f}")
 
     return results
 
 
-def validate_parameters(params_list: List[Dict], validation_file: str, test_file: str, top_n: int = 5) -> pd.DataFrame:
+def validate_parameters(params_list: List[Dict], validation_file: str, test_file: str, top_n: int = 10) -> pd.DataFrame:
     """
     Validate top N parameters on validation and test sets
 
@@ -405,7 +443,7 @@ def main():
             sys.exit(1)
 
         # Step 3: Validate top parameters on validation and test sets
-        validation_df = validate_parameters(optimization_results, validation_file, test_file, top_n=5)
+        validation_df = validate_parameters(optimization_results, validation_file, test_file, top_n=10)
 
         # Step 4: Print final results and recommendations
         print_final_results(validation_df)
