@@ -4,9 +4,12 @@ import tempfile
 import pandas as pd
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+import subprocess
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append('research')
+from research.find_best import find_best_main
 
 from strategies.mean_reversion import MeanReversionStrategy, MeanReversionExtremeStrategy
 from strategies.moving_average import MovingAverageStrategy
@@ -942,6 +945,9 @@ class TradingCLI:
         else:
             print("Invalid choice. Please try again.")
 
+    def download_dataset(self, ticker, start, end, timeframe, limit=50000):
+        return
+
     def main_menu(self):
         """Main application menu"""
         while True:
@@ -951,9 +957,10 @@ class TradingCLI:
             print("-" * 10)
             print("1. Backtest")
             print("2. Live Trading")
-            print("3. Exit")
+            print("3. Research/Optimization")
+            print("4. Exit")
 
-            choice = input("\nSelect option (1-3): ").strip()
+            choice = input("\nSelect option (1-4): ").strip()
 
             if choice == '1':
                 if not self.data_provider:
@@ -968,6 +975,23 @@ class TradingCLI:
                 input("\nPress Enter to continue...")
 
             elif choice == '3':
+                print("\n" + "*" * 50)
+                print("                           RESEARCH & OPTIMIZATION")
+                print("*" * 50)
+                new_dataset_or_not = input("Want to use a new or existing dataset? (New: 1, Existing: 0): ").strip()
+                if new_dataset_or_not == '1':
+                    self.setup_data_provider()
+                elif new_dataset_or_not == '0':
+                    strategy = input("Choose Strategy to optimize (Mean Reversion: 1): ").strip()
+                    if strategy == '1':
+                        dataset_path = input("Enter path to dataset CSV (default: research/datasets/btc_data.csv): ").strip()
+                        if not dataset_path:
+                            dataset_path = "research/datasets/btc_data.csv"
+                        print(f"\nStarting optimization for {dataset_path}...")
+                        find_best_main(dataset_path)
+
+
+            elif choice == '4':
                 print("Thank you for using BAT!")
                 # Disconnect IB if connected
                 if self.ib_broker and self.ib_broker.connected:
