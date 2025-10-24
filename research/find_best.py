@@ -418,12 +418,9 @@ def cleanup_temp_files(train_file: str, validation_file: str, test_file: str):
             print(f"Removed: {f}")
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        sys.exit(1)
+def find_best_main(dataset="/datasets/btc_data.csv"):
 
-    csv_file = sys.argv[1]
+    csv_file = dataset
 
     # Verify file exists
     if not os.path.exists(csv_file):
@@ -482,4 +479,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) != 2:
+        print("Usage: python find_best.py <csv_file>")
+        print("Example: python find_best.py btc_data.csv")
+        sys.exit(1)
+
+    find_best_main(sys.argv[1])
