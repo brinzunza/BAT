@@ -6,7 +6,6 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import subprocess
 
-# Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append('research')
 from research.find_best import find_best_main
@@ -946,6 +945,43 @@ class TradingCLI:
             print("Invalid choice. Please try again.")
 
     def download_dataset(self, ticker, start, end, timeframe, limit=50000):
+
+    
+        print("Downloading dataset...")
+        try:
+            df = self.data_provider.get_data(
+                ticker=ticker,
+                timespan=timeframe,
+                from_date=start,
+                to_date=end,
+                limit=limit
+            )
+
+            clean_ticker = ticker.replace(':', '_').replace('/', '_')
+            filename = f"{clean_ticker}_{timeframe}_{start}_to_{end}.csv"
+
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            datasets_dir = os.path.join(script_dir, 'research', 'datasets')
+
+            os.makedirs(datasets_dir, exist_ok=True)
+
+            filepath = os.path.join(datasets_dir, filename)
+
+            df.to_csv(filepath, index=False)
+
+            print(f"✓ Dataset successfully downloaded")
+
+        except Exception as e:
+            print(f"✗ Dataset download failed: {e}")
+
+    def optimize_strategy(self):
+        strategy = input("Choose Strategy to optimize (Mean Reversion: 1): ").strip()
+        if strategy == '1':
+            dataset_path = input("Enter path to dataset CSV (default: research/datasets/btc_data.csv): ").strip()
+            if not dataset_path:
+                dataset_path = "research/datasets/btc_data.csv"
+            print(f"\nStarting optimization for {dataset_path}...")
+            find_best_main(dataset_path)
         return
 
     def main_menu(self):
@@ -975,20 +1011,21 @@ class TradingCLI:
                 input("\nPress Enter to continue...")
 
             elif choice == '3':
-                print("\n" + "*" * 50)
+                print("\n" + "=" * 50)
                 print("                           RESEARCH & OPTIMIZATION")
-                print("*" * 50)
+                print("=" * 50)
                 new_dataset_or_not = input("Want to use a new or existing dataset? (New: 1, Existing: 0): ").strip()
                 if new_dataset_or_not == '1':
                     self.setup_data_provider()
+                    ticker = input("Choose a ticker: ")
+                    start = input("Choose a start date: ")
+                    end = input("Choose an end date: ")
+                    timeframe = input("Choose a timeframe: ")
+                    limit = input("Choose a limit: ")
+                    self.download_dataset(ticker, start, end, timeframe, limit)
+                    self.optimize_strategy()
                 elif new_dataset_or_not == '0':
-                    strategy = input("Choose Strategy to optimize (Mean Reversion: 1): ").strip()
-                    if strategy == '1':
-                        dataset_path = input("Enter path to dataset CSV (default: research/datasets/btc_data.csv): ").strip()
-                        if not dataset_path:
-                            dataset_path = "research/datasets/btc_data.csv"
-                        print(f"\nStarting optimization for {dataset_path}...")
-                        find_best_main(dataset_path)
+                    self.optimize_strategy()
 
 
             elif choice == '4':
