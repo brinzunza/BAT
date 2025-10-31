@@ -120,12 +120,12 @@ public class Backtest {
 
                 if (fields.length >= 5) {
                     try {
-                        String timestamp = fields[0].trim();
+                        String timestamp = fields[5].trim();
                         double open = Double.parseDouble(fields[1].trim());
-                        double high = Double.parseDouble(fields[2].trim());
-                        double low = Double.parseDouble(fields[3].trim());
-                        double close = Double.parseDouble(fields[4].trim());
-                        double volume = fields.length > 5 ? Double.parseDouble(fields[5].trim()) : 0.0;
+                        double high = Double.parseDouble(fields[3].trim());
+                        double low = Double.parseDouble(fields[4].trim());
+                        double close = Double.parseDouble(fields[2].trim());
+                        double volume = fields.length > 5 ? Double.parseDouble(fields[0].trim()) : 0.0;
 
                         bars.add(new Bar(timestamp, open, high, low, close, volume));
                     } catch (NumberFormatException e) {
