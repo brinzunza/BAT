@@ -453,9 +453,9 @@ def find_best_main(dataset="/datasets/btc_data.csv"):
         print_final_results(validation_df)
 
         # Save results to CSV
-        output_file = f"optimization_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        validation_df.to_csv(output_file, index=False)
-        print(f"Results saved to: {output_file}\n")
+        # output_file = f"optimization_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        # validation_df.to_csv(output_file, index=False)
+        # print(f"Results saved to: {output_file}\n")
 
         # Cleanup
         print("\nCleaning up temporary files...")
