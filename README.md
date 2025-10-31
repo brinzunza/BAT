@@ -24,6 +24,11 @@ This project is for educational purposes only. It is not financial advice. Alway
 - Automated signal processing
 - Real-time P&L tracking
 
+### 3. Research and Optimization
+- Data collection for different tickers
+- Parameter tuning and testing
+- Efficient optimization for paramters
+
 ## Features
 
 - **Unified Trading Platform** - Trade both stocks and crypto from one interface
@@ -39,4 +44,4 @@ This project is for educational purposes only. It is not financial advice. Alway
 ```bash
 python3 main.py
 ```
-Choose between backtesting and live trading with custom parameters.
+Choose between backtesting, research, and live trading with custom parameters.
