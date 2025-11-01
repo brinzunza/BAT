@@ -8,7 +8,7 @@ import subprocess
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append('research')
-from research.find_best import find_best_main
+from research.optimization.find_best import find_best_main
 
 from strategies.mean_reversion import MeanReversionStrategy, MeanReversionExtremeStrategy
 from strategies.moving_average import MovingAverageStrategy
@@ -977,9 +977,9 @@ class TradingCLI:
     def optimize_strategy(self):
         strategy = input("Choose Strategy to optimize (Mean Reversion: 1): ").strip()
         if strategy == '1':
-            dataset_path = input("Enter path to dataset CSV (default: research/datasets/btc_data.csv): ").strip()
+            dataset_path = input("Enter path to dataset CSV (default: /research/datasets/X_BTCUSD_minute_2025-01-01_to_2025-09-01.csv): ").strip()
             if not dataset_path:
-                dataset_path = "research/datasets/btc_data.csv"
+                dataset_path = "/esearch/datasets/X_BTCUSD_minute_2025-01-01_to_2025-09-01.csv"
             print(f"\nStarting optimization for {dataset_path}...")
             find_best_main(dataset_path)
         return
