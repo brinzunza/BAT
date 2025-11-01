@@ -48,7 +48,7 @@ cdef class TradingState:
         self.total_losses = 0.0
 
 
-cpdef list load_csv_data(str filename):
+cpdef list load_csv_data(str filename, bint verbose=True):
     """Load CSV data from file"""
     cdef list bars = []
     cdef str line
@@ -80,17 +80,21 @@ cpdef list load_csv_data(str filename):
                         bars.append(Bar(timestamp, open_val, high_val, low_val, close_val, volume_val))
                     except (ValueError, IndexError):
                         # Skip malformed lines
-                        print(f"Warning: Skipping malformed line: {line.strip()}", file=sys.stderr)
+                        if verbose:
+                            print(f"Warning: Skipping malformed line: {line.strip()}", file=sys.stderr)
 
-        print(f"Loaded {len(bars)} bars from {filename}")
+        if verbose:
+            print(f"Loaded {len(bars)} bars from {filename}")
         return bars
 
     except FileNotFoundError:
-        print(f"Error: File not found: {filename}", file=sys.stderr)
-        sys.exit(1)
+        if verbose:
+            print(f"Error: File not found: {filename}", file=sys.stderr)
+        return []
     except IOError as e:
-        print(f"Error reading file: {e}", file=sys.stderr)
-        sys.exit(1)
+        if verbose:
+            print(f"Error reading file: {e}", file=sys.stderr)
+        return []
 
 
 cpdef double calculate_sma(list bars, int current_idx, int period):
@@ -127,7 +131,7 @@ cpdef double calculate_std(list bars, int current_idx, int period, double mean):
     return sqrt(sum_sq_diff / period)
 
 
-cpdef void execute_strategy(list bars, TradingState state, int sma_period, double std_multiplier):
+cpdef void execute_strategy(list bars, TradingState state, int sma_period, double std_multiplier, bint verbose=True):
     """Execute mean reversion strategy"""
     cdef int i
     cdef double sma, std, upper_band, lower_band, current_price, pnl, current_drawdown
@@ -153,12 +157,14 @@ cpdef void execute_strategy(list bars, TradingState state, int sma_period, doubl
             if current_price < lower_band:
                 state.position = 1
                 state.entry_price = current_price
-                print(f"BUY at {timestamp}: Price={current_price:.2f}, SMA={sma:.2f}, Lower Band={lower_band:.2f}")
+                if verbose:
+                    print(f"BUY at {timestamp}: Price={current_price:.2f}, SMA={sma:.2f}, Lower Band={lower_band:.2f}")
             # Short signal: price crosses above upper band
             elif current_price > upper_band:
                 state.position = -1
                 state.entry_price = current_price
-                print(f"SHORT at {timestamp}: Price={current_price:.2f}, SMA={sma:.2f}, Upper Band={upper_band:.2f}")
+                if verbose:
+                    print(f"SHORT at {timestamp}: Price={current_price:.2f}, SMA={sma:.2f}, Upper Band={upper_band:.2f}")
 
         # Exit signals
         elif state.position == 1:
@@ -175,7 +181,8 @@ cpdef void execute_strategy(list bars, TradingState state, int sma_period, doubl
                     state.losing_trades += 1
                     state.total_losses += abs(pnl)
 
-                print(f"SELL at {timestamp}: Price={current_price:.2f}, Entry={state.entry_price:.2f}, PnL={pnl:.2f}")
+                if verbose:
+                    print(f"SELL at {timestamp}: Price={current_price:.2f}, Entry={state.entry_price:.2f}, PnL={pnl:.2f}")
                 state.position = 0
 
         elif state.position == -1:
@@ -192,7 +199,8 @@ cpdef void execute_strategy(list bars, TradingState state, int sma_period, doubl
                     state.losing_trades += 1
                     state.total_losses += abs(pnl)
 
-                print(f"COVER at {timestamp}: Price={current_price:.2f}, Entry={state.entry_price:.2f}, PnL={pnl:.2f}")
+                if verbose:
+                    print(f"COVER at {timestamp}: Price={current_price:.2f}, Entry={state.entry_price:.2f}, PnL={pnl:.2f}")
                 state.position = 0
 
         # Track drawdown
@@ -255,6 +263,70 @@ cpdef void print_results(TradingState state):
 
     print()
     print("========================================")
+
+
+def run_backtest_silent(str filename, int sma_period, double std_multiplier):
+    """
+    Run backtest silently and return metrics as a dictionary
+
+    Args:
+        filename: Path to CSV file with OHLCV data
+        sma_period: Period for Simple Moving Average
+        std_multiplier: Standard deviation multiplier for bands
+
+    Returns:
+        Dictionary with backtest metrics, or None if error
+    """
+    # Load data silently
+    bars = load_csv_data(filename, verbose=False)
+
+    if not bars:
+        return None
+
+    # Initialize trading state
+    state = TradingState()
+
+    # Run backtest silently
+    execute_strategy(bars, state, sma_period, std_multiplier, verbose=False)
+
+    # Calculate metrics
+    cdef dict metrics = {
+        'sma_period': sma_period,
+        'std_multiplier': std_multiplier,
+        'total_trades': state.total_trades,
+        'winning_trades': state.winning_trades,
+        'losing_trades': state.losing_trades,
+        'total_pnl': state.total_pnl,
+        'max_drawdown': state.max_drawdown,
+        'win_rate': 0.0,
+        'avg_win': 0.0,
+        'avg_loss': 0.0,
+        'profit_factor': 0.0,
+        'expectancy': 0.0
+    }
+
+    # Calculate derived metrics
+    if state.total_trades > 0:
+        metrics['win_rate'] = (state.winning_trades / state.total_trades) * 100.0
+
+        if state.winning_trades > 0:
+            metrics['avg_win'] = state.total_wins / state.winning_trades
+
+        if state.losing_trades > 0:
+            metrics['avg_loss'] = state.total_losses / state.losing_trades
+
+        if state.winning_trades > 0 and state.losing_trades > 0:
+            metrics['profit_factor'] = state.total_wins / state.total_losses
+        elif state.winning_trades > 0 and state.losing_trades == 0:
+            metrics['profit_factor'] = 999.99  # Very high value to indicate perfect strategy
+
+        # Calculate Expectancy: (WinRate × AverageWin) - (LossRate × AverageLoss)
+        avg_win = metrics['avg_win']
+        avg_loss = metrics['avg_loss']
+        loss_rate = (state.losing_trades / state.total_trades) * 100.0
+        metrics['expectancy'] = (metrics['win_rate'] / 100.0 * avg_win) - (loss_rate / 100.0 * avg_loss)
+
+    return metrics
 
 
 def run_backtest(str filename, int sma_period=20, double std_multiplier=2.0):
