@@ -10,6 +10,10 @@ This script finds the optimal parameters for the mean reversion strategy by:
 This approach prevents overfitting by ensuring the best parameters are validated
 on truly unseen data.
 
+Requirements:
+    - Cython backtest module must be built first:
+      python setup.py build_ext --inplace
+
 Usage:
     python find_best.py <csv_file>
 
@@ -18,13 +22,11 @@ Example:
 """
 
 import sys
-import subprocess
 import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from typing import Dict, List, Tuple
-import csv
 
 
 def split_data(csv_file: str) -> Tuple[str, str, str]:
@@ -83,7 +85,7 @@ def split_data(csv_file: str) -> Tuple[str, str, str]:
 
 def run_backtest(csv_file: str, sma_period: int, std_multiplier: float) -> Dict:
     """
-    Run the Java backtest with given parameters and parse results
+    Run the Cython backtest with given parameters and return results
 
     Args:
         csv_file: Path to CSV data file
@@ -93,93 +95,20 @@ def run_backtest(csv_file: str, sma_period: int, std_multiplier: float) -> Dict:
     Returns:
         Dictionary with backtest results
     """
-    script_dir = os.path.dirname(os.path.abspath(__file__)) if __file__ else '.'
-
-    # Check if Java backtest is compiled
-    java_class = os.path.join(script_dir, 'Backtest.class')
-
-    if not os.path.exists(java_class):
-        print(f"Error: Backtest.class not found")
-        print("Please compile first: javac Backtest.java")
-        print("Or run: ./build.sh")
-        sys.exit(1)
-
-    # Run Java backtest
-    cmd = ['java', '-cp', script_dir, 'Backtest', csv_file, str(sma_period), str(std_multiplier)]
-
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        # Import the Cython backtest module
+        import backtest
 
-        output = result.stdout
-
-        # Parse the output to extract metrics
-        metrics = {
-            'sma_period': sma_period,
-            'std_multiplier': std_multiplier,
-            'total_trades': 0,
-            'winning_trades': 0,
-            'losing_trades': 0,
-            'total_pnl': 0.0,
-            'max_drawdown': 0.0,
-            'win_rate': 0.0,
-            'avg_win': 0.0,
-            'avg_loss': 0.0,
-            'profit_factor': 0.0,
-            'expectancy': 0.0
-        }
-
-        # Parse output line by line
-        for line in output.split('\n'):
-            line = line.strip()
-
-            if 'Total Trades:' in line:
-                metrics['total_trades'] = int(line.split(':')[1].strip())
-            elif 'Winning Trades:' in line:
-                metrics['winning_trades'] = int(line.split(':')[1].strip())
-            elif 'Losing Trades:' in line:
-                metrics['losing_trades'] = int(line.split(':')[1].strip())
-            elif 'Total P&L:' in line:
-                pnl_str = line.split(':')[1].strip().replace('$', '').replace(',', '')
-                metrics['total_pnl'] = float(pnl_str)
-            elif 'Max Drawdown:' in line:
-                dd_str = line.split(':')[1].strip().replace('$', '').replace(',', '')
-                metrics['max_drawdown'] = float(dd_str)
-            elif 'Win Rate:' in line:
-                wr_str = line.split(':')[1].strip().replace('%', '')
-                metrics['win_rate'] = float(wr_str)
-            elif 'Average Win:' in line:
-                avg_win_str = line.split(':')[1].strip().replace('$', '').replace(',', '')
-                metrics['avg_win'] = float(avg_win_str)
-            elif 'Average Loss:' in line:
-                avg_loss_str = line.split(':')[1].strip().replace('$', '').replace(',', '')
-                metrics['avg_loss'] = float(avg_loss_str)
-            elif 'Profit Factor:' in line:
-                pf_str = line.split(':')[1].strip()
-                try:
-                    # Handle infinity symbol or "no losses" text
-                    if '∞' in pf_str or 'no losses' in pf_str.lower():
-                        metrics['profit_factor'] = 999.99  # Very high value to indicate perfect strategy
-                    else:
-                        metrics['profit_factor'] = float(pf_str)
-                except:
-                    metrics['profit_factor'] = 0.0
-            elif 'Expectancy:' in line:
-                exp_str = line.split(':')[1].strip().replace('$', '').replace(',', '')
-                try:
-                    metrics['expectancy'] = float(exp_str)
-                except:
-                    metrics['expectancy'] = 0.0
+        # Run backtest silently and get metrics
+        metrics = backtest.run_backtest_silent(csv_file, sma_period, std_multiplier)
 
         return metrics
 
-    except subprocess.TimeoutExpired:
-        print(f"  Timeout running backtest with params ({sma_period}, {std_multiplier})")
-        return None
+    except ImportError:
+        print("Error: Cython backtest module not found")
+        print("Please build the Cython extension first:")
+        print("  python setup.py build_ext --inplace")
+        sys.exit(1)
     except Exception as e:
         print(f"  Error running backtest: {e}")
         return None
@@ -406,7 +335,7 @@ def print_final_results(results_df: pd.DataFrame):
 
     print(f"\n{'='*60}")
     print("\nTo use the best parameters:")
-    print(f"  ./backtest <data_file> {int(best['sma_period'])} {best['std_multiplier']:.1f}")
+    print(f"  python backtest_run.py <data_file> {int(best['sma_period'])} {best['std_multiplier']:.1f}")
     print(f"{'='*60}\n")
 
 
