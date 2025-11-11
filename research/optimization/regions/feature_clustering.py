@@ -80,3 +80,35 @@ class FeatureClustering:
         best_k = results['n_clusters'][np.argmax(results['silhouette'])]
         print(f"Optimal number of clusters: {best_k}")
         return pd.DataFrame(results)
+
+    def fit(self, csv_file, n_clusters=3):
+        df = pdf.read_csv(csv_file)
+        if 'timestamp' in df.columns:
+            df = df.rename(columns={
+                'Open': 'Open', 
+                'Close': 'Close', 
+                'High': 'High',
+                'Low': 'Low',
+                'Volume': 'Volume'
+            })
+
+        self.df = df
+
+        print(f"Extracting features from {len(df)} bars...")
+
+        feature_matrix, features_names = self.extract_features(df)
+        self.feature_matrix = feature_matrix
+        self.feature_names = feature_names
+
+        print(f"Created {len(feature_matrix)} windows with {len(feature_names)} features each")
+
+        feature_matrix_scaled = self.scaler.fit_transform(feature_matrix)
+
+        print(f"Fitting K-Means with {n_clusters} clusters...")
+
+        self.kmeans = KMeans(n_clusters=n_clusters, random_state=1, n_init=10)
+        self.kmeans.fit(feature_matrix_scaled)
+
+        self._analyze_clusters()
+
+        return self
