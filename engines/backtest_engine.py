@@ -13,10 +13,10 @@ class BacktestEngine:
         self.initial_balance = initial_balance
         self.trading_mode = trading_mode
         self.symbol = symbol
-        self.position_percentage = position_percentage / 100.0  # Convert to decimal
-        self.is_crypto = '/' in symbol  # Determine if it's crypto based on symbol format
-        self.is_forex = symbol.startswith('C:')  # Determine if it's forex based on symbol format
-        self.spread_pips = spread_pips  # Spread in pips for forex trading
+        self.position_percentage = position_percentage / 100.0
+        self.is_crypto = '/' in symbol
+        self.is_forex = symbol.startswith('C:')
+        self.spread_pips = spread_pips
         self.reset()
     
     def reset(self):
@@ -27,7 +27,7 @@ class BacktestEngine:
         self.trades = []
         self.balance_history = []
         self.current_balance = self.initial_balance
-        self.shares_held = 0  # Track actual shares/units held
+        self.shares_held = 0
 
     def _calculate_account_worth_realized_only(self):
         """Calculate total account worth based on REALIZED gains/losses only"""
