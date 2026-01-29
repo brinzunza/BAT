@@ -40,20 +40,15 @@ class LiveTradingChart:
         self.position_percentage = position_percentage
         self.lookback = lookback
 
-        # Use provided data provider and broker, or initialize Alpaca
         if data_provider is not None and broker_interface is not None:
-            # External provider (e.g., OANDA/IB for forex)
             self.data_provider = data_provider
             self.broker = broker_interface
             self.is_forex = True
-
-            # Get initial balance from broker
             account_info = self.broker.get_account()
             initial_balance = float(account_info.get('equity', 10000))
             print(f"Account Equity: ${initial_balance:,.2f}")
             print(f"Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
         else:
-            # Alpaca provider for stocks/crypto
             self.data_provider = AlpacaDataProvider(api_key, secret_key)
             self.is_forex = False
 
@@ -63,7 +58,6 @@ class LiveTradingChart:
             else:
                 self.broker = AlpacaBroker(api_key, secret_key, paper_trading) if api_key else None
 
-            # Get initial balance from Alpaca account
             if self.broker:
                 account_info = self.broker.get_account_api() if hasattr(self.broker, 'get_account_api') else self.broker.get_account()
                 initial_balance = float(account_info.get('equity', 10000))
@@ -73,7 +67,6 @@ class LiveTradingChart:
                 initial_balance = 10000
                 print(f"Simulation Balance: ${initial_balance:,.2f}")
 
-        # Initialize trading engine
         self.trading_engine = LiveTradingEngine(
             data_provider=self.data_provider,
             broker_interface=self.broker,
@@ -82,26 +75,20 @@ class LiveTradingChart:
             position_percentage=position_percentage or 100.0
         )
 
-        # Chart setup
         self.fig, (self.main_ax, self.indicator_ax) = plt.subplots(2, 1,
                                                                   figsize=(15, 10),
                                                                   gridspec_kw={'height_ratios': [3, 1]})
 
-        # Set custom window title
         self.fig.canvas.manager.set_window_title(f"BAT Trading Bot - {symbol} Live Trading")
 
-        # Set custom window icon (if icon file exists)
         try:
             import os
             icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
             if os.path.exists(icon_path):
-                # Try different methods based on backend
                 try:
-                    # For Tkinter backend
                     self.fig.canvas.manager.window.wm_iconbitmap(icon_path)
                 except:
                     try:
-                        # For Qt backend
                         from PIL import Image
                         from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
                         if hasattr(self.fig.canvas.manager, 'window'):
