@@ -27,6 +27,14 @@ def load_data(file_path: str, date_column: str = None) -> pd.DataFrame:
 
     if file_path.suffix == '.csv':
         df = pd.read_csv(file_path)
+
+        # Normalize column names to lowercase for consistency
+        df.columns = df.columns.str.lower()
+
+        # Convert date_column to lowercase if provided
+        if date_column:
+            date_column = date_column.lower()
+
         if date_column:
             df[date_column] = pd.to_datetime(df[date_column])
             df = df.set_index(date_column)
@@ -36,8 +44,13 @@ def load_data(file_path: str, date_column: str = None) -> pd.DataFrame:
         elif 'datetime' in df.columns:
             df['datetime'] = pd.to_datetime(df['datetime'])
             df = df.set_index('datetime')
+        elif 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.set_index('timestamp')
     elif file_path.suffix in ['.pkl', '.pickle']:
         df = pd.read_pickle(file_path)
+        # Normalize column names to lowercase for consistency
+        df.columns = df.columns.str.lower()
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
@@ -139,12 +152,12 @@ def main():
     # Modify these parameters as needed
 
     # CONFIGURATION
-    DATA_PATH = "path/to/your/data.csv"  # Update with actual data path
+    DATA_PATH = "/Users/brunoinzunza/Documents/GitHub/BAT/research/datasets/X_BTCUSD_minute_2025-01-01_to_2025-09-01_test.csv"  # Relative path to datasets folder
     ZONE_DURATION = 30  # minutes
     NUM_CLUSTERS = 5
-    DATE_COLUMN = "datetime"  # or "date", "timestamp", etc.
+    DATE_COLUMN = "timestamp"  # Dataset uses 'timestamp' column
     OUTPUT_DIR = "results"  # Where to save results
-    SYMBOL = "SPY"  # Trading symbol
+    SYMBOL = "BTCUSD"  # Trading symbol
 
     try:
         zone_features, summary = run_zone_analysis(

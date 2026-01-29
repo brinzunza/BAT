@@ -1,0 +1,6 @@
+personality_label,volatility_mean,volatility_std,avg_return_mean,trend_strength_mean,avg_range_pct_mean,num_zones
+Moderate Ranging (Cluster 1),0.0045,0.0004,-0.0001,14.8946,0.0023,7
+Moderate Ranging (Cluster 2),0.0045,0.0005,0.0,12.5726,0.0019,13
+Volatile Ranging (Cluster 0),0.0052,0.0005,0.0,18.1967,0.0014,18
+Volatile Ranging (Cluster 3),0.0065,0.0007,-0.0,24.0461,0.0015,8
+Volatile Ranging (Cluster 4),0.0074,0.0002,0.0,20.6324,0.002,2
