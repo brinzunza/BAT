@@ -61,6 +61,48 @@ def load_data(file_path: str, date_column: str = None) -> pd.DataFrame:
     return df
 
 
+def format_time_ranges(zone_features: pd.DataFrame) -> str:
+    """
+    Format zone features into readable time ranges grouped by strategy.
+
+    Args:
+        zone_features: DataFrame with zone analysis results
+
+    Returns:
+        Formatted string with strategies and their time ranges
+    """
+    output = []
+
+    # Group zones by personality/strategy
+    grouped = zone_features.groupby('personality_label')
+
+    for strategy, group in grouped:
+        # Sort by start time
+        group_sorted = group.sort_values('zone_id')
+
+        # Get time ranges
+        time_ranges = []
+        for _, row in group_sorted.iterrows():
+            start = row['start_time'].strftime('%H:%M') if hasattr(row['start_time'], 'strftime') else str(row['start_time'])
+            end = row['end_time'].strftime('%H:%M') if hasattr(row['end_time'], 'strftime') else str(row['end_time'])
+            time_ranges.append(f"{start}-{end}")
+
+        # Get average metrics for this strategy
+        avg_vol = group['volatility'].mean()
+        avg_range = group['avg_range_pct'].mean() * 100  # Convert to percentage
+        avg_trend = group['trend_strength'].mean()
+
+        output.append(f"\n  Strategy: {strategy}")
+        output.append(f"  Time Ranges: {', '.join(time_ranges)}")
+        output.append(f"  Characteristics:")
+        output.append(f"    - Average Volatility: {avg_vol:.4f}")
+        output.append(f"    - Average Range: {avg_range:.3f}%")
+        output.append(f"    - Trend Strength: {avg_trend:.2f}")
+        output.append("")
+
+    return '\n'.join(output)
+
+
 def run_zone_analysis(
     data_path: str,
     zone_duration_minutes: int = 30,
@@ -111,7 +153,13 @@ def run_zone_analysis(
     print(f"Total zones analyzed: {len(zone_features)}")
     print(f"Unique personalities identified: {zone_features['personality_label'].nunique()}\n")
 
-    # Display results
+    # Display strategy recommendations
+    print(f"{'='*60}")
+    print(f"TRADING STRATEGIES BY TIME OF DAY - {symbol}")
+    print(f"{'='*60}")
+    print(format_time_ranges(zone_features))
+
+    # Display detailed results
     print(f"{'='*60}")
     print("PERSONALITY SUMMARY")
     print(f"{'='*60}")
