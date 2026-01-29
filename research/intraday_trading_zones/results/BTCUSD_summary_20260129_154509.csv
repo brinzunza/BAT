@@ -1,0 +1,6 @@
+personality_label,volatility_mean,volatility_std,avg_return_mean,trend_strength_mean,avg_range_pct_mean,num_zones
+Consolidation (Cluster 0),0.0037,0.0003,0.0002,5.5679,0.0013,12
+Consolidation (Cluster 2),0.0043,0.0004,0.0002,6.0448,0.0015,13
+Volatile Ranging (Cluster 1),0.0052,0.0002,0.0002,3.8047,0.0019,13
+Volatile Ranging (Cluster 3),0.0048,0.0002,0.0002,3.6817,0.0014,8
+Volatile Ranging (Cluster 4),0.005,0.0002,0.0002,2.7539,0.0026,2
