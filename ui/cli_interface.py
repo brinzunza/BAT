@@ -19,6 +19,7 @@ from strategies.candlestick_strategy import CandlestickPatternsStrategy
 from data_providers.polygon_provider import PolygonDataProvider
 from data_providers.alpaca_provider import AlpacaDataProvider, AlpacaBroker
 from data_providers.oanda_provider import OandaProvider
+from data_providers.synth_provider import SynthDataProvider
 from engines.backtest_engine import BacktestEngine
 from engines.live_trading_engine import LiveTradingEngine
 from engines.brokers import SimulatedBroker
@@ -59,28 +60,52 @@ class TradingCLI:
         while True:
             print("\nData Provider Setup")
             print("-" * 20)
+            print("Select a data provider:")
+            print("1. Polygon.io")
+            print("2. Synth (Synthetic Market Data)")
+            print("3. Return to main menu")
 
-            api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
-            if not api_key:
-                api_key = "your-api-key-here"  # Default placeholder
+            provider_choice = input("\nSelect provider (1-3): ").strip()
 
-            try:
-                # Create data provider instance
-                self.data_provider = PolygonDataProvider(api_key)
+            if provider_choice == '3':
+                return False
 
-                # Test the connection
-                print("Testing API key...")
-                success, message = self.data_provider.test_connection()
+            # Setup Polygon provider
+            if provider_choice == '1':
+                api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
+                if not api_key:
+                    api_key = "your-api-key-here"  # Default placeholder
 
-                if success:
-                    print(f"✓ {message}")
-                    print("✓ Data provider configured successfully")
-                    return True
-                else:
-                    # API key validation failed
-                    print(f"✗ {message}")
+                try:
+                    # Create data provider instance
+                    self.data_provider = PolygonDataProvider(api_key)
+
+                    # Test the connection
+                    print("Testing API key...")
+                    success, message = self.data_provider.test_connection()
+
+                    if success:
+                        print(f"✓ {message}")
+                        print("✓ Data provider configured successfully")
+                        return True
+                    else:
+                        # API key validation failed
+                        print(f"✗ {message}")
+                        print("\nWhat would you like to do?")
+                        print("1. Retry with a different provider")
+                        print("2. Return to main menu")
+
+                        choice = input("\nSelect option (1-2): ").strip()
+
+                        if choice == '2':
+                            self.data_provider = None
+                            return False
+                        # If choice is '1' or anything else, loop continues
+
+                except Exception as e:
+                    print(f"✗ Error setting up data provider: {e}")
                     print("\nWhat would you like to do?")
-                    print("1. Retry with a different API key")
+                    print("1. Retry with a different provider")
                     print("2. Return to main menu")
 
                     choice = input("\nSelect option (1-2): ").strip()
@@ -90,18 +115,59 @@ class TradingCLI:
                         return False
                     # If choice is '1' or anything else, loop continues
 
-            except Exception as e:
-                print(f"✗ Error setting up data provider: {e}")
-                print("\nWhat would you like to do?")
-                print("1. Retry with a different API key")
-                print("2. Return to main menu")
+            # Setup Synth provider
+            elif provider_choice == '2':
+                base_url = input("Enter Synth API base URL (or press Enter for default): ").strip()
+                if not base_url:
+                    base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
 
-                choice = input("\nSelect option (1-2): ").strip()
+                api_key = input("Enter Synth API key: ").strip()
+                if not api_key:
+                    print("✗ API key is required for Synth provider")
+                    continue
 
-                if choice == '2':
-                    self.data_provider = None
-                    return False
-                # If choice is '1' or anything else, loop continues
+                try:
+                    # Create synth data provider instance
+                    self.data_provider = SynthDataProvider(base_url, api_key)
+
+                    # Test the connection
+                    print("Testing Synth API connection...")
+                    success, message = self.data_provider.test_connection()
+
+                    if success:
+                        print(f"✓ {message}")
+                        print("✓ Synth data provider configured successfully")
+                        return True
+                    else:
+                        # Connection test failed
+                        print(f"✗ {message}")
+                        print("\nWhat would you like to do?")
+                        print("1. Retry with a different provider")
+                        print("2. Return to main menu")
+
+                        choice = input("\nSelect option (1-2): ").strip()
+
+                        if choice == '2':
+                            self.data_provider = None
+                            return False
+                        # If choice is '1' or anything else, loop continues
+
+                except Exception as e:
+                    print(f"✗ Error setting up Synth provider: {e}")
+                    print("\nWhat would you like to do?")
+                    print("1. Retry with a different provider")
+                    print("2. Return to main menu")
+
+                    choice = input("\nSelect option (1-2): ").strip()
+
+                    if choice == '2':
+                        self.data_provider = None
+                        return False
+                    # If choice is '1' or anything else, loop continues
+
+            else:
+                print("Invalid choice. Please select 1, 2, or 3.")
+                continue
     
     def setup_broker(self):
         """Setup broker interface"""
