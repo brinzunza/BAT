@@ -41,10 +41,22 @@ class LiveTradingChart:
         self.lookback = lookback
 
         if data_provider is not None and broker_interface is not None:
+            # Custom data provider and broker (e.g., Synth, OANDA)
             self.data_provider = data_provider
             self.broker = broker_interface
-            self.is_forex = True
-            account_info = self.broker.get_account()
+
+            # Check if it's forex based on provider type
+            from data_providers.oanda_provider import OandaProvider
+            self.is_forex = isinstance(data_provider, OandaProvider)
+
+            # Get account info using the appropriate method
+            if hasattr(self.broker, 'get_account'):
+                account_info = self.broker.get_account()
+            elif hasattr(self.broker, 'get_account_info'):
+                account_info = self.broker.get_account_info()
+            else:
+                account_info = {'equity': initial_balance, 'buying_power': initial_balance}
+
             initial_balance = float(account_info.get('equity', 10000))
             print(f"Account Equity: ${initial_balance:,.2f}")
             print(f"Buying Power: ${float(account_info.get('buying_power', 0)):,.2f}")
@@ -134,7 +146,7 @@ class LiveTradingChart:
             if self.data_history.empty:
                 print(f"Initializing {self.symbol} data...")
 
-                # Check if using forex (OANDA) or stocks/crypto (Alpaca)
+                # Check if using forex (OANDA) or stocks/crypto (Alpaca) or other providers
                 if self.is_forex:
                     # Use OANDA data provider
                     initial_df = self.data_provider.get_data(
@@ -142,9 +154,16 @@ class LiveTradingChart:
                         timespan='M1',
                         limit=self.lookback
                     )
-                else:
-                    # Use the public endpoint to get recent bars immediately (Alpaca)
+                elif hasattr(self.data_provider, 'get_recent_bars_public'):
+                    # Use Alpaca's public endpoint to get recent bars immediately
                     initial_df = self.data_provider.get_recent_bars_public(self.symbol, limit=self.min_data_points + 10)
+                else:
+                    # Generic data provider (e.g., Synth) - use get_live_data
+                    # For providers that only return single data points, accumulate data over time
+                    initial_df = self.data_provider.get_live_data(self.symbol)
+                    print(f"Note: Using live data provider - chart will build history as data arrives")
+                    # Mark as ready even with minimal data for real-time providers
+                    self.data_ready = True
 
                 if not initial_df.empty:
                     # Use the fetched data, keep only what we need
@@ -154,6 +173,8 @@ class LiveTradingChart:
                     if len(self.data_history) >= self.min_data_points:
                         self.data_ready = True
                         print(f"Ready for live trading with {len(self.data_history)} bars")
+                    else:
+                        print(f"Starting with {len(self.data_history)} bar(s), will accumulate more over time")
                 else:
                     print(f"Failed to get initial data")
                     return None
@@ -180,9 +201,16 @@ class LiveTradingChart:
                         }
                     else:
                         latest_bar = None
-                else:
+                elif hasattr(self.data_provider, 'get_latest_bar'):
                     # Use Alpaca get_latest_bar
                     latest_bar = self.data_provider.get_latest_bar(self.symbol)
+                else:
+                    # Generic provider (e.g., Synth) - use get_live_data
+                    df = self.data_provider.get_live_data(self.symbol)
+                    if not df.empty:
+                        latest_bar = df.iloc[0].to_dict()
+                    else:
+                        latest_bar = None
 
                 if not latest_bar:
                     # Continue with existing data silently
