@@ -9,7 +9,9 @@ class SynthDataProvider(BaseDataProvider):
     """Synth data provider for real-time synthetic market data"""
 
     def __init__(self, base_url: str = "http://35.209.219.174:8000", api_key: str = ""):
-        # Synth API requires authentication
+        # Synth API requires authentication via query parameter
+        if not api_key:
+            raise ValueError("API key is required for Synth provider")
         super().__init__(api_key=api_key)
         self.base_url = base_url.rstrip('/')
 
@@ -23,15 +25,14 @@ class SynthDataProvider(BaseDataProvider):
         Returns:
             DataFrame with current OHLCV data and timestamp
         """
-        url = f"{self.base_url}/tickers/{ticker}"
+        # Use lowercase ticker for API endpoint
+        ticker_lower = ticker.lower()
 
-        # Set up headers with API key if provided
-        headers = {}
-        if self.api_key:
-            headers['X-API-Key'] = self.api_key
+        # Build URL with API key as query parameter
+        url = f"{self.base_url}/tickers/{ticker_lower}?api_key={self.api_key}"
 
         try:
-            response = requests.get(url, headers=headers, timeout=5)
+            response = requests.get(url, timeout=5)
 
             if response.status_code != 200:
                 raise Exception(f"API request failed with status code {response.status_code}: {response.text}")
@@ -108,15 +109,14 @@ class SynthDataProvider(BaseDataProvider):
         Returns:
             Dictionary with all fields from the API response
         """
-        url = f"{self.base_url}/tickers/{ticker}"
+        # Use lowercase ticker for API endpoint
+        ticker_lower = ticker.lower()
 
-        # Set up headers with API key if provided
-        headers = {}
-        if self.api_key:
-            headers['X-API-Key'] = self.api_key
+        # Build URL with API key as query parameter
+        url = f"{self.base_url}/tickers/{ticker_lower}?api_key={self.api_key}"
 
         try:
-            response = requests.get(url, headers=headers, timeout=5)
+            response = requests.get(url, timeout=5)
 
             if response.status_code != 200:
                 raise Exception(f"API request failed with status code {response.status_code}: {response.text}")

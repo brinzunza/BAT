@@ -702,29 +702,10 @@ class TradingCLI:
                 print("\n" + "=" * 60)
 
     def run_live_trading(self):
-        """Run live trading workflow with real-time charting"""
-        print("\n" + "=" * 50)
-        print("       LIVE TRADING WITH REAL-TIME CHARTS")
-        print("=" * 50)
-
-        # Ask user to select data provider
-        print("\n📊 Select Data Provider:")
-        print("=" * 30)
-        print("1. Alpaca (Stocks/Crypto)")
-        print("2. Synth (Synthetic Market Data)")
-        print("3. Return to main menu")
-        print()
-
-        data_provider_choice = input("Select data provider (1-3): ").strip()
-
-        if data_provider_choice == '3':
-            return
-
-        # Route to appropriate live trading method
-        if data_provider_choice == '2':
-            self.run_synth_live_trading()
-        else:
-            self.run_alpaca_live_trading()
+        """Run live trading workflow with real-time charting - routes to live trading menu"""
+        # This method is kept for backward compatibility
+        # Routes to the consolidated menu
+        self.run_live_trading_menu()
 
     def run_alpaca_live_trading(self):
         """Run live trading with Alpaca data provider"""
@@ -947,8 +928,6 @@ class TradingCLI:
             base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
 
         api_key = input("Enter Synth API key: ").strip()
-        if not api_key:
-            api_key = os.getenv('SYNTH_API_KEY', '')
 
         if not api_key:
             print("✗ API key is required for Synth provider")
@@ -1191,15 +1170,18 @@ class TradingCLI:
         print("\nSelect market type:")
         print("1. Stocks/Crypto (Alpaca)")
         print("2. Forex (OANDA + Interactive Brokers)")
-        print("3. Back to Main Menu")
+        print("3. Synthetic Data (Synth)")
+        print("4. Back to Main Menu")
 
-        choice = input("\nSelect option (1-3): ").strip()
+        choice = input("\nSelect option (1-4): ").strip()
 
         if choice == '1':
-            self.run_live_trading()
+            self.run_alpaca_live_trading()
         elif choice == '2':
             self.run_forex_live_trading()
         elif choice == '3':
+            self.run_synth_live_trading()
+        elif choice == '4':
             return
         else:
             print("Invalid choice. Please try again.")

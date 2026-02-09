@@ -6,7 +6,15 @@ This script tests the Synth provider's ability to fetch real-time data
 at high frequency (1 data point per second).
 
 Usage:
-    python test_synth_provider.py YOUR_API_KEY
+    python test_synth_provider.py API_KEY [BASE_URL] [NUM_FETCHES]
+
+    API_KEY is required
+    BASE_URL defaults to 'http://35.209.219.174:8000'
+    NUM_FETCHES defaults to 10
+
+Examples:
+    python test_synth_provider.py bruno
+    python test_synth_provider.py your_key http://35.209.219.174:8000 20
 """
 
 import sys
@@ -139,10 +147,11 @@ def test_raw_tick_data(api_key: str, base_url: str = "http://35.209.219.174:8000
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python test_synth_provider.py YOUR_API_KEY [BASE_URL] [NUM_FETCHES]")
-        print("\nExample:")
-        print("  python test_synth_provider.py abc123")
-        print("  python test_synth_provider.py abc123 http://35.209.219.174:8000 20")
+        print("Usage: python test_synth_provider.py API_KEY [BASE_URL] [NUM_FETCHES]")
+        print("\nExamples:")
+        print("  python test_synth_provider.py bruno")
+        print("  python test_synth_provider.py your_key http://35.209.219.174:8000 20")
+        print("\nAPI_KEY is required")
         sys.exit(1)
 
     api_key = sys.argv[1]
