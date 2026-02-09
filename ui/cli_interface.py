@@ -707,6 +707,31 @@ class TradingCLI:
         print("       LIVE TRADING WITH REAL-TIME CHARTS")
         print("=" * 50)
 
+        # Ask user to select data provider
+        print("\n📊 Select Data Provider:")
+        print("=" * 30)
+        print("1. Alpaca (Stocks/Crypto)")
+        print("2. Synth (Synthetic Market Data)")
+        print("3. Return to main menu")
+        print()
+
+        data_provider_choice = input("Select data provider (1-3): ").strip()
+
+        if data_provider_choice == '3':
+            return
+
+        # Route to appropriate live trading method
+        if data_provider_choice == '2':
+            self.run_synth_live_trading()
+        else:
+            self.run_alpaca_live_trading()
+
+    def run_alpaca_live_trading(self):
+        """Run live trading with Alpaca data provider"""
+        print("\n" + "=" * 50)
+        print("       ALPACA LIVE TRADING")
+        print("=" * 50)
+
         # Setup Alpaca credentials if not already configured
         if not self.alpaca_data_provider or not self.alpaca_broker:
             print("🔑 Alpaca credentials required for live trading.")
@@ -906,6 +931,184 @@ class TradingCLI:
         except Exception as e:
             print(f"\n Live trading error: {e}")
             print(f"Please check your Alpaca credentials and internet connection.")
+
+    def run_synth_live_trading(self):
+        """Run live trading with Synth synthetic market data provider"""
+        print("\n" + "=" * 50)
+        print("       SYNTH LIVE TRADING (SYNTHETIC DATA)")
+        print("=" * 50)
+
+        # Get Synth API configuration
+        print("\n🔑 Synth API Configuration")
+        print("-" * 30)
+
+        base_url = input("Enter Synth API base URL (press Enter for default): ").strip()
+        if not base_url:
+            base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
+
+        api_key = input("Enter Synth API key: ").strip()
+        if not api_key:
+            api_key = os.getenv('SYNTH_API_KEY', '')
+
+        if not api_key:
+            print("✗ API key is required for Synth provider")
+            return
+
+        # Create and test Synth provider
+        try:
+            synth_provider = SynthDataProvider(base_url, api_key)
+            print("\nTesting Synth API connection...")
+            success, message = synth_provider.test_connection()
+
+            if not success:
+                print(f"✗ {message}")
+                return
+
+            print(f"✓ {message}")
+        except Exception as e:
+            print(f"✗ Error connecting to Synth API: {e}")
+            return
+
+        # Select strategy
+        strategy = self.select_strategy()
+        if not strategy:
+            return
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
+        # Configure trading parameters
+        print("\n📊 Synth Live Trading Configuration:")
+        print("-" * 30)
+
+        # Ticker selection
+        ticker = input("Enter ticker symbol (default: SYNTH): ").strip().upper() or "SYNTH"
+        print(f"Selected ticker: {ticker}")
+
+        # Position sizing
+        print("\n💰 Position Sizing Options:")
+        print("1. Fixed quantity (shares/units)")
+        print("2. Percentage of account")
+
+        sizing_choice = input("Select position sizing method (1-2, default 2): ").strip() or "2"
+
+        if sizing_choice == "1":
+            quantity = float(input("Enter position size (default 1.0): ") or "1.0")
+            position_percentage = None
+        else:
+            position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 20): ") or "20")
+            if position_percentage < 1 or position_percentage > 100:
+                print("Invalid percentage. Using 20% of account.")
+                position_percentage = 20
+            quantity = None
+
+        # Update interval - default to 1 second for Synth
+        print("\n⏱️  Update Interval:")
+        print("   Synth provides data every ~0.5 seconds")
+        update_interval = int(input("Chart update interval in seconds (default 1, recommended 1-5): ") or "1")
+
+        if update_interval < 1:
+            print("⚠️  Minimum interval is 1 second. Using 1 second.")
+            update_interval = 1
+
+        # Initial balance for simulated broker
+        initial_balance = float(input("\n💵 Initial balance for simulated trading (default 10000): ") or "10000")
+
+        # Summary
+        print(f"\n✅ Configuration Summary:")
+        print(f"   Data Provider: Synth Synthetic Market Data")
+        print(f"   API URL: {base_url}")
+        print(f"   Strategy: {strategy.name}")
+        print(f"   Ticker: {ticker}")
+        print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+
+        if position_percentage is not None:
+            print(f"   Position Size: {position_percentage}% of account per trade")
+        else:
+            print(f"   Position Size: {quantity} units")
+
+        print(f"   Update Interval: {update_interval} second(s)")
+        print(f"   Broker: SimulatedBroker (paper trading)")
+        print(f"   Initial Balance: ${initial_balance:,.2f}")
+
+        print(f"\n📈 Features:")
+        print(f"    ✓ Real-time candlestick chart")
+        print(f"    ✓ Strategy indicators overlay")
+        print(f"    ✓ Buy/sell signals on chart")
+        print(f"    ✓ Live P&L tracking")
+        print(f"    ✓ Automated trade execution (simulated)")
+        print(f"    ✓ Console trade logging")
+        print(f"    ✓ High-frequency updates (~1 data point/second)")
+
+        confirm = input(f"\nStart Synth live trading? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Synth live trading cancelled.")
+            return
+
+        try:
+            # Create simulated broker
+            simulated_broker = SimulatedBroker(initial_balance)
+
+            # Create live trading chart with Synth provider
+            live_chart = LiveTradingChart(
+                strategy=strategy,
+                symbol=ticker,
+                trading_mode=trading_mode,
+                position_percentage=position_percentage,
+                use_simulated_broker=True,
+                initial_balance=initial_balance,
+                data_provider=synth_provider,
+                broker_interface=simulated_broker
+            )
+
+            # Override quantity if fixed sizing
+            if quantity is not None:
+                live_chart.quantity = quantity
+
+            print(f"\n🚀 Starting Synth live trading with charts...")
+            print(f"📊 Chart will open in a new window")
+            print(f"⏱️  Data updates every {update_interval} second(s)")
+            print(f"📝 All trades will be logged to console")
+            print(f"⚠️  Press Ctrl+C to stop")
+            print(f"\n{'='*50}")
+
+            # Start live trading with charts (convert to milliseconds)
+            animation = live_chart.start_live_trading(update_interval * 1000)
+
+        except KeyboardInterrupt:
+            print(f"\n\n✋ Synth live trading stopped by user")
+
+            # Show final performance
+            if 'live_chart' in locals():
+                performance = live_chart.get_performance_summary()
+                trade_history = live_chart.get_trade_history()
+
+                print(f"\n" + "=" * 40)
+                print(f"    FINAL SYNTH TRADING SUMMARY")
+                print(f"=" * 40)
+                print(f"Strategy: {strategy.name}")
+                print(f"Ticker: {ticker}")
+                print(f"Total Trades: {performance['total_trades']}")
+                print(f"Profitable Trades: {performance['profitable_trades']}")
+                print(f"Losing Trades: {performance['losing_trades']}")
+                print(f"Win Rate: {performance['win_rate']:.1f}%")
+                print(f"Final Balance: ${performance['current_balance']:.2f}")
+                print(f"Total Return: ${performance['total_return']:.2f}")
+                print(f"Percent Return: {performance['percent_return']:.2f}%")
+                print(f"Current Position: {performance['current_position']}")
+
+                if len(trade_history) > 0:
+                    print(f"\n📊 Recent Trades:")
+                    recent_trades = trade_history.tail(10)
+                    self._print_detailed_trade_results(recent_trades)
+                else:
+                    print(f"\n⚠️  No trades executed during this session")
+
+        except Exception as e:
+            print(f"\n❌ Synth live trading error: {e}")
+            print(f"Please check your Synth API configuration and connection.")
+            import traceback
+            traceback.print_exc()
 
     def _print_detailed_trade_results(self, results):
         """Print detailed trade overview with enhanced formatting"""
