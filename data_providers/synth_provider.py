@@ -28,8 +28,8 @@ class SynthDataProvider(BaseDataProvider):
         # Use lowercase ticker for API endpoint
         ticker_lower = ticker.lower()
 
-        # Build URL with API key as query parameter
-        url = f"{self.base_url}/tickers/{ticker_lower}?api_key={self.api_key}"
+        # Build URL for candles endpoint (1-minute interval)
+        url = f"{self.base_url}/candles/{ticker_lower}/1m?api_key={self.api_key}"
 
         try:
             response = requests.get(url, timeout=5)
@@ -40,18 +40,19 @@ class SynthDataProvider(BaseDataProvider):
             data = response.json()
 
             # Parse the response format:
-            # {"symbol":"SYNTH","name":"Synth Inc.","price":163.82,"open":245.0,"high":245.0,
-            #  "low":148.15,"change":-81.18,"change_pct":-33.1347,"volume":19456661,
-            #  "updated_at":1770661361.7932382}
+            # {"symbol":"SYNTH","interval":"1m","candle":{"timestamp":1770834300,"open":243.02,
+            #  "high":248.44,"low":241.26,"close":248.44,"volume":317241}}
+
+            candle = data['candle']
 
             # Convert to standardized OHLCV format
             df = pd.DataFrame([{
-                'timestamp': pd.to_datetime(data['updated_at'], unit='s'),
-                'Open': data['open'],
-                'High': data['high'],
-                'Low': data['low'],
-                'Close': data['price'],  # Current price is the close
-                'Volume': data['volume']
+                'timestamp': pd.to_datetime(candle['timestamp'], unit='s'),
+                'Open': candle['open'],
+                'High': candle['high'],
+                'Low': candle['low'],
+                'Close': candle['close'],
+                'Volume': candle['volume']
             }])
 
             return df
@@ -112,8 +113,8 @@ class SynthDataProvider(BaseDataProvider):
         # Use lowercase ticker for API endpoint
         ticker_lower = ticker.lower()
 
-        # Build URL with API key as query parameter
-        url = f"{self.base_url}/tickers/{ticker_lower}?api_key={self.api_key}"
+        # Build URL for candles endpoint
+        url = f"{self.base_url}/candles/{ticker_lower}/1m?api_key={self.api_key}"
 
         try:
             response = requests.get(url, timeout=5)
@@ -153,5 +154,11 @@ class SynthDataProvider(BaseDataProvider):
         Returns:
             True if response has all required fields
         """
+        # New format validation
+        if 'candle' in data:
+            required_fields = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            return all(field in data['candle'] for field in required_fields)
+
+        # Old format validation (legacy support)
         required_fields = ['symbol', 'price', 'open', 'high', 'low', 'volume', 'updated_at']
         return all(field in data for field in required_fields)
