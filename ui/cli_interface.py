@@ -933,9 +933,28 @@ class TradingCLI:
             print("✗ API key is required for Synth provider")
             return
 
+        # Select candle interval
+        print("\n⏱️  Candle Interval Selection:")
+        print("=" * 30)
+        print("1. 1 second (1s)  - High-frequency, updates every second")
+        print("2. 1 minute (1m)  - Standard, updates every minute")
+        print()
+
+        interval_choice = input("Select candle interval (1-2, default 2): ").strip() or "2"
+
+        interval_map = {
+            "1": "1s",
+            "2": "1m"
+        }
+
+        interval = interval_map.get(interval_choice, "1m")
+        interval_display = "1 second" if interval == "1s" else "1 minute"
+
+        print(f"Selected interval: {interval_display} ({interval})")
+
         # Create and test Synth provider
         try:
-            synth_provider = SynthDataProvider(base_url, api_key)
+            synth_provider = SynthDataProvider(base_url, api_key, interval)
             print("\nTesting Synth API connection...")
             success, message = synth_provider.test_connection()
 
@@ -981,10 +1000,18 @@ class TradingCLI:
                 position_percentage = 20
             quantity = None
 
-        # Update interval - default to 1 second for Synth
-        print("\n⏱️  Update Interval:")
-        print("   Synth provides data every ~0.5 seconds")
-        update_interval = int(input("Chart update interval in seconds (default 1, recommended 1-5): ") or "1")
+        # Update interval - should match or be multiple of candle interval
+        print("\n⏱️  Chart Update Interval:")
+        if interval == "1s":
+            print("   Note: Using 1-second candles - chart will update every second")
+            default_update = 1
+            recommended_range = "1-5"
+        else:
+            print("   Note: Using 1-minute candles - chart will update every minute")
+            default_update = 60
+            recommended_range = "60-300"
+
+        update_interval = int(input(f"Chart update interval in seconds (default {default_update}, recommended {recommended_range}): ") or str(default_update))
 
         if update_interval < 1:
             print("⚠️  Minimum interval is 1 second. Using 1 second.")
@@ -997,6 +1024,7 @@ class TradingCLI:
         print(f"\n✅ Configuration Summary:")
         print(f"   Data Provider: Synth Synthetic Market Data")
         print(f"   API URL: {base_url}")
+        print(f"   Candle Interval: {interval_display} ({interval})")
         print(f"   Strategy: {strategy.name}")
         print(f"   Ticker: {ticker}")
         print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
@@ -1011,13 +1039,16 @@ class TradingCLI:
         print(f"   Initial Balance: ${initial_balance:,.2f}")
 
         print(f"\n📈 Features:")
-        print(f"    ✓ Real-time candlestick chart")
+        print(f"    ✓ Real-time candlestick chart ({interval} candles)")
         print(f"    ✓ Strategy indicators overlay")
         print(f"    ✓ Buy/sell signals on chart")
         print(f"    ✓ Live P&L tracking")
         print(f"    ✓ Automated trade execution (simulated)")
         print(f"    ✓ Console trade logging")
-        print(f"    ✓ High-frequency updates (~1 data point/second)")
+        if interval == "1s":
+            print(f"    ✓ High-frequency updates (1 candle/second)")
+        else:
+            print(f"    ✓ Standard updates (1 candle/minute)")
 
         confirm = input(f"\nStart Synth live trading? (y/n): ").strip().lower()
         if confirm != 'y':

@@ -23,7 +23,7 @@ from datetime import datetime
 from data_providers.synth_provider import SynthDataProvider
 
 
-def test_synth_provider(api_key: str, base_url: str = "http://35.209.219.174:8000", num_fetches: int = 10):
+def test_synth_provider(api_key: str, base_url: str = "http://35.209.219.174:8000", num_fetches: int = 10, interval: str = "1s"):
     """
     Test the Synth provider by fetching data multiple times
 
@@ -31,19 +31,21 @@ def test_synth_provider(api_key: str, base_url: str = "http://35.209.219.174:800
         api_key: Synth API key
         base_url: Synth API base URL
         num_fetches: Number of times to fetch data (default: 10)
+        interval: Candle interval - '1s' or '1m' (default: 1s)
     """
     print("=" * 60)
     print("SYNTH DATA PROVIDER TEST")
     print("=" * 60)
     print(f"Base URL: {base_url}")
+    print(f"Candle Interval: {interval}")
     print(f"Number of fetches: {num_fetches}")
     print(f"Interval: ~1 second between fetches")
     print("=" * 60)
 
     # Create provider
     try:
-        synth = SynthDataProvider(base_url, api_key)
-        print("\n✓ SynthDataProvider created successfully")
+        synth = SynthDataProvider(base_url, api_key, interval)
+        print(f"\n✓ SynthDataProvider created successfully (interval={interval})")
     except Exception as e:
         print(f"\n✗ Error creating provider: {e}")
         return False
@@ -124,13 +126,13 @@ def test_synth_provider(api_key: str, base_url: str = "http://35.209.219.174:800
     return True
 
 
-def test_raw_tick_data(api_key: str, base_url: str = "http://35.209.219.174:8000"):
+def test_raw_tick_data(api_key: str, base_url: str = "http://35.209.219.174:8000", interval: str = "1s"):
     """Test raw tick data retrieval"""
     print("\n" + "=" * 60)
     print("TESTING RAW TICK DATA")
     print("=" * 60)
 
-    synth = SynthDataProvider(base_url, api_key)
+    synth = SynthDataProvider(base_url, api_key, interval)
 
     try:
         tick = synth.get_latest_tick('SYNTH')
@@ -157,13 +159,14 @@ if __name__ == "__main__":
     api_key = sys.argv[1]
     base_url = sys.argv[2] if len(sys.argv) > 2 else "http://35.209.219.174:8000"
     num_fetches = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+    interval = sys.argv[4] if len(sys.argv) > 4 else "1s"  # Default to 1-second candles
 
     # Run tests
-    success = test_synth_provider(api_key, base_url, num_fetches)
+    success = test_synth_provider(api_key, base_url, num_fetches, interval)
 
     if success:
         print("\n")
-        test_raw_tick_data(api_key, base_url)
+        test_raw_tick_data(api_key, base_url, interval)
         print("\n✅ All tests completed successfully!")
     else:
         print("\n❌ Tests failed!")
