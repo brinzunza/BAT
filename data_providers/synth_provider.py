@@ -8,12 +8,18 @@ from .base_provider import BaseDataProvider
 class SynthDataProvider(BaseDataProvider):
     """Synth data provider for real-time synthetic market data"""
 
-    def __init__(self, base_url: str = "http://35.209.219.174:8000", api_key: str = ""):
+    def __init__(self, base_url: str = "http://35.209.219.174:8000", api_key: str = "", interval: str = "1m"):
         # Synth API requires authentication via query parameter
         if not api_key:
             raise ValueError("API key is required for Synth provider")
         super().__init__(api_key=api_key)
         self.base_url = base_url.rstrip('/')
+
+        # Validate interval
+        valid_intervals = ['1s', '1m']
+        if interval not in valid_intervals:
+            raise ValueError(f"Invalid interval '{interval}'. Must be one of: {valid_intervals}")
+        self.interval = interval
 
     def get_live_data(self, ticker: str = 'SYNTH') -> pd.DataFrame:
         """
@@ -28,8 +34,8 @@ class SynthDataProvider(BaseDataProvider):
         # Use lowercase ticker for API endpoint
         ticker_lower = ticker.lower()
 
-        # Build URL for candles endpoint (1-minute interval)
-        url = f"{self.base_url}/candles/{ticker_lower}/1m?api_key={self.api_key}"
+        # Build URL for candles endpoint with configured interval
+        url = f"{self.base_url}/candles/{ticker_lower}/{self.interval}?api_key={self.api_key}"
 
         try:
             response = requests.get(url, timeout=5)
@@ -113,8 +119,8 @@ class SynthDataProvider(BaseDataProvider):
         # Use lowercase ticker for API endpoint
         ticker_lower = ticker.lower()
 
-        # Build URL for candles endpoint
-        url = f"{self.base_url}/candles/{ticker_lower}/1m?api_key={self.api_key}"
+        # Build URL for candles endpoint with configured interval
+        url = f"{self.base_url}/candles/{ticker_lower}/{self.interval}?api_key={self.api_key}"
 
         try:
             response = requests.get(url, timeout=5)
