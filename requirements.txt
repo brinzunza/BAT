@@ -6,3 +6,6 @@ polygon-api-client>=1.14.0
 plotly>=5.0.0
 python-dotenv>=0.19.0
 alpaca-trade-api>=2.0.0
+torch>=2.0.0
+scikit-learn>=1.0.0
+langgraph>=0.0.20
