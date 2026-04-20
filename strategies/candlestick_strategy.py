@@ -32,8 +32,7 @@ class CandlestickPatternsStrategy:
         # Bullish patterns
         df['Buy Signal'] = (
             df['hammer'] |
-            df['bullish_engulfing'] |
-            df['doji']  # Doji can signal reversal, treat as neutral-bullish in context
+            df['bullish_engulfing']
         )
 
         # Bearish patterns
@@ -53,7 +52,7 @@ class CandlestickPatternsStrategy:
 
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
-        return ['doji', 'hammer', 'hanging_man', 'shooting_star', 'bullish_engulfing', 'bearish_engulfing']
+        return ['hammer', 'hanging_man', 'shooting_star', 'bullish_engulfing', 'bearish_engulfing']
 
     def validate_data(self, df: pd.DataFrame) -> bool:
         """Validate that the DataFrame has required columns"""
