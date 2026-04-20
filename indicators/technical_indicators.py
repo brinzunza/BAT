@@ -58,11 +58,6 @@ def detect_candlestick_patterns(open_prices, high_prices, low_prices, close_pric
     upper_shadow = high_prices - np.maximum(open_prices, close_prices)
     lower_shadow = np.minimum(open_prices, close_prices) - low_prices
 
-    # Doji pattern (small body)
-    avg_body = body.rolling(window=20).mean()
-    doji_condition = body < (avg_body * 0.1)
-    patterns[doji_condition] = 'doji'
-
     # Hammer pattern (small body, long lower shadow, small upper shadow)
     hammer_condition = (
         (body < (upper_shadow * 2)) &
