@@ -54,6 +54,10 @@ class CandlestickPatternsStrategy:
         """Return list of indicator columns this strategy creates"""
         return ['hammer', 'hanging_man', 'shooting_star', 'bullish_engulfing', 'bearish_engulfing']
 
+    def get_required_lookback(self) -> int:
+        """Return minimum number of bars required for reliable signals"""
+        return 3  # Candlestick patterns need at least 2-3 bars
+
     def validate_data(self, df: pd.DataFrame) -> bool:
         """Validate that the DataFrame has required columns"""
         required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']

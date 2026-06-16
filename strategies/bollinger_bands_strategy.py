@@ -49,6 +49,10 @@ class BollingerBandsStrategy:
         """Return list of indicator columns this strategy creates"""
         return ['bb_upper', 'bb_middle', 'bb_lower']
 
+    def get_required_lookback(self) -> int:
+        """Return minimum number of bars required for reliable signals"""
+        return self.window
+
     def validate_data(self, df: pd.DataFrame) -> bool:
         """Validate that the DataFrame has required columns"""
         required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']

@@ -127,8 +127,6 @@ class LiveTradingChart:
         self.min_data_points = max(50, getattr(strategy, 'window', 20) + 10)  # Ensure enough data for strategy
 
         # Trading state
-        self.last_trade_time = None
-        self.trade_cooldown = timedelta(minutes=5)  # Prevent rapid trades
         self.data_ready = False
 
         # Colors
@@ -279,13 +277,6 @@ class LiveTradingChart:
             if not self.data_ready or len(self.data_history) < self.min_data_points:
                 return
 
-            current_time = datetime.now()
-
-            # Check cooldown period
-            if (self.last_trade_time and
-                current_time - self.last_trade_time < self.trade_cooldown):
-                return
-
             # Get signal names from strategy
             signal_names = self.strategy.get_signal_names()
             latest_row = self.data_history.iloc[-1]
@@ -305,7 +296,6 @@ class LiveTradingChart:
                     self.symbol,
                     quantity_to_use
                 )
-                self.last_trade_time = current_time
 
         except Exception as e:
             print(f"Error processing trading signals: {e}")
@@ -574,6 +564,12 @@ class LiveTradingChart:
                     self.main_ax.scatter(buy_indices, buy_prices, color='green', marker='^',
                                        s=100, label='Buy Signal', zorder=5)
 
+                    # DEBUG: Frontend signal logging
+                    print(f"\n[FRONTEND] Drawing {len(buy_signals)} BUY signals:")
+                    for idx, price in zip(buy_indices[-3:], buy_prices[-3:]):  # Last 3 signals
+                        timestamp = df.iloc[idx]['timestamp']
+                        print(f"  Index: {idx} | Time: {timestamp} | Price: ${price:.2f}")
+
             # Sell signals
             if signal_names['sell'] in df.columns:
                 sell_signals = df[df[signal_names['sell']] == True]
@@ -582,6 +578,12 @@ class LiveTradingChart:
                     sell_prices = sell_signals['Close'].values
                     self.main_ax.scatter(sell_indices, sell_prices, color='red', marker='v',
                                        s=100, label='Sell Signal', zorder=5)
+
+                    # DEBUG: Frontend signal logging
+                    print(f"\n[FRONTEND] Drawing {len(sell_signals)} SELL signals:")
+                    for idx, price in zip(sell_indices[-3:], sell_prices[-3:]):  # Last 3 signals
+                        timestamp = df.iloc[idx]['timestamp']
+                        print(f"  Index: {idx} | Time: {timestamp} | Price: ${price:.2f}")
 
             # Draw executed trades from trading engine
             self._draw_executed_trades(df)
@@ -645,6 +647,25 @@ class LiveTradingChart:
                         sell_trades.append((closest_index, trade['price']))
                     elif action in ['close_position', 'close_long', 'close_short']:
                         close_trades.append((closest_index, trade['price']))
+
+            # DEBUG: Frontend trade marker logging
+            if buy_trades:
+                print(f"\n[FRONTEND] Drawing {len(buy_trades)} BUY trade markers:")
+                for idx, price in buy_trades[-3:]:  # Last 3 trades
+                    timestamp = df.iloc[idx]['timestamp']
+                    print(f"  Index: {idx} | Time: {timestamp} | Price: ${price:.2f}")
+
+            if sell_trades:
+                print(f"\n[FRONTEND] Drawing {len(sell_trades)} SELL trade markers:")
+                for idx, price in sell_trades[-3:]:  # Last 3 trades
+                    timestamp = df.iloc[idx]['timestamp']
+                    print(f"  Index: {idx} | Time: {timestamp} | Price: ${price:.2f}")
+
+            if close_trades:
+                print(f"\n[FRONTEND] Drawing {len(close_trades)} CLOSE trade markers:")
+                for idx, price in close_trades[-3:]:  # Last 3 trades
+                    timestamp = df.iloc[idx]['timestamp']
+                    print(f"  Index: {idx} | Time: {timestamp} | Price: ${price:.2f}")
 
             # Draw trade markers
             if buy_trades:
