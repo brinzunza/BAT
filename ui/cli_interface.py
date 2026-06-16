@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append('research')
 from research.optimization.find_best import find_best_main
 
-from strategies.mean_reversion import MeanReversionStrategy, MeanReversionExtremeStrategy
+from strategies.mean_reversion import MeanReversionExtremeStrategy
 from strategies.moving_average import MovingAverageStrategy
 from strategies.rsi_strategy import RSIStrategy
 from strategies.macd_strategy import MACDStrategy
@@ -32,13 +32,12 @@ class TradingCLI:
     
     def __init__(self):
         self.strategies = {
-            '1': ('Mean Reversion (Conservative)', MeanReversionStrategy),
-            '2': ('Mean Reversion (Extreme)', MeanReversionExtremeStrategy),
-            '3': ('Moving Average', MovingAverageStrategy),
-            '4': ('RSI', RSIStrategy),
-            '5': ('MACD', MACDStrategy),
-            '6': ('Bollinger Bands', BollingerBandsStrategy),
-            '7': ('Candlestick Patterns', CandlestickPatternsStrategy)
+            '1': ('Mean Reversion (Extreme)', MeanReversionExtremeStrategy),
+            '2': ('Moving Average', MovingAverageStrategy),
+            '3': ('RSI', RSIStrategy),
+            '4': ('MACD', MACDStrategy),
+            '5': ('Bollinger Bands', BollingerBandsStrategy),
+            '6': ('Candlestick Patterns', CandlestickPatternsStrategy)
         }
         
         self.data_provider = None
@@ -322,58 +321,57 @@ class TradingCLI:
 
     def select_strategy(self):
         """Strategy selection menu"""
-        print("\nAvailable Strategies:")
-        print("-" * 50)
+        while True:
+            print("\nAvailable Strategies:")
+            print("-" * 50)
 
-        for key, (name, _) in self.strategies.items():
-            print(f"{key}. {name}")
+            for key, (name, _) in self.strategies.items():
+                print(f"{key}. {name}")
 
-        choice = input("Select strategy (1-7): ").strip()
-        
-        if choice not in self.strategies:
-            print("Invalid choice")
-            return None
-        
-        strategy_name, strategy_class = self.strategies[choice]
+            choice = input("\nSelect strategy (1-6): ").strip()
 
-        # Get strategy parameters
-        if choice == '1':  # Mean Reversion (Conservative)
-            window = int(input("Enter window size (default 20): ") or "20")
-            num_std = float(input("Enter standard deviations (default 2.0): ") or "2.0")
-            return strategy_class(window=window, num_std=num_std)
+            if choice not in self.strategies:
+                print("Invalid choice. Please select a number between 1 and 6.")
+                continue
 
-        elif choice == '2':  # Mean Reversion (Extreme)
-            window = int(input("Enter window size (default 20): ") or "20")
-            num_std = float(input("Enter standard deviations (default 2.0): ") or "2.0")
-            return strategy_class(window=window, num_std=num_std)
+            strategy_name, strategy_class = self.strategies[choice]
 
-        elif choice == '3':  # Moving Average
-            short = int(input("Enter short window (default 1): ") or "1")
-            medium = int(input("Enter medium window (default 5): ") or "5")
-            long_win = int(input("Enter long window (default 25): ") or "25")
-            return strategy_class(short_window=short, medium_window=medium, long_window=long_win)
-        
-        elif choice == '4':  # RSI
-            window = int(input("Enter RSI window (default 14): ") or "14")
-            oversold = float(input("Enter oversold threshold (default 30): ") or "30")
-            overbought = float(input("Enter overbought threshold (default 70): ") or "70")
-            return strategy_class(window=window, oversold_threshold=oversold, overbought_threshold=overbought)
+            try:
+                # Get strategy parameters
+                if choice == '1':  # Mean Reversion (Extreme)
+                    window = int(input("Enter window size (default 20): ") or "20")
+                    num_std = float(input("Enter standard deviations (default 2.0): ") or "2.0")
+                    return strategy_class(window=window, num_std=num_std)
 
-        elif choice == '5':  # MACD
-            fast = int(input("Enter fast EMA period (default 12): ") or "12")
-            slow = int(input("Enter slow EMA period (default 26): ") or "26")
-            signal = int(input("Enter signal line period (default 9): ") or "9")
-            return strategy_class(fast=fast, slow=slow, signal=signal)
+                elif choice == '2':  # Moving Average
+                    short = int(input("Enter short window (default 1): ") or "1")
+                    medium = int(input("Enter medium window (default 5): ") or "5")
+                    long_win = int(input("Enter long window (default 25): ") or "25")
+                    return strategy_class(short_window=short, medium_window=medium, long_window=long_win)
 
-        elif choice == '6':  # Bollinger Bands
-            window = int(input("Enter window size (default 20): ") or "20")
-            num_std = float(input("Enter standard deviations (default 2): ") or "2")
-            return strategy_class(window=window, num_std=num_std)
+                elif choice == '3':  # RSI
+                    window = int(input("Enter RSI window (default 14): ") or "14")
+                    oversold = float(input("Enter oversold threshold (default 30): ") or "30")
+                    overbought = float(input("Enter overbought threshold (default 70): ") or "70")
+                    return strategy_class(window=window, oversold_threshold=oversold, overbought_threshold=overbought)
 
-        elif choice == '7':  # Candlestick Patterns
-            return strategy_class()
+                elif choice == '4':  # MACD
+                    fast = int(input("Enter fast EMA period (default 12): ") or "12")
+                    slow = int(input("Enter slow EMA period (default 26): ") or "26")
+                    signal = int(input("Enter signal line period (default 9): ") or "9")
+                    return strategy_class(fast=fast, slow=slow, signal=signal)
 
-        return None
+                elif choice == '5':  # Bollinger Bands
+                    window = int(input("Enter window size (default 20): ") or "20")
+                    num_std = float(input("Enter standard deviations (default 2): ") or "2")
+                    return strategy_class(window=window, num_std=num_std)
+
+                elif choice == '6':  # Candlestick Patterns
+                    return strategy_class()
+
+            except ValueError as e:
+                print(f"Invalid input: {e}. Please enter valid numbers.")
+                continue
 
     def select_trading_mode(self):
         """Let user select trading mode"""
@@ -464,7 +462,16 @@ class TradingCLI:
             from_date = input("Enter from date (YYYY-MM-DD): ").strip()
             to_date = input("Enter to date (YYYY-MM-DD): ").strip()
 
-        limit = int(input("Enter data limit (default 50000): ") or "50000")
+        # Get data limit with error handling
+        while True:
+            try:
+                limit = int(input("Enter data limit (default 50000): ") or "50000")
+                if limit <= 0:
+                    print("Limit must be a positive number. Please try again.")
+                    continue
+                break
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
         return {
             'ticker': ticker,
@@ -483,8 +490,6 @@ class TradingCLI:
 
         # Select strategy
         strategy = self.select_strategy()
-        if not strategy:
-            return
 
         # Select trading mode
         trading_mode = self.select_trading_mode()
@@ -492,23 +497,40 @@ class TradingCLI:
         # Configure data
         data_params = self.configure_data_parameters()
 
-        # Get initial balance
-        initial_balance = float(input("Enter initial balance (default 10000): ") or "10000")
+        # Get initial balance with error handling
+        while True:
+            try:
+                initial_balance = float(input("Enter initial balance (default 10000): ") or "10000")
+                if initial_balance <= 0:
+                    print("Balance must be a positive number. Please try again.")
+                    continue
+                break
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
-        # Get position sizing percentage
-        position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 100): ") or "100")
-        if position_percentage < 1 or position_percentage > 100:
-            print("Invalid percentage. Using 100% of account.")
-            position_percentage = 100
+        # Get position sizing percentage with error handling
+        while True:
+            try:
+                position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 100): ") or "100")
+                if position_percentage < 1 or position_percentage > 100:
+                    print("Invalid percentage. Please enter a value between 1 and 100.")
+                    continue
+                break
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
-        # Get spread in pips for forex
-        spread_pips = 0.0 # Forex
+        # Get spread in pips for forex with error handling
         print("\n Spread Configuration:")
         print("Typical spreads: 0.5-3 points")
-        spread_pips = float(input("Enter spread in pips (default 1.0): ") or "1.0")
-        if spread_pips < 0 or spread_pips > 10000:
-            print("Invalid spread. Using 1.0 pip.")
-            spread_pips = 1.0
+        while True:
+            try:
+                spread_pips = float(input("Enter spread in pips (default 1.0): ") or "1.0")
+                if spread_pips < 0 or spread_pips > 10000:
+                    print("Invalid spread. Please enter a value between 0 and 10000.")
+                    continue
+                break
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
         print(f"\n Running backtest for {strategy.name}...")
         print(f" Ticker: {data_params['ticker']}")
@@ -1195,27 +1217,31 @@ class TradingCLI:
 
     def run_live_trading_menu(self):
         """Consolidated live trading menu"""
-        print("\n" + "=" * 50)
-        print("           LIVE TRADING")
-        print("=" * 50)
-        print("\nSelect market type:")
-        print("1. Stocks/Crypto (Alpaca)")
-        print("2. Forex (OANDA + Interactive Brokers)")
-        print("3. Synthetic Data (Synth)")
-        print("4. Back to Main Menu")
+        while True:
+            print("\n" + "=" * 50)
+            print("           LIVE TRADING")
+            print("=" * 50)
+            print("\nSelect market type:")
+            print("1. Stocks/Crypto (Alpaca)")
+            print("2. Forex (OANDA + Interactive Brokers)")
+            print("3. Synthetic Data (Synth)")
+            print("4. Back to Main Menu")
 
-        choice = input("\nSelect option (1-4): ").strip()
+            choice = input("\nSelect option (1-4): ").strip()
 
-        if choice == '1':
-            self.run_alpaca_live_trading()
-        elif choice == '2':
-            self.run_forex_live_trading()
-        elif choice == '3':
-            self.run_synth_live_trading()
-        elif choice == '4':
-            return
-        else:
-            print("Invalid choice. Please try again.")
+            if choice == '1':
+                self.run_alpaca_live_trading()
+                return
+            elif choice == '2':
+                self.run_forex_live_trading()
+                return
+            elif choice == '3':
+                self.run_synth_live_trading()
+                return
+            elif choice == '4':
+                return
+            else:
+                print("Invalid choice. Please select a number between 1 and 4.")
 
     def download_dataset(self, ticker, start, end, timeframe, limit=50000):
 
@@ -1287,19 +1313,36 @@ class TradingCLI:
                 print("\n" + "=" * 50)
                 print("                           RESEARCH & OPTIMIZATION")
                 print("=" * 50)
-                new_dataset_or_not = input("Want to use a new or existing dataset? (New: 1, Existing: 0): ").strip()
-                if new_dataset_or_not == '1':
-                    self.setup_data_provider()
-                    ticker = input("Choose a ticker: ")
-                    start = input("Choose a start date: ")
-                    end = input("Choose an end date: ")
-                    timeframe = input("Choose a timeframe: ")
-                    limit = input("Choose a limit: ")
-                    self.download_dataset(ticker, start, end, timeframe, limit)
-                    self.optimize_strategy()
-                elif new_dataset_or_not == '0':
-                    self.optimize_strategy()
 
+                while True:
+                    new_dataset_or_not = input("Want to use a new or existing dataset? (New: 1, Existing: 0): ").strip()
+                    if new_dataset_or_not == '1':
+                        self.setup_data_provider()
+                        ticker = input("Choose a ticker: ")
+                        start = input("Choose a start date: ")
+                        end = input("Choose an end date: ")
+                        timeframe = input("Choose a timeframe: ")
+
+                        while True:
+                            try:
+                                limit = int(input("Choose a limit: "))
+                                if limit <= 0:
+                                    print("Limit must be a positive number. Please try again.")
+                                    continue
+                                break
+                            except ValueError:
+                                print("Invalid input. Please enter a valid number.")
+
+                        self.download_dataset(ticker, start, end, timeframe, limit)
+                        self.optimize_strategy()
+                        break
+                    elif new_dataset_or_not == '0':
+                        self.optimize_strategy()
+                        break
+                    else:
+                        print("Invalid choice. Please enter 1 for new dataset or 0 for existing dataset.")
+
+                input("\nPress Enter to continue...")
 
             elif choice == '4':
                 print("Thank you for using BAT!")
@@ -1310,7 +1353,7 @@ class TradingCLI:
                 break
 
             else:
-                print("Invalid choice. Please try again.")
+                print("Invalid choice. Please select a number between 1 and 4.")
                 input("\nPress Enter to continue...")
 
 
