@@ -10,7 +10,7 @@ class MeanReversionExtremeStrategy:
     """
 
     def __init__(self, window: int = 20, num_std: float = 2.0, **kwargs):
-        self.name = "Mean Reversion (Extreme)"
+        self.name = "Mean Reversion"
         self.params = {"window": window, "num_std": num_std, **kwargs}
         self.window = window
         self.num_std = num_std
@@ -43,6 +43,10 @@ class MeanReversionExtremeStrategy:
     def get_indicators(self) -> list:
         """Return list of indicator columns this strategy creates"""
         return ['SMA', 'Upper Band', 'Lower Band']
+
+    def get_required_lookback(self) -> int:
+        """Return minimum number of bars required for reliable signals"""
+        return self.window
 
     def validate_data(self, df: pd.DataFrame) -> bool:
         """Validate that the DataFrame has required columns"""

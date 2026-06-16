@@ -57,7 +57,7 @@ class LiveTradingEngine:
         """Set the broker interface for live trading"""
         self.broker_interface = broker_interface
     
-    def execute_buy_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None) -> dict:
+    def execute_buy_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Execute buy order and return order details"""
         try:
             # Debug logging
@@ -69,9 +69,9 @@ class LiveTradingEngine:
             if self.broker_interface:
                 if order_type == "limit" and limit_price is not None:
                     # For limit orders, pass the limit price to the broker interface
-                    result = self.broker_interface.buy(symbol, quantity, order_type="limit", limit_price=limit_price)
+                    result = self.broker_interface.buy(symbol, quantity, order_type="limit", limit_price=limit_price, current_price=current_price)
                 else:
-                    result = self.broker_interface.buy(symbol, quantity, order_type=order_type)
+                    result = self.broker_interface.buy(symbol, quantity, order_type=order_type, current_price=current_price)
 
                 # Track pending limit orders
                 if order_type == "limit" and isinstance(result, dict) and 'id' in result:
@@ -90,7 +90,7 @@ class LiveTradingEngine:
         except Exception as e:
             return {'status': 'failed', 'error': str(e)}
 
-    def execute_sell_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None) -> dict:
+    def execute_sell_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Execute sell order and return order details"""
         try:
             # Debug logging
@@ -102,9 +102,9 @@ class LiveTradingEngine:
             if self.broker_interface:
                 if order_type == "limit" and limit_price is not None:
                     # For limit orders, pass the limit price to the broker interface
-                    result = self.broker_interface.sell(symbol, quantity, order_type="limit", limit_price=limit_price)
+                    result = self.broker_interface.sell(symbol, quantity, order_type="limit", limit_price=limit_price, current_price=current_price)
                 else:
-                    result = self.broker_interface.sell(symbol, quantity, order_type=order_type)
+                    result = self.broker_interface.sell(symbol, quantity, order_type=order_type, current_price=current_price)
 
                 # Track pending limit orders
                 if order_type == "limit" and isinstance(result, dict) and 'id' in result:
@@ -123,11 +123,11 @@ class LiveTradingEngine:
         except Exception as e:
             return {'status': 'failed', 'error': str(e)}
 
-    def close_position(self, symbol: str) -> dict:
+    def close_position(self, symbol: str, current_price: float = None) -> dict:
         """Close position using Alpaca close position API - always use market orders"""
         try:
             if self.broker_interface and hasattr(self.broker_interface, 'close_position'):
-                result = self.broker_interface.close_position(symbol)
+                result = self.broker_interface.close_position(symbol, current_price=current_price)
                 return result if isinstance(result, dict) else {'status': 'executed', 'details': result}
             else:
                 return {'status': 'simulated', 'symbol': symbol, 'action': 'close_position'}
@@ -248,7 +248,7 @@ class LiveTradingEngine:
 
     def _confirm_trade_execution(self, action: str, symbol: str, quantity: float,
                                current_price: float, position_data: dict) -> bool:
-        """Final confirmation before executing trades (silent)"""
+        """Final confirmation before executing trades - verify sufficient funds"""
         try:
             # Get account info for buying power check
             account_info = self.get_alpaca_account()
@@ -259,16 +259,25 @@ class LiveTradingEngine:
             if account_balance <= 0:
                 return False
 
-            # For buy orders, check buying power
-            if action == 'BUY':
+            # For buy orders, verify sufficient funds
+            if action in ['BUY']:
                 trade_value = quantity * current_price
-                if trade_value > buying_power:
-                    return False
-                # Additional check: ensure trade value doesn't exceed account equity
-                if trade_value > account_balance:
+                # Check buying power (for margin accounts) or equity (for cash accounts)
+                available_funds = max(buying_power, account_balance)
+                if trade_value > available_funds:
+                    print(f"     INSUFFICIENT FUNDS - Need ${trade_value:.2f}, Have ${available_funds:.2f}")
                     return False
 
-            # For close position, just check that position exists (handled in main logic)
+            # For sell orders (opening short), also verify sufficient funds
+            if action in ['SELL']:
+                trade_value = quantity * current_price
+                # Check buying power (for margin accounts) or equity (for cash accounts)
+                available_funds = max(buying_power, account_balance)
+                if trade_value > available_funds:
+                    print(f"     INSUFFICIENT FUNDS - Need ${trade_value:.2f}, Have ${available_funds:.2f}")
+                    return False
+
+            # For close orders, allow to proceed (closing doesn't require additional capital)
             return True
 
         except Exception:
@@ -414,7 +423,7 @@ class LiveTradingEngine:
             # Final trade confirmation (silent)
             if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
                 # Open long position with MARKET order for reliable execution
-                result = self.execute_buy_order(symbol, quantity, order_type="market")
+                result = self.execute_buy_order(symbol, quantity, order_type="market", current_price=current_price)
                 if result.get('status') not in ['failed', 'pending']:
                     # Force position refresh for IB broker
                     if hasattr(self.broker_interface, 'refresh_positions'):
@@ -439,6 +448,14 @@ class LiveTradingEngine:
                         'quantity': quantity,
                         'order_details': result
                     })
+
+                    # DEBUG: Backend trade logging
+                    print(f"\n[BACKEND] Trade recorded:")
+                    print(f"  Timestamp: {timestamp}")
+                    print(f"  Action: buy_long")
+                    print(f"  Price: ${current_price:.2f}")
+                    print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
+                    print(f"  Quantity: {quantity}")
                 else:
                     print(f" BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
             else:
@@ -463,7 +480,7 @@ class LiveTradingEngine:
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
             # Close the existing long position
-            result = self.close_position(symbol)
+            result = self.close_position(symbol, current_price=current_price)
             if result.get('status') not in ['failed', 'pending']:
                 # Force position refresh for IB broker
                 if hasattr(self.broker_interface, 'refresh_positions'):
@@ -488,6 +505,14 @@ class LiveTradingEngine:
                     'quantity': current_qty,
                     'order_details': result
                 })
+
+                # DEBUG: Backend trade logging
+                print(f"\n[BACKEND] Trade recorded:")
+                print(f"  Timestamp: {timestamp}")
+                print(f"  Action: close_position")
+                print(f"  Price: ${current_price:.2f}")
+                print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
+                print(f"  Quantity: {current_qty}")
             else:
                 print(f" CLOSE POSITION FAILED - {result.get('error', 'Unknown error')}")
 
@@ -518,11 +543,11 @@ class LiveTradingEngine:
 
         # Process buy signal
         if buy_signal:
-            if current_qty < 0:  # Currently short, close short position first
+            if current_qty < 0:  # Currently short, close short position first then open long
                 print(f"\n🔵 BUY SIGNAL - Closing short position for {symbol} at ${current_price:.2f}")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
-                result = self.close_position(symbol)
+                result = self.close_position(symbol, current_price=current_price)
                 if result.get('status') != 'failed':
                     print(f" SHORT POSITION CLOSED - {abs(current_qty)} {symbol}")
                     self.trades.append({
@@ -533,12 +558,57 @@ class LiveTradingEngine:
                         'order_details': result
                     })
 
+                    # DEBUG: Backend trade logging
+                    print(f"\n[BACKEND] Trade recorded:")
+                    print(f"  Timestamp: {timestamp}")
+                    print(f"  Action: close_short")
+                    print(f"  Price: ${current_price:.2f}")
+                    print(f"  Quantity: {abs(current_qty)}")
+
+                    # Now open long position after closing short
+                    print(f"\n🔵 BUY SIGNAL - Opening long position for {symbol} at ${current_price:.2f}")
+
+                    if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
+                        long_result = self.execute_buy_order(symbol, quantity, order_type="market", current_price=current_price)
+                        if long_result.get('status') not in ['failed', 'pending']:
+                            # Force position refresh
+                            if hasattr(self.broker_interface, 'refresh_positions'):
+                                self.broker_interface.refresh_positions()
+
+                            updated_account = self.get_alpaca_account()
+                            updated_balance = float(updated_account.get('equity', account_balance))
+                            updated_session_pnl = updated_balance - self.initial_balance
+
+                            print(f" BUY ORDER FILLED - {quantity} {symbol} at market")
+                            print(f"     Fill Price: ${long_result.get('avg_fill_price', current_price):.5f}")
+                            print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+
+                            self.trades.append({
+                                'timestamp': timestamp,
+                                'action': 'buy_long',
+                                'price': current_price,
+                                'quantity': quantity,
+                                'order_details': long_result
+                            })
+
+                            # DEBUG: Backend trade logging
+                            print(f"\n[BACKEND] Trade recorded:")
+                            print(f"  Timestamp: {timestamp}")
+                            print(f"  Action: buy_long")
+                            print(f"  Price: ${current_price:.2f}")
+                            print(f"  Fill Price: ${long_result.get('avg_fill_price', 0):.2f}")
+                            print(f"  Quantity: {quantity}")
+                        else:
+                            print(f" BUY ORDER FAILED - {long_result.get('error', 'Unknown error')}")
+                    else:
+                        print(f" BUY SIGNAL REJECTED - Invalid conditions")
+
             elif current_qty == 0 and not has_pending_buy:  # No position and no pending buy, open long
                 print(f"\n🔵 BUY SIGNAL - Attempting to buy {quantity} {symbol} at market price")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 if self._confirm_trade_execution('BUY', symbol, quantity, current_price, alpaca_position):
-                    result = self.execute_buy_order(symbol, quantity, order_type="market")
+                    result = self.execute_buy_order(symbol, quantity, order_type="market", current_price=current_price)
                     if result.get('status') not in ['failed', 'pending']:
                         # Force position refresh for IB broker
                         if hasattr(self.broker_interface, 'refresh_positions'):
@@ -559,6 +629,14 @@ class LiveTradingEngine:
                             'quantity': quantity,
                             'order_details': result
                         })
+
+                        # DEBUG: Backend trade logging
+                        print(f"\n[BACKEND] Trade recorded:")
+                        print(f"  Timestamp: {timestamp}")
+                        print(f"  Action: buy_long")
+                        print(f"  Price: ${current_price:.2f}")
+                        print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
+                        print(f"  Quantity: {quantity}")
                     else:
                         print(f" BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
                 else:
@@ -576,11 +654,11 @@ class LiveTradingEngine:
 
         # Process sell signal
         elif sell_signal:
-            if current_qty > 0:  # Currently long, close long position first
+            if current_qty > 0:  # Currently long, close long position first then open short
                 print(f"\n🔴 SELL SIGNAL - Closing long position for {symbol} at ${current_price:.2f}")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
-                result = self.close_position(symbol)
+                result = self.close_position(symbol, current_price=current_price)
                 if result.get('status') != 'failed':
                     print(f" LONG POSITION CLOSED - {current_qty} {symbol}")
                     self.trades.append({
@@ -591,12 +669,57 @@ class LiveTradingEngine:
                         'order_details': result
                     })
 
+                    # DEBUG: Backend trade logging
+                    print(f"\n[BACKEND] Trade recorded:")
+                    print(f"  Timestamp: {timestamp}")
+                    print(f"  Action: close_long")
+                    print(f"  Price: ${current_price:.2f}")
+                    print(f"  Quantity: {current_qty}")
+
+                    # Now open short position after closing long
+                    print(f"\n🔴 SELL SIGNAL - Opening short position for {symbol} at ${current_price:.2f}")
+
+                    if self._confirm_trade_execution('SELL', symbol, quantity, current_price, alpaca_position):
+                        short_result = self.execute_sell_order(symbol, quantity, order_type="market", current_price=current_price)
+                        if short_result.get('status') not in ['failed', 'pending']:
+                            # Force position refresh
+                            if hasattr(self.broker_interface, 'refresh_positions'):
+                                self.broker_interface.refresh_positions()
+
+                            updated_account = self.get_alpaca_account()
+                            updated_balance = float(updated_account.get('equity', account_balance))
+                            updated_session_pnl = updated_balance - self.initial_balance
+
+                            print(f" SHORT ORDER FILLED - {quantity} {symbol} at market")
+                            print(f"     Fill Price: ${short_result.get('avg_fill_price', current_price):.5f}")
+                            print(f"     Updated Account: ${updated_balance:.2f} | Session P&L: ${updated_session_pnl:.2f}")
+
+                            self.trades.append({
+                                'timestamp': timestamp,
+                                'action': 'sell_short',
+                                'price': current_price,
+                                'quantity': quantity,
+                                'order_details': short_result
+                            })
+
+                            # DEBUG: Backend trade logging
+                            print(f"\n[BACKEND] Trade recorded:")
+                            print(f"  Timestamp: {timestamp}")
+                            print(f"  Action: sell_short")
+                            print(f"  Price: ${current_price:.2f}")
+                            print(f"  Fill Price: ${short_result.get('avg_fill_price', 0):.2f}")
+                            print(f"  Quantity: {quantity}")
+                        else:
+                            print(f" SHORT ORDER FAILED - {short_result.get('error', 'Unknown error')}")
+                    else:
+                        print(f" SHORT SIGNAL REJECTED - Invalid conditions")
+
             elif current_qty == 0 and not has_pending_sell:  # No position and no pending sell, open short
                 print(f"\n🔴 SELL SIGNAL - Attempting to short {quantity} {symbol} at market price")
                 print(f"     Account: ${account_balance:.2f} | Unrealized: ${unrealized_pnl:.2f} | Session: ${session_pnl:.2f}")
 
                 if self._confirm_trade_execution('SELL', symbol, quantity, current_price, alpaca_position):
-                    result = self.execute_sell_order(symbol, quantity, order_type="market")
+                    result = self.execute_sell_order(symbol, quantity, order_type="market", current_price=current_price)
                     if result.get('status') not in ['failed', 'pending']:
                         # Force position refresh for IB broker
                         if hasattr(self.broker_interface, 'refresh_positions'):
@@ -617,6 +740,14 @@ class LiveTradingEngine:
                             'quantity': quantity,
                             'order_details': result
                         })
+
+                        # DEBUG: Backend trade logging
+                        print(f"\n[BACKEND] Trade recorded:")
+                        print(f"  Timestamp: {timestamp}")
+                        print(f"  Action: sell_short")
+                        print(f"  Price: ${current_price:.2f}")
+                        print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
+                        print(f"  Quantity: {quantity}")
                     else:
                         print(f" SHORT ORDER FAILED - {result.get('error', 'Unknown error')}")
                 else:
@@ -772,7 +903,22 @@ class LiveTradingEngine:
 
             enhanced_trades.append(enhanced_trade)
 
-        return pd.DataFrame(enhanced_trades)
+        df = pd.DataFrame(enhanced_trades)
+
+        # Add lowercase aliases for backward compatibility with chart code
+        if len(df) > 0:
+            df['timestamp'] = df['Time']
+            df['action'] = df['Action'].str.lower().replace({
+                'buy': 'buy_long',
+                'sell_short': 'sell_short',
+                'close': 'close_position',
+                'close_long': 'close_long',
+                'close_short': 'close_short'
+            })
+            df['price'] = df['Price']
+            df['quantity'] = df['Shares']
+
+        return df
     
     def _get_completed_trades(self) -> List[Dict]:
         """Parse trade history to identify completed trade pairs (buy/close cycles)"""

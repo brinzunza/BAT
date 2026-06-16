@@ -32,19 +32,26 @@ class TradingCLI:
     
     def __init__(self):
         self.strategies = {
-            '1': ('Mean Reversion (Extreme)', MeanReversionExtremeStrategy),
+            '1': ('Mean Reversion', MeanReversionExtremeStrategy),
             '2': ('Moving Average', MovingAverageStrategy),
             '3': ('RSI', RSIStrategy),
             '4': ('MACD', MACDStrategy),
             '5': ('Bollinger Bands', BollingerBandsStrategy),
             '6': ('Candlestick Patterns', CandlestickPatternsStrategy)
         }
-        
+
+        # Current active provider
         self.data_provider = None
         self.broker = None
+
+        # Cached data providers (login once, reuse)
+        self.polygon_data_provider = None
+        self.synth_data_provider = None
         self.alpaca_data_provider = None
-        self.alpaca_broker = None
         self.oanda_provider = None
+
+        # Cached brokers
+        self.alpaca_broker = None
         self.ib_broker = None
         
     def display_banner(self):
@@ -76,16 +83,19 @@ class TradingCLI:
                     api_key = "your-api-key-here"  # Default placeholder
 
                 try:
-                    # Create data provider instance
-                    self.data_provider = PolygonDataProvider(api_key)
+                    # Create data provider instance and cache it
+                    polygon_provider = PolygonDataProvider(api_key)
 
                     # Test the connection
                     print("Testing API key...")
-                    success, message = self.data_provider.test_connection()
+                    success, message = polygon_provider.test_connection()
 
                     if success:
                         print(f"✓ {message}")
-                        print("✓ Data provider configured successfully")
+                        print("✓ Polygon data provider configured successfully")
+                        # Cache the provider and set as active
+                        self.polygon_data_provider = polygon_provider
+                        self.data_provider = self.polygon_data_provider
                         return True
                     else:
                         # API key validation failed
@@ -97,7 +107,6 @@ class TradingCLI:
                         choice = input("\nSelect option (1-2): ").strip()
 
                         if choice == '2':
-                            self.data_provider = None
                             return False
                         # If choice is '1' or anything else, loop continues
 
@@ -110,7 +119,6 @@ class TradingCLI:
                     choice = input("\nSelect option (1-2): ").strip()
 
                     if choice == '2':
-                        self.data_provider = None
                         return False
                     # If choice is '1' or anything else, loop continues
 
@@ -126,16 +134,19 @@ class TradingCLI:
                     continue
 
                 try:
-                    # Create synth data provider instance
-                    self.data_provider = SynthDataProvider(base_url, api_key)
+                    # Create synth data provider instance and cache it
+                    synth_provider = SynthDataProvider(base_url, api_key)
 
                     # Test the connection
                     print("Testing Synth API connection...")
-                    success, message = self.data_provider.test_connection()
+                    success, message = synth_provider.test_connection()
 
                     if success:
                         print(f"✓ {message}")
                         print("✓ Synth data provider configured successfully")
+                        # Cache the provider and set as active
+                        self.synth_data_provider = synth_provider
+                        self.data_provider = self.synth_data_provider
                         return True
                     else:
                         # Connection test failed
@@ -147,7 +158,6 @@ class TradingCLI:
                         choice = input("\nSelect option (1-2): ").strip()
 
                         if choice == '2':
-                            self.data_provider = None
                             return False
                         # If choice is '1' or anything else, loop continues
 
@@ -160,14 +170,128 @@ class TradingCLI:
                     choice = input("\nSelect option (1-2): ").strip()
 
                     if choice == '2':
-                        self.data_provider = None
                         return False
                     # If choice is '1' or anything else, loop continues
 
             else:
                 print("Invalid choice. Please select 1, 2, or 3.")
                 continue
-    
+
+    def select_data_provider(self):
+        """Select data provider from cached providers or setup new one"""
+        while True:
+            print("\n" + "=" * 50)
+            print("           DATA PROVIDER SELECTION")
+            print("=" * 50)
+
+            # Show available cached providers
+            available_providers = []
+            if self.polygon_data_provider:
+                available_providers.append(("1", "Polygon.io (configured)"))
+            if self.synth_data_provider:
+                available_providers.append(("2", "Synth (configured)"))
+
+            # Build menu
+            print("\nConfigured Providers:")
+            if available_providers:
+                for key, name in available_providers:
+                    print(f"  {key}. {name}")
+            else:
+                print("  (None configured yet)")
+
+            print("\nSetup New Provider:")
+            polygon_key = "3" if not self.polygon_data_provider else None
+            synth_key = "4" if not self.synth_data_provider else None
+
+            if not self.polygon_data_provider:
+                print(f"  3. Setup Polygon.io")
+            if not self.synth_data_provider:
+                print(f"  4. Setup Synth")
+
+            print("\n  0. Cancel")
+
+            choice = input("\nSelect provider: ").strip()
+
+            # Use configured providers
+            if choice == "1" and self.polygon_data_provider:
+                self.data_provider = self.polygon_data_provider
+                print(f"✓ Using Polygon.io provider")
+                return True
+            elif choice == "2" and self.synth_data_provider:
+                self.data_provider = self.synth_data_provider
+                print(f"✓ Using Synth provider")
+                return True
+
+            # Setup new providers
+            elif choice == "3" and not self.polygon_data_provider:
+                # Temporarily switch to setup mode
+                if self.setup_polygon_provider():
+                    return True
+            elif choice == "4" and not self.synth_data_provider:
+                # Temporarily switch to setup mode
+                if self.setup_synth_provider():
+                    return True
+
+            # Cancel
+            elif choice == "0":
+                return False
+
+            else:
+                print("Invalid choice. Please try again.")
+
+    def setup_polygon_provider(self):
+        """Setup Polygon provider only"""
+        api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
+        if not api_key:
+            api_key = "your-api-key-here"
+
+        try:
+            polygon_provider = PolygonDataProvider(api_key)
+            print("Testing API key...")
+            success, message = polygon_provider.test_connection()
+
+            if success:
+                print(f"✓ {message}")
+                print("✓ Polygon data provider configured successfully")
+                self.polygon_data_provider = polygon_provider
+                self.data_provider = self.polygon_data_provider
+                return True
+            else:
+                print(f"✗ {message}")
+                return False
+        except Exception as e:
+            print(f"✗ Error setting up Polygon provider: {e}")
+            return False
+
+    def setup_synth_provider(self):
+        """Setup Synth provider only"""
+        base_url = input("Enter Synth API base URL (or press Enter for default): ").strip()
+        if not base_url:
+            base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
+
+        api_key = input("Enter Synth API key: ").strip()
+        if not api_key:
+            print("✗ API key is required for Synth provider")
+            return False
+
+        try:
+            synth_provider = SynthDataProvider(base_url, api_key)
+            print("Testing Synth API connection...")
+            success, message = synth_provider.test_connection()
+
+            if success:
+                print(f"✓ {message}")
+                print("✓ Synth data provider configured successfully")
+                self.synth_data_provider = synth_provider
+                self.data_provider = self.synth_data_provider
+                return True
+            else:
+                print(f"✗ {message}")
+                return False
+        except Exception as e:
+            print(f"✗ Error setting up Synth provider: {e}")
+            return False
+
     def setup_broker(self):
         """Setup broker interface"""
         print("\nBroker Setup")
@@ -338,7 +462,7 @@ class TradingCLI:
 
             try:
                 # Get strategy parameters
-                if choice == '1':  # Mean Reversion (Extreme)
+                if choice == '1':  # Mean Reversion
                     window = int(input("Enter window size (default 20): ") or "20")
                     num_std = float(input("Enter standard deviations (default 2.0): ") or "2.0")
                     return strategy_class(window=window, num_std=num_std)
@@ -396,58 +520,88 @@ class TradingCLI:
                 return "long_short"
             print(" Invalid choice. Please enter 1 or 2.")
 
-    def select_asset_type(self):
-        """Let user select between crypto, stocks, and forex for backtesting (Polygon only)"""
-        print("\n Asset Type Selection (Backtesting):")
-        print("======================================")
-        print("1. Cryptocurrency (Polygon API)")
-        print("2. Stocks (Polygon API)")
-        print("3. Forex (Polygon API)")
-        print()
+    def show_available_tickers(self):
+        """Display available tickers based on the data provider"""
+        print("\n" + "=" * 60)
+        print("           AVAILABLE TICKERS BY TYPE")
+        print("=" * 60)
 
-        while True:
-            choice = input("Select asset type (1-3): ").strip()
-            if choice in ['1', '2', '3']:
-                return choice
-            print(" Invalid choice. Please enter 1, 2, or 3.")
+        # Polygon provider examples
+        if isinstance(self.data_provider, PolygonDataProvider):
+            print("\nPOLYGON API TICKER FORMATS:")
+            print("-" * 60)
 
-    def configure_data_parameters(self):
-        """Configure data parameters with support for crypto, stocks, and forex"""
-        print("\nData Configuration:")
-        print("-" * 20)
+            # Stocks
+            print("\n📈 STOCKS (No prefix):")
+            print("   Examples: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META")
+            print("   Format:   [SYMBOL]")
 
-        # Select asset type
-        asset_choice = self.select_asset_type()
+            # Crypto
+            print("\n₿ CRYPTOCURRENCY (X: prefix):")
+            print("   Examples: X:BTCUSD, X:ETHUSD, X:DOGEUSD, X:LTCUSD")
+            print("   Format:   X:[CRYPTO]USD")
 
-        # Configure ticker based on asset type (Polygon only for backtesting)
-        if asset_choice == '1':  # Crypto (Polygon)
-            print("\n₿ Cryptocurrency Configuration (Polygon):")
-            ticker = input("Enter crypto ticker (default X:BTCUSD): ").strip() or "X:BTCUSD"
-            print("Common crypto tickers: X:BTCUSD, X:ETHUSD, X:DOGEUSD, X:LTCUSD")
-        elif asset_choice == '2':  # Stocks (Polygon)
-            print("\n Stock Configuration (Polygon):")
-            ticker = input("Enter stock ticker (default AAPL): ").strip() or "AAPL"
-            print("Common stock tickers: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX, SPY, QQQ")
-        else:  # asset_choice == '3' - Forex (Polygon)
-            print("\n Forex Configuration (Polygon):")
-            ticker = input("Enter forex pair (default C:EURUSD): ").strip() or "C:EURUSD"
-
-            # Show available forex pairs if data provider is set up
+            # Forex
+            print("\n💱 FOREX (C: prefix):")
             if hasattr(self.data_provider, 'get_available_forex_pairs'):
                 try:
                     forex_pairs = self.data_provider.get_available_forex_pairs()
-                    print("Available forex pairs:")
+                    print("   Available pairs:")
                     for i, pair in enumerate(forex_pairs):
-                        if i % 4 == 0 and i > 0:
-                            print()  # New line every 4 pairs
-                        print(f"{pair:<12}", end=" ")
-                    print()  # Final newline
+                        if i % 5 == 0 and i > 0:
+                            print()
+                        print(f"   {pair:<12}", end="")
+                    print()
                 except:
-                    print("Common forex pairs: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF, C:AUDUSD, C:USDCAD")
-                    print("                    C:NZDUSD, C:EURGBP, C:EURJPY, C:GBPJPY, C:CHFJPY, C:EURCHF")
+                    print("   Examples: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF")
+                    print("   Format:   C:[CURRENCY_PAIR]")
             else:
-                print("Common forex pairs: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF, C:AUDUSD, C:USDCAD")
-                print("                    C:NZDUSD, C:EURGBP, C:EURJPY, C:GBPJPY, C:CHFJPY, C:EURCHF")
+                print("   Examples: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF")
+                print("   Format:   C:[CURRENCY_PAIR]")
+
+        # Synth provider
+        elif isinstance(self.data_provider, SynthDataProvider):
+            print("\nSYNTH API TICKER FORMATS:")
+            print("-" * 60)
+            print("   Default: SYNTH")
+            print("   Format:  Any custom ticker name")
+
+        # Generic fallback
+        else:
+            print("\nTICKER FORMATS:")
+            print("-" * 60)
+            print("   Stocks:  AAPL, MSFT, GOOGL, etc.")
+            print("   Crypto:  X:BTCUSD, X:ETHUSD, etc. (Polygon)")
+            print("   Forex:   C:EURUSD, C:GBPUSD, etc. (Polygon)")
+
+        print("\n" + "=" * 60)
+
+    def configure_data_parameters(self):
+        """Configure data parameters with direct ticker input"""
+        print("\nData Configuration:")
+        print("-" * 20)
+
+        # Show ticker format guidance
+        print("\nTICKER FORMAT GUIDE:")
+        print("  Stocks:         AAPL, MSFT, GOOGL")
+        print("  Cryptocurrency: X:BTCUSD, X:ETHUSD")
+        print("  Forex:          C:EURUSD, C:GBPUSD")
+
+        # Ask if user wants to see available tickers
+        while True:
+            show_tickers = input("\nShow available tickers? (y/n): ").strip().lower()
+            if show_tickers in ['y', 'yes']:
+                self.show_available_tickers()
+                break
+            elif show_tickers in ['n', 'no', '']:
+                break
+            else:
+                print("Please enter 'y' or 'n'.")
+
+        # Get ticker input
+        print("\nEnter ticker symbol:")
+        ticker = input("Ticker (or press Enter for X:BTCUSD): ").strip() or "X:BTCUSD"
+        print(f"Selected ticker: {ticker}")
 
         # Configure timespan (Polygon API only)
         timespan = input("Enter timespan (minute/hour/day, default minute): ").strip() or "minute"
@@ -478,8 +632,7 @@ class TradingCLI:
             'timespan': timespan,
             'from_date': from_date,
             'to_date': to_date,
-            'limit': limit,
-            'asset_type': asset_choice
+            'limit': limit
         }
     
     def run_backtest(self):
@@ -541,8 +694,6 @@ class TradingCLI:
 
         try:
             print("Fetching data...")
-
-            asset_type = data_params.pop('asset_type')
 
             if not self.data_provider:
                 print(" Polygon data provider not configured. Please configure it first.")
@@ -1298,10 +1449,9 @@ class TradingCLI:
             choice = input("\nSelect option (1-4): ").strip()
 
             if choice == '1':
-                if not self.data_provider:
-                    print("Data provider not configured. Setting up now...")
-                    if not self.setup_data_provider():
-                        continue
+                # Always ask which provider to use (but only login once per provider)
+                if not self.select_data_provider():
+                    continue
                 self.run_backtest()
                 input("\nPress Enter to continue...")
 
@@ -1317,7 +1467,8 @@ class TradingCLI:
                 while True:
                     new_dataset_or_not = input("Want to use a new or existing dataset? (New: 1, Existing: 0): ").strip()
                     if new_dataset_or_not == '1':
-                        self.setup_data_provider()
+                        if not self.select_data_provider():
+                            break
                         ticker = input("Choose a ticker: ")
                         start = input("Choose a start date: ")
                         end = input("Choose an end date: ")

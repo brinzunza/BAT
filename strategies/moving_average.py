@@ -62,6 +62,10 @@ class MovingAverageStrategy:
         """Return list of indicator columns this strategy creates"""
         return ['short_mavg', 'medium_mavg', 'long_mavg']
 
+    def get_required_lookback(self) -> int:
+        """Return minimum number of bars required for reliable signals"""
+        return self.long_window
+
     def validate_data(self, df: pd.DataFrame) -> bool:
         """Validate that the DataFrame has required columns"""
         required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']

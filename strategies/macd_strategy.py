@@ -52,6 +52,10 @@ class MACDStrategy:
         """Return list of indicator columns this strategy creates"""
         return ['macd_line', 'signal_line', 'histogram']
 
+    def get_required_lookback(self) -> int:
+        """Return minimum number of bars required for reliable signals"""
+        return self.slow + self.signal
+
     def validate_data(self, df: pd.DataFrame) -> bool:
         """Validate that the DataFrame has required columns"""
         required_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'timestamp']
