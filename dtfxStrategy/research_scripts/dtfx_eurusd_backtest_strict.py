@@ -1,5 +1,3 @@
-import sys
-sys.path.insert(0, "/private/tmp/claude-501/-Users-brunoinzunza-Documents-GitHub/3b4d2171-ccf5-4c75-8a5d-8dac2a9ede36/scratchpad")
 import numpy as np
 import pandas as pd
 import matplotlib
