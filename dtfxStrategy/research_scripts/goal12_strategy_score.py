@@ -20,7 +20,7 @@ DATA_DIR = os.path.join(SCRIPT_DIR, "..", "data")
 
 from goal10_cana_nt_mc_capped import run_mc_capped, BLOCK, MAX_TRADES
 
-N_SIMS = 4000
+N_SIMS = 50000
 
 # label -> (holdout trade file, R:R for this config)
 STRATEGIES = {
