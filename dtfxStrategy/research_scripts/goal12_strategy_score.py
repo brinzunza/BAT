@@ -24,6 +24,8 @@ N_SIMS = 4000
 
 # label -> (holdout trade file, R:R for this config)
 STRATEGIES = {
+    "Speed-King":          ("goal19_speed_king_true_holdout.csv", 0.20),
+    "Quality-King":        ("goal19_quality_king_true_holdout.csv", 0.35),
     "Hybrid-Ultra":        ("goal10_hybrid_ultra_true_holdout.csv", 0.40),
     "DTFX-Ultra":          ("goal10_dtfx_ultra_true_holdout.csv", 0.40),
     "SOMEGA-Ultra":        ("goal10_somega_ultra_true_holdout.csv", 0.40),
