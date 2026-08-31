@@ -2,11 +2,14 @@
 deployed guardrails (read directly from config.py / engine.py / bot.py), none of which
 the backtest models at all:
 
-  1. MAX_CONCURRENT_POSITIONS = 2 (bot.py) -- the live bot silently skips any signal
-     once 2 positions are already open, across all symbols combined. Simulates this
-     cap against Hybrid-Ultra's TRUE entry/exit timestamps to see how many of its
-     backtested trades would actually be rejected live, and rescoes WR/PF/frequency
-     on just the accepted subset.
+  1. MAX_CONCURRENT_POSITIONS (bot.py) -- following the live-readiness audit, this cap
+     was changed from a fixed headcount of 2 to a capital-based formula:
+     floor(MAX_TOTAL_RISK_PCT / RISK_PCT) = floor(1.0 / 0.05) = 20 -- "unlimited,
+     until 5%-risk positions would use up all the capital" instead of an arbitrary
+     small number. Simulates this new cap against Hybrid-Ultra's TRUE entry/exit
+     timestamps to confirm how many trades are still rejected live (real historical
+     concurrency peaks at 9, comfortably under 20) and rescores WR/PF/frequency on
+     the accepted subset.
   2. Rollover blackout (bot.py: 21:00-21:30 and 22:00-22:30 UTC daily) + weekend
      blackout (Fri 21:00 UTC -> Sun 21:00 UTC) -- suppresses new order placement.
      Hybrid-Ultra's backtest has no time-of-day filter at all, so this friction is
@@ -32,7 +35,9 @@ DATA_DIR = os.path.join(SCRIPT_DIR, "..", "data")
 import goal11_hybrid_ultra_live_readiness as g11
 import goal5_rr_sweep as g5
 
-MAX_CONCURRENT_POSITIONS = 2  # PRODLIVETRADING/config.py
+RISK_PCT = 0.05
+MAX_TOTAL_RISK_PCT = 1.0
+MAX_CONCURRENT_POSITIONS = max(1, int(MAX_TOTAL_RISK_PCT / RISK_PCT))  # PRODLIVETRADING/config.py (post-fix: 20, was 2)
 BACKSTOP_MULTIPLIER = 1.5     # PRODLIVETRADING/strategy/engine.py
 
 
