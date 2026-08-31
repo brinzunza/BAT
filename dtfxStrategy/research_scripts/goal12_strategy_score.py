@@ -24,6 +24,9 @@ N_SIMS = 4000
 
 # label -> (holdout trade file, R:R for this config)
 STRATEGIES = {
+    "Hybrid-Ultra":        ("goal10_hybrid_ultra_true_holdout.csv", 0.40),
+    "DTFX-Ultra":          ("goal10_dtfx_ultra_true_holdout.csv", 0.40),
+    "SOMEGA-Ultra":        ("goal10_somega_ultra_true_holdout.csv", 0.40),
     "CANA-NarrowTarget":   ("goal9_cana_narrowtarget_true_holdout.csv", 0.80),
     "SOMEGA-NarrowTarget": ("goal9_somega_narrowtarget_true_holdout.csv", 0.70),
     "DTFX-NarrowTarget":   ("goal9_dtfx_narrowtarget_true_holdout.csv", 0.70),
