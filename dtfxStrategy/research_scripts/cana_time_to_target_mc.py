@@ -53,6 +53,7 @@ def _simulate_cana_multitouch(zone_top, zone_bottom, zone_mid, zone_is_buy, zone
     out_is_win = np.zeros(max_out, dtype=np.bool_)
     out_risk_frac = np.zeros(max_out, dtype=np.float64)
     out_mid = np.zeros(max_out, dtype=np.float64)
+    out_touch = np.zeros(max_out, dtype=np.int64)
     out_count = 0
 
     for i in range(n):
@@ -125,6 +126,7 @@ def _simulate_cana_multitouch(zone_top, zone_bottom, zone_mid, zone_is_buy, zone
                 out_is_win[out_count] = is_win
                 out_risk_frac[out_count] = risk / mid
                 out_mid[out_count] = mid
+                out_touch[out_count] = touch_count + 1
                 out_count += 1
                 touch_count += 1
                 if not is_win or touch_count >= max_touches:
@@ -137,7 +139,7 @@ def _simulate_cana_multitouch(zone_top, zone_bottom, zone_mid, zone_is_buy, zone
 
             j += 1
 
-    return out_entry_idx[:out_count], out_is_win[:out_count], out_risk_frac[:out_count], out_mid[:out_count]
+    return out_entry_idx[:out_count], out_is_win[:out_count], out_risk_frac[:out_count], out_mid[:out_count], out_touch[:out_count]
 
 
 def build_cana_trades(instrument):
@@ -150,7 +152,7 @@ def build_cana_trades(instrument):
     top, bottom, mid = z["top"][ok], z["bottom"][ok], z["mid"][ok]
     is_buy, start_idx, c_ns = z["is_buy"][ok], z["start_idx"][ok], created_ns[ok]
 
-    entry_idx, is_win, risk_frac, entry_mid = _simulate_cana_multitouch(
+    entry_idx, is_win, risk_frac, entry_mid, touch_num = _simulate_cana_multitouch(
         top, bottom, mid, is_buy, start_idx, c_ns, times_ns, lows, highs,
         int(MIN_FILL_AGE_H * 3600 * 1e9), N_MULTIPLIER, EXCURSION_MULT, MAX_ZONE_TOUCHES, MAX_WINDOW_BARS)
 
@@ -169,6 +171,7 @@ def build_cana_trades(instrument):
         "net_r": net_r,
         "is_win": is_win,
         "instrument": instrument,
+        "touch_num": touch_num,
     })
 
 
