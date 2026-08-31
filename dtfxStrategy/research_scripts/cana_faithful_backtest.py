@@ -81,6 +81,7 @@ def _simulate_cana_faithful(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_s
         touch_count = 0
         in_probe = False
         had_bounce = False
+        cur_entry_j = -1  # bar index of the CURRENT touch's actual fill, not its resolution
 
         while j < window_end and touch_count < max_touches:
             lo = lows[j]
@@ -105,7 +106,7 @@ def _simulate_cana_faithful(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_s
                 if tp_hit or sl_hit:
                     is_win = tp_hit and not sl_hit   # tie on the same bar -> conservative: stop wins
                     out_touch_num[out_count] = touch_count
-                    out_entry_idx[out_count] = j
+                    out_entry_idx[out_count] = cur_entry_j
                     out_is_win[out_count] = is_win
                     out_mid[out_count] = mid
                     out_risk[out_count] = risk
@@ -127,10 +128,12 @@ def _simulate_cana_faithful(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_s
                             break
                         in_trade = True
                         touch_count = 1
+                        cur_entry_j = j
                 else:
                     if had_bounce and touched_mid:
                         in_trade = True
                         touch_count += 1
+                        cur_entry_j = j
 
             j += 1
 

@@ -46,7 +46,7 @@ def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_i
     n_times = len(lows)
     max_out = n * max_touches
     out_touch = np.zeros(max_out, dtype=np.int64)
-    out_entry_idx = np.full(max_out, -1, dtype=np.int64)
+    out_entry_idx = np.full(max_out, -1, dtype=np.int64)  # true fill bar, NOT the resolution bar (fixed -- see live-readiness audit)
     out_is_win = np.zeros(max_out, dtype=np.bool_)
     out_mid = np.zeros(max_out, dtype=np.float64)
     out_stop_risk = np.zeros(max_out, dtype=np.float64)
@@ -76,6 +76,7 @@ def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_i
         touch_count = 0
         in_probe = False
         had_bounce = False
+        cur_entry_j = -1  # bar index of the CURRENT touch's actual fill, not its resolution
 
         while j < window_end and touch_count < max_touches:
             lo = lows[j]
@@ -100,7 +101,7 @@ def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_i
                 if tp_hit or sl_hit:
                     is_win = tp_hit and not sl_hit
                     out_touch[out_count] = touch_count
-                    out_entry_idx[out_count] = j
+                    out_entry_idx[out_count] = cur_entry_j
                     out_is_win[out_count] = is_win
                     out_mid[out_count] = mid
                     out_stop_risk[out_count] = stop_risk
@@ -122,11 +123,13 @@ def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_i
                             break
                         in_trade = True
                         touch_count = 1
+                        cur_entry_j = j
                 else:
                     if (not require_bounce) or had_bounce:
                         if touched_mid:
                             in_trade = True
                             touch_count += 1
+                            cur_entry_j = j
 
             j += 1
 
