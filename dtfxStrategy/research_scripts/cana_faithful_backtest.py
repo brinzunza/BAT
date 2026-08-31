@@ -163,12 +163,15 @@ def build_cana_trades(instrument):
     cost_in_r = np.where(is_win, 0.0, spread_price / entry_risk)
     net_r = r_gross - cost_in_r
 
+    stop_pips = entry_risk / pip
+
     return pd.DataFrame({
         "entry_time": pd.to_datetime(times[entry_idx]),
         "net_r": net_r,
         "is_win": is_win,
         "touch_num": touch_num,
         "instrument": instrument,
+        "stop_pips": stop_pips,
     })
 
 
