@@ -38,7 +38,19 @@ STRATEGIES = {
     "goal70_final_winner": ("goal4_goal70_nogold_trades.csv", 1.00),    # no selection -> full history
 }
 
-DEFAULT_WEIGHTS = dict(speed=0.20, drawdown=0.20, wr=0.20, freq=0.20, rrr=0.20)
+# FINALIZED weights (was equal 20% each). Correlation analysis across all 12
+# candidates showed frequency is the dominant driver of speed (r=-0.867 vs
+# median-years-to-$1M) while win rate is the dominant driver of drawdown-safety
+# (r=+0.801 vs median drawdown) -- two genuinely different jobs, not redundant
+# with each other. Speed is kept as its own factor because it captures the
+# interaction between frequency, WR, and R:R that neither raw input sees alone.
+# User confirmed WR + frequency + speed as the three most important factors;
+# drawdown and RRR remain as smaller, non-zero secondary considerations rather
+# than being dropped outright, since RRR in particular showed no clean
+# independent relationship to either target (noisy, only 4 distinct values,
+# confounded) but is still worth a nonzero weight as a tie-breaker.
+DEFAULT_WEIGHTS = dict(speed=0.35, wr=0.30, freq=0.20, drawdown=0.10, rrr=0.05)
+EQUAL_WEIGHTS = dict(speed=0.20, drawdown=0.20, wr=0.20, freq=0.20, rrr=0.20)
 
 
 def minmax_norm(values, higher_is_better):
@@ -89,7 +101,8 @@ def main():
                          weights["rrr"] * rrr_n[k])
         return scores
 
-    default_scores = composite(DEFAULT_WEIGHTS)
+    final_scores = composite(DEFAULT_WEIGHTS)
+    equal_scores = composite(EQUAL_WEIGHTS)
 
     rows = []
     for k in raw:
@@ -97,25 +110,21 @@ def main():
             strategy=k, **raw[k],
             speed_score=round(speed_n[k], 1), dd_score=round(dd_n[k], 1),
             wr_score=round(wr_n[k], 1), freq_score=round(freq_n[k], 1),
-            rrr_score=round(rrr_n[k], 1), composite_score=round(default_scores[k], 1),
+            rrr_score=round(rrr_n[k], 1),
+            final_score=round(final_scores[k], 1), equal_weight_score=round(equal_scores[k], 1),
         ))
-    df = pd.DataFrame(rows).sort_values("composite_score", ascending=False).reset_index(drop=True)
+    df = pd.DataFrame(rows).sort_values("final_score", ascending=False).reset_index(drop=True)
     df.insert(0, "rank", range(1, len(df) + 1))
     df.to_csv(os.path.join(DATA_DIR, "goal12_strategy_scores.csv"), index=False)
 
+    w = DEFAULT_WEIGHTS
     print("\n" + "=" * 100)
-    print("COMPOSITE STRATEGY SCORE (equal 20% weights: speed, drawdown, WR, frequency, RRR)")
+    print(f"FINAL STRATEGY SCORE  (weights: speed={w['speed']:.0%}, WR={w['wr']:.0%}, "
+          f"freq={w['freq']:.0%}, drawdown={w['drawdown']:.0%}, RRR={w['rrr']:.0%})")
     print("=" * 100)
-    print(df[["rank", "strategy", "composite_score", "speed_score", "dd_score", "wr_score",
-              "freq_score", "rrr_score"]].to_string(index=False))
+    print(df[["rank", "strategy", "final_score", "speed_score", "wr_score", "freq_score",
+              "dd_score", "rrr_score", "equal_weight_score"]].to_string(index=False))
     print(f"\nSaved: goal12_strategy_scores.csv")
-
-    # sensitivity: a "safety-weighted" alternative (drawdown 40%, rest 15% each)
-    safety_weights = dict(speed=0.15, drawdown=0.40, wr=0.15, freq=0.15, rrr=0.15)
-    safety_scores = composite(safety_weights)
-    print("\n--- Sensitivity check: drawdown-weighted (40% DD, 15% each other) ---")
-    for k, v in sorted(safety_scores.items(), key=lambda x: -x[1]):
-        print(f"  {k:20s} {v:.1f}  (equal-weight was {default_scores[k]:.1f})")
 
 
 if __name__ == "__main__":
