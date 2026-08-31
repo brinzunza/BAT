@@ -18,6 +18,12 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 DATA_DIR = os.path.join(SCRIPT_DIR, "..", "data")
 
+try:
+    import dtfx_engine
+    _HAS_CPP_ENGINE = True
+except ImportError:
+    _HAS_CPP_ENGINE = False
+
 START = 200.0
 RISK_FRAC = 0.05
 CAP = 2_000_000.0
@@ -30,7 +36,7 @@ RUIN_FLOOR = 1.0
 
 
 @njit(cache=True)
-def run_mc_capped(net_r, n_sims, block, max_trades, seed):
+def run_mc_capped_numba(net_r, n_sims, block, max_trades, seed):
     np.random.seed(seed)
     n = len(net_r)
     trades_to_1m = np.full(n_sims, -1, dtype=np.int64)
@@ -82,6 +88,21 @@ def run_mc_capped(net_r, n_sims, block, max_trades, seed):
         ruined[s] = is_ruined
 
     return trades_to_1m, trades_to_10m, max_dd, ruined
+
+
+def run_mc_capped(net_r, n_sims, block, max_trades, seed):
+    """Position-sizing-capped block-bootstrap Monte Carlo. Uses the C++ dtfx_engine extension
+    (cpp_engine/, see cpp_engine/README.md) when built -- multi-threaded, validated
+    statistically equivalent to the numba path below (cpp_engine/validate.py; RNGs differ so
+    this isn't bit-exact, unlike zone detection/backtest) -- falling back to the original
+    single-threaded numba implementation if the extension isn't built. Account assumptions
+    (START/RISK_FRAC/CAP/T1/T10/RUIN_FLOOR below) are passed through explicitly so changing
+    them here always takes effect on both backends, nothing is duplicated into the C++ side."""
+    if _HAS_CPP_ENGINE:
+        return dtfx_engine.run_mc_capped(net_r, n_sims, block, max_trades, seed,
+                                          start=START, risk_frac=RISK_FRAC, cap=CAP,
+                                          target1=T1, target2=T10, ruin_floor=RUIN_FLOOR)
+    return run_mc_capped_numba(net_r, n_sims, block, max_trades, seed)
 
 
 def main():

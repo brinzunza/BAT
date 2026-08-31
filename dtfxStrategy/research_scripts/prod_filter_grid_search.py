@@ -27,6 +27,12 @@ import dtfx_robust_search as rs
 rs.INSTRUMENTS.update({"USDJPY": "lse_usdjpy_1min_2018on.csv"})
 from dtfx_somega_params import SESSION_HOUR_FILTER
 
+try:
+    import dtfx_engine
+    _HAS_CPP_ENGINE = True
+except ImportError:
+    _HAS_CPP_ENGINE = False
+
 INSTRUMENTS = ["EURUSD", "GBPUSD", "EURGBP", "USDJPY"]
 MIN_RETRACEMENT = 2
 MIN_RISK_PCT = 0.000170
@@ -38,10 +44,10 @@ PIP_SIZE = {"EURUSD": 1e-4, "GBPUSD": 1e-4, "EURGBP": 1e-4, "USDJPY": 1e-2}
 
 
 @njit(cache=True)
-def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_idx,
-                       zone_created_ns, times_ns, lows, highs, min_fill_age_ns,
-                       stop_mult, target_mult, require_bounce, probe_depth, exc_mult,
-                       max_touches, max_window):
+def _simulate_generic_numba(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_idx,
+                             zone_created_ns, times_ns, lows, highs, min_fill_age_ns,
+                             stop_mult, target_mult, require_bounce, probe_depth, exc_mult,
+                             max_touches, max_window):
     n = len(zone_top)
     n_times = len(lows)
     max_out = n * max_touches
@@ -135,6 +141,26 @@ def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_i
 
     return (out_touch[:out_count], out_entry_idx[:out_count], out_is_win[:out_count],
             out_mid[:out_count], out_stop_risk[:out_count])
+
+
+def _simulate_generic(zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_idx,
+                       zone_created_ns, times_ns, lows, highs, min_fill_age_ns,
+                       stop_mult, target_mult, require_bounce, probe_depth, exc_mult,
+                       max_touches, max_window):
+    """General-purpose multi-touch trade simulator. Uses the C++ dtfx_engine extension
+    (cpp_engine/, see cpp_engine/README.md) when built -- validated byte-identical to the
+    numba path below (cpp_engine/validate.py) -- falling back to the original numba
+    implementation if the extension isn't built. Every strategy knob stays a plain argument
+    either way; only the execution backend changes."""
+    if _HAS_CPP_ENGINE:
+        return dtfx_engine.simulate_generic(
+            zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_idx, zone_created_ns,
+            times_ns, lows, highs, min_fill_age_ns, stop_mult, target_mult, require_bounce,
+            probe_depth, exc_mult, max_touches, max_window)
+    return _simulate_generic_numba(
+        zone_top, zone_bottom, zone_mid, zone_is_buy, zone_start_idx, zone_created_ns,
+        times_ns, lows, highs, min_fill_age_ns, stop_mult, target_mult, require_bounce,
+        probe_depth, exc_mult, max_touches, max_window)
 
 
 def build_trades(instrument, stop_mult, target_mult, min_fill_age_h, require_bounce,

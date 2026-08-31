@@ -47,6 +47,12 @@ from scipy.stats import kurtosis as scipy_kurtosis, skew as scipy_skew
 from dtfx_eurusd_backtest_strict import find_pivots_strict
 from dtfx_eurusd_backtest import run_structure_fsm
 
+try:
+    import dtfx_engine
+    _HAS_CPP_ENGINE = True
+except ImportError:
+    _HAS_CPP_ENGINE = False
+
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -202,25 +208,40 @@ def load_instrument(instrument):
 
 
 def _prep_zones(instrument, min_retracement):
+    """Zone detection (pivots + structure FSM). Uses the C++ dtfx_engine extension
+    (cpp_engine/, see cpp_engine/README.md) when built -- validated to produce byte-identical
+    output to the pure-Python path below (cpp_engine/validate.py) and is the only piece of
+    the pipeline that was never JIT-accelerated, so it's the biggest speedup of the three.
+    Falls back to the original pure-Python pivots+FSM walk if the extension isn't built."""
     key = (instrument, min_retracement)
     if key in _zone_cache:
         return _zone_cache[key]
     times, lows, highs, df = load_instrument(instrument)
-    zigzag = find_pivots_strict(df, min_retracement)
-    _, zones = run_structure_fsm(zigzag)
 
-    n = len(zones)
-    top = np.array([z["top"] for z in zones], dtype=np.float64)
-    bottom = np.array([z["bottom"] for z in zones], dtype=np.float64)
-    mid = np.array([z["mid"] for z in zones], dtype=np.float64)
-    is_buy = np.array([z["side"] == "buy" for z in zones], dtype=np.bool_)
-    created_at = np.array([np.datetime64(z["created_at"]) for z in zones])
-    start_idx = np.searchsorted(times, created_at, side="right").astype(np.int64)
+    if _HAS_CPP_ENGINE:
+        times_ns = times.astype("datetime64[ns]").astype(np.int64)
+        top, bottom, mid, is_buy, created_at_ns, start_idx = dtfx_engine.detect_zones(
+            df["open"].values.astype(np.float64), df["high"].values.astype(np.float64),
+            df["low"].values.astype(np.float64), df["close"].values.astype(np.float64),
+            times_ns, min_retracement)
+        created_at = created_at_ns.astype("datetime64[ns]")
+        n = len(top)
+    else:
+        zigzag = find_pivots_strict(df, min_retracement)
+        _, zones = run_structure_fsm(zigzag)
+        n = len(zones)
+        top = np.array([z["top"] for z in zones], dtype=np.float64)
+        bottom = np.array([z["bottom"] for z in zones], dtype=np.float64)
+        mid = np.array([z["mid"] for z in zones], dtype=np.float64)
+        is_buy = np.array([z["side"] == "buy" for z in zones], dtype=np.bool_)
+        created_at = np.array([np.datetime64(z["created_at"]) for z in zones])
+        start_idx = np.searchsorted(times, created_at, side="right").astype(np.int64)
 
     packed = dict(top=top, bottom=bottom, mid=mid, is_buy=is_buy, start_idx=start_idx,
                   created_at=created_at)
     _zone_cache[key] = packed
-    print(f"  {instrument} MIN_RETRACEMENT={min_retracement}: {n:,} zones", flush=True)
+    engine_label = "C++" if _HAS_CPP_ENGINE else "Python"
+    print(f"  {instrument} MIN_RETRACEMENT={min_retracement}: {n:,} zones ({engine_label} engine)", flush=True)
     return packed
 
 
