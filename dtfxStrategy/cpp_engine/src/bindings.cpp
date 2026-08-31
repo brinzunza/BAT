@@ -73,6 +73,30 @@ py::tuple py_simulate_generic(f64arr zone_top, f64arr zone_bottom, f64arr zone_m
                            to_f64(r.mid), to_f64(r.stop_risk));
 }
 
+py::tuple py_simulate_generic_ex(f64arr zone_top, f64arr zone_bottom, f64arr zone_mid,
+                                  boolarr zone_is_buy, i64arr zone_start_idx, i64arr zone_created_ns,
+                                  i64arr times_ns, f64arr lows, f64arr highs, int64_t min_fill_age_ns,
+                                  double stop_mult, double target_mult, bool require_bounce,
+                                  double probe_depth, double exc_mult, int64_t max_touches,
+                                  int64_t max_window) {
+    const int64_t n_zones = zone_top.shape(0);
+    const int64_t n_bars = lows.shape(0);
+
+    std::vector<uint8_t> is_buy_u8(n_zones);
+    {
+        const bool* p = zone_is_buy.data();
+        for (int64_t i = 0; i < n_zones; ++i) is_buy_u8[i] = p[i] ? 1 : 0;
+    }
+
+    SimResult r = simulate_generic(zone_top.data(), zone_bottom.data(), zone_mid.data(),
+                                    is_buy_u8.data(), zone_start_idx.data(), zone_created_ns.data(),
+                                    n_zones, times_ns.data(), lows.data(), highs.data(), n_bars,
+                                    min_fill_age_ns, stop_mult, target_mult, require_bounce,
+                                    probe_depth, exc_mult, max_touches, max_window);
+    return py::make_tuple(to_i64(r.touch_num), to_i64(r.entry_idx), to_i64(r.exit_idx),
+                           to_bool(r.is_win), to_f64(r.mid), to_f64(r.stop_risk));
+}
+
 py::tuple py_run_mc_capped(f64arr net_r, int64_t n_sims, int64_t block, int64_t max_trades,
                             uint32_t seed, double start, double risk_frac, double cap,
                             double target1, double target2, double ruin_floor, int n_threads) {
@@ -106,6 +130,16 @@ PYBIND11_MODULE(dtfx_engine, m) {
           "General-purpose multi-touch trade simulator -> "
           "(touch_num, entry_idx, is_win, mid, stop_risk). "
           "Exact port of prod_filter_grid_search.py::_simulate_generic.");
+
+    m.def("simulate_generic_ex", &py_simulate_generic_ex,
+          py::arg("zone_top"), py::arg("zone_bottom"), py::arg("zone_mid"), py::arg("zone_is_buy"),
+          py::arg("zone_start_idx"), py::arg("zone_created_ns"), py::arg("times_ns"),
+          py::arg("lows"), py::arg("highs"), py::arg("min_fill_age_ns"), py::arg("stop_mult"),
+          py::arg("target_mult"), py::arg("require_bounce"), py::arg("probe_depth"),
+          py::arg("exc_mult"), py::arg("max_touches"), py::arg("max_window"),
+          "Same as simulate_generic, plus exit_idx (the resolution bar -- when the trade "
+          "actually closes, needed for position-duration/concurrency/margin modeling) -> "
+          "(touch_num, entry_idx, exit_idx, is_win, mid, stop_risk).");
 
     m.def("run_mc_capped", &py_run_mc_capped,
           py::arg("net_r"), py::arg("n_sims"), py::arg("block"), py::arg("max_trades"),

@@ -20,6 +20,7 @@ void simulate_worker(const double* zone_top, const double* zone_bottom, const do
     const int64_t max_out = chunk_zones * (max_touches > 0 ? max_touches : 1);
     std::vector<int64_t> touch_num(max_out);
     std::vector<int64_t> entry_idx(max_out);
+    std::vector<int64_t> exit_idx(max_out);
     std::vector<uint8_t> is_win(max_out);
     std::vector<double> mid_out(max_out);
     std::vector<double> stop_risk_out(max_out);
@@ -75,6 +76,7 @@ void simulate_worker(const double* zone_top, const double* zone_bottom, const do
                     const bool win = tp_hit && !sl_hit;
                     touch_num[out_count] = touch_count;
                     entry_idx[out_count] = cur_entry_j;
+                    exit_idx[out_count] = j;
                     is_win[out_count] = win ? 1 : 0;
                     mid_out[out_count] = mid;
                     stop_risk_out[out_count] = stop_risk;
@@ -115,11 +117,13 @@ void simulate_worker(const double* zone_top, const double* zone_bottom, const do
 
     touch_num.resize(out_count);
     entry_idx.resize(out_count);
+    exit_idx.resize(out_count);
     is_win.resize(out_count);
     mid_out.resize(out_count);
     stop_risk_out.resize(out_count);
     local_out->touch_num = std::move(touch_num);
     local_out->entry_idx = std::move(entry_idx);
+    local_out->exit_idx = std::move(exit_idx);
     local_out->is_win = std::move(is_win);
     local_out->mid = std::move(mid_out);
     local_out->stop_risk = std::move(stop_risk_out);
@@ -165,12 +169,14 @@ SimResult simulate_generic(const double* zone_top, const double* zone_bottom, co
     SimResult out;
     out.touch_num.reserve(total);
     out.entry_idx.reserve(total);
+    out.exit_idx.reserve(total);
     out.is_win.reserve(total);
     out.mid.reserve(total);
     out.stop_risk.reserve(total);
     for (auto& p : parts) {
         out.touch_num.insert(out.touch_num.end(), p.touch_num.begin(), p.touch_num.end());
         out.entry_idx.insert(out.entry_idx.end(), p.entry_idx.begin(), p.entry_idx.end());
+        out.exit_idx.insert(out.exit_idx.end(), p.exit_idx.begin(), p.exit_idx.end());
         out.is_win.insert(out.is_win.end(), p.is_win.begin(), p.is_win.end());
         out.mid.insert(out.mid.end(), p.mid.begin(), p.mid.end());
         out.stop_risk.insert(out.stop_risk.end(), p.stop_risk.begin(), p.stop_risk.end());

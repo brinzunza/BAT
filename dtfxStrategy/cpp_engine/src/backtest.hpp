@@ -10,6 +10,7 @@
 struct SimResult {
     std::vector<int64_t> touch_num;
     std::vector<int64_t> entry_idx;  // true fill bar, not the resolution bar
+    std::vector<int64_t> exit_idx;   // resolution bar (target/stop hit) -- when the position closes
     std::vector<uint8_t> is_win;
     std::vector<double> mid;
     std::vector<double> stop_risk;
