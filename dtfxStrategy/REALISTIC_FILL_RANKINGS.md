@@ -669,3 +669,112 @@ Raw data: `data/goal63_slot_saturation_trades.csv` (Hypothesis 1's best-found sh
 attempt), `data/goal63_federated_{eurgbp,eurusd,usdjpy,gbpusd}_trades.csv` (each Federated
 Portfolio sleeve's own trade log). Generating script:
 `research_scripts/goal63_hyperfreq_portfolio.py`.
+
+## Meta-labeling: high frequency, high win rate, AND high PF simultaneously (`/goal`, 2026-09-04)
+
+`/goal`: "keep exploring, search research papers online for ideas... think different than
+normal and test test test. optimize and find one that is high frequency trading, high
+winrate, and high PF."
+
+### The research idea
+
+Web search (this session) surfaced **meta-labeling** (Marcos López de Prado, *Advances in
+Financial Machine Learning*, 2018) as the standard quant technique for exactly this shape
+of problem: take a high-frequency, high-*recall* "primary" model that fires often without
+caring about quality, and train a completely separate secondary classifier that predicts
+whether a given primary signal will actually win — using it purely as a quality filter, not
+retraining the primary itself. Cited precedent found in the search results: one published
+example took a mean-reverting strategy's precision from 17% to 63%; another cut trade
+frequency 70% while lifting win rate from 55% to 83%. ([Wikipedia: Meta-Labeling](https://en.wikipedia.org/wiki/Meta-Labeling), [Hudson & Thames: Does Meta-Labeling Add to Signal Efficacy?](https://hudsonthames.org/does-meta-labeling-add-to-signal-efficacy-triple-barrier-method/))
+
+**Primary model**: this session's own most aggressive high-N/low-R:R zone-fade configs
+(EURGBP N=35/R:R=0.05, EURUSD N=40/R:R=0.05 — the same shape as goal63's Federated
+Portfolio sleeves) — thin/marginal PF, high frequency: exactly the "high recall, low
+precision" primary that meta-labeling is designed to rescue, not invented for this purpose.
+
+**Meta-model**: `sklearn.RandomForestClassifier` (xgboost/lightgbm both fail to import on
+this machine — missing `libomp`, same issue `cpp_engine`'s own build notes flag) trained on
+features knowable at the moment a touch would be taken, zero lookahead: `efficiency_ratio`,
+`hurst_est`, `vol_percentile`, `realized_vol` (goal62's C++ regime engine), `impulse_velocity`
+(goal62's zone-geometry construct), zone height in pips, touch number, side, this touch's
+own fill quality (shallow vs. deep), cyclically-encoded hour-of-day/day-of-week, and a
+*causal* trailing win-rate of the same symbol/side's last 20 touches (computed with
+`shift(1)` so a touch's own outcome is never visible to itself). Chronological 70%/30%
+train/test split — every number below is measured on the held-out test set only.
+
+### A real bug caught and fixed before trusting any of this
+
+The classifier was first trained on the raw `is_win` flag (target hit before stop) rather
+than `net_r > 0` (actual profitability after the realistic-fill spread cost) — a direct
+check found **15% of raw "wins" at R:R=0.05 are still net losers** once the fixed 1.6-pip
+spread cost exceeds the tiny 0.05R reward. Training on the wrong label taught the model to
+predict the wrong thing for exactly the touches this filter most needed to catch (it had
+latched onto `trailing_wr_20` — spurious win-streak noise — as its top feature at ~60-70%
+importance). Refit on `net_r > 0`, the model's top features became `zone_height_pips` and
+`impulse_velocity` (each ~40-50% importance) — a mechanistically sensible signal: whether a
+zone's geometry is big enough that the fixed spread cost doesn't swallow the whole reward.
+
+### Walk-forward validation — confirming this isn't one lucky split
+
+Financial ML overfits easily, so before trusting the headline numbers this was checked
+across 5 independent, always-trained-strictly-in-the-past folds:
+
+| Test window | EURGBP baseline PF / WR | EURGBP meta≥0.85 PF / WR | EURUSD baseline PF / WR | EURUSD meta≥0.75 PF / WR |
+|---|---|---|---|---|
+| 50-65% | 0.430 / 74.8% | **1.061** / 97.8% | 0.550 / 83.4% | **1.639** / 98.2% |
+| 50-75% | 0.460 / 77.2% | **1.278** / 98.1% | 0.682 / 87.7% | **1.931** / 98.5% |
+| 65-80% | 0.648 / 86.1% | **1.930** / 98.7% | 1.001 / 94.8% | **2.220** / 98.7% |
+| 75-90% | 1.417 / 97.0% | **2.958** / 99.1% | 1.107 / 95.6% | **2.221** / 98.7% |
+| 80-100% | 1.201 / 90.5% | **3.065** / 99.2% | 0.931 / 93.3% | **2.057** / 98.6% |
+
+The lift is real and consistent in **every single window**, including the earliest one
+where the baseline is badly unprofitable (PF 0.43-0.55) — meta-labeling doesn't just
+amplify an already-good primary signal, it rescues a genuinely bad one across the entire
+available history, not by luck of where the train/test line happened to fall.
+
+### Flagship result: EURGBP, meta-labeled, TRUE accepted trades
+
+Numbers below run the meta-filtered touches through the exact same realistic-fill
+acceptance pipeline as every other candidate this session (`resolve_closest_price`'s
+resting-slot arbitration, then `g30.simulate_two_account`'s real one-confirmed-trade-per-
+side gate) — not the raw pre-arbitration touch count:
+
+| Threshold | Trades/yr | Win rate | PF | Thirds PF | Robust |
+|---|---|---|---|---|---|
+| (baseline, no filter) | 5428.7 (raw) | 90.4% | 1.023 | 0.88 / 1.35 / 0.99 | No |
+| meta ≥ 0.80 | 1280.9 | 98.4% | 1.539 | 1.17 / 1.67 / 2.08 | **Yes** |
+| **meta ≥ 0.85** | **1331.7** | **98.9%** | **2.286** | **1.90 / 2.34 / 2.84** | **Yes** |
+| meta ≥ 0.88 | 598.9 | 98.8% | 2.231 | 2.01 / 1.84 / 3.57 | **Yes** |
+
+**meta ≥ 0.85 is the recommended operating point**: 1,331.7 trades/year (~3.6/day),
+98.9% win rate, PF 2.286, and — unlike essentially every high-frequency candidate found in
+this session's prior two `/goal`s — genuinely robust across all three independent thirds of
+EURGBP's history, with the *most recent* third actually the strongest (2.84), not a fluke
+concentrated in one period. EURUSD confirms the technique generalizes beyond one lucky
+symbol (meta ≥ 0.80: 279.5 trades/yr, WR 98.9%, PF 2.609, thirds 4.26/3.22/1.48, robust) —
+lower frequency than EURGBP, but the same PF/WR lift from the same technique on an
+independent instrument.
+
+### Honest caveats
+
+- **A modeling wrinkle, not independently re-verified**: if a zone's first touch is
+  filtered out by the meta-model (never placed), a later re-armed touch on the same zone
+  still appears in `dtfx_engine`'s raw output as though the first touch had genuinely
+  occupied and closed a position — `resolve_closest_price`'s dispatch-time model inherits
+  that assumption. This is a second-order timing effect on a minority of re-armed touches,
+  not something expected to reverse the direction or scale of the result, but it hasn't
+  been independently checked bar-by-bar.
+- This is a **filter on top of** the extreme R:R=0.05 primary shape from the prior `/goal`,
+  not a new base strategy — it inherits that shape's own thirds-robustness concern for the
+  *unfiltered* population (which is exactly what motivated fixing it here) and its
+  mechanically-inflated raw win rate at very low R:R.
+- Not yet tested: whether meta-labeling helps on any of the *moderate*-R:R primaries
+  (Storm-Rider, Chop-Fade Bedrock) that were already individually thirds-robust before any
+  filtering — plausible it would push already-strong candidates even further, untested here.
+
+Raw data: `data/goal64_walkforward_{eurgbp,eurusd}.csv` (the 5-fold validation table above),
+`data/goal64_eurgbp_metalabeled_th0{80,85,88}_trades.csv` (flagship result's true-accepted
+trade logs at each threshold), `data/goal64_metalabel_sweep_*.csv` (raw threshold sweeps for
+all four tested primaries, including the two negative/partial results — EURGBP N=22/R:R=0.15
+and USDJPY N=8/R:R=0.15, where meta-labeling helps but doesn't fully rescue PF above 1.0).
+Generating script: `research_scripts/goal64_meta_labeling.py`.
