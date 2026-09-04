@@ -296,6 +296,51 @@ combinations say that isn't a search failure. Raw data:
 `data/goal59_multi_symbol_combinatorial_search.csv` (the full sweep) and
 `data/goal59_elite_ensemble_trades.csv` (Elite-Ensemble's own trade log).
 
+## New leader: Yen-Rapid (Stop hook follow-up, 2026-09-04)
+
+The Stop hook correctly rejected Elite-Ensemble: it beat every prior candidate on
+race-to-$1M but lost to Yen-Steady on raw frequency (18/yr vs. 35/yr), and the goal
+requires both. Rather than accept that shortfall, the search resumed by widening a
+parameter that every USDJPY search so far had held fixed at 0.08h: `MIN_FILL_AGE`
+(`age_h`). It shouldn't have been fixed — sweeping it directly finds a materially
+better USDJPY-only config.
+
+**Yen-Rapid**: N=4.0, R:R=0.15, MIN_RISK_PCT=0.005, age_h=0.05h — identical to
+Yen-Steady except a shorter fill-age gate. Beats Yen-Steady outright on both axes the
+goal names:
+
+| Metric | Yen-Steady | **Yen-Rapid** |
+|---|---:|---:|
+| Trades/yr | 35.0 | **40.0** |
+| PF (full history) | 1.637 | **1.670** |
+| Years to $1M (extrapolated) | 46.2 | **36.2** |
+| Max drawdown (1%-risk reference) | −7.2% | −2.2% |
+
+It's also the first candidate this entire session to pass a stricter robustness bar:
+**all three independent thirds of its own history are profitable** (PF 1.34 / 2.11 /
+1.50) — something Yen-Steady fails (its first third is a loss, PF 0.80), Yen-Punch
+fails to even validate (its first third has only 12 trades), and a higher-N variant
+found along the way (N=7.0/R:R=0.10/age=0.15h, PF=1.859, y1m=32.0) also fails — its
+first third is a clear loss (PF 0.55) and its excess kurtosis (+7.93) points to an
+unstable, regime-dependent result rather than a genuine edge, not the fast, robust
+strategy it looks like from the full-history number alone.
+
+**The one number Yen-Rapid doesn't beat**: Yen-Punch's own raw 33.1-year race-to-$1M.
+A dedicated search requiring all-three-thirds robustness (26 candidates found, ranked
+by speed) confirms this specific tension holds even among fully-validated candidates —
+the fastest robust option found (N=6.0/R:R=0.20/MIN_RISK_PCT=0.008/age_h=0.03h) gets to
+31.2 years, beating Yen-Punch outright, but only trades 22.7/yr, below Yen-Steady's own
+frequency. Nothing found clears both Yen-Steady's frequency ceiling and Yen-Punch's
+speed floor at once. Given that, Yen-Rapid is recommended over both: it beats
+Yen-Steady cleanly on everything, and where it falls short of Yen-Punch's headline
+number, Yen-Punch's own number rests on a foundation too thin to trust in the first
+place.
+
+Full stats: 280 trades / 7.0 years, WR 93.21%, Sharpe 3.90, excess kurtosis +3.12
+(fatter-tailed than Elite-Ensemble but far more stable than the rejected N=7 variant),
+Calmar 0.85. Raw data: `data/goal60_robust_speed_search.csv` (the all-thirds-robust
+search) and `data/goal60_yen_rapid_trades.csv` (Yen-Rapid's own trade log).
+
 ## Next steps
 
 1. Halt Apex-Ultra's live entries (has no real edge under this model) — separate,
