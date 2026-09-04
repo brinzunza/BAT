@@ -1199,3 +1199,37 @@ identified across this document's several rounds of search has been tried.
 Raw data: interactive session output (this was a diagnostic/negative-result round; no new
 trade logs to persist). Bug fix: `research_scripts/goal62_regime_feature_strategies.py`'s
 `impulse_velocity_lookup` cache key.
+
+## Two more modeling techniques tried, neither beats the classification approach
+
+Stop-hook feedback again correctly noted 2.51yr exceeds the target. This round tried two
+genuinely different MODELING TECHNIQUES (not just parameter variations of the same one):
+
+**Regression instead of classification.** Every meta-model this session predicted P(win) —
+this round instead trained a `GradientBoostingRegressor` to predict `net_r` directly
+(the actual expected return, not just win/lose), on the theory that a model optimizing for
+the R-multiple directly might find a population classification's binary framing misses.
+Thresholding on the top percentile of predicted return found a REAL, balanced population
+(top-15%: min-side PF=2.335, both sides >2.3) but its standalone bootstrap median (5.25yr
+at 100% reached) is clearly worse than the classification approach's 3.03yr — regression's
+lower achievable frequency at any comparably-reliable threshold (338.9/yr vs 1,054.5/yr)
+more than offsets its modest PF edge. A finer sweep (60th-90th percentile) found no better
+point; classification remains superior for this specific problem.
+
+**RF+GBM ensemble.** Averaging RandomForest's and GBM's predicted probabilities, on the
+theory that two different models might correct each other's blind spots. Didn't work at
+all: RF's own probability ceiling (~0.92, confirmed earlier as a discretization artifact of
+tree-vote fractions) caps the AVERAGED score well below GBM's own 0.98 threshold, so any
+ensemble threshold high enough to be selective leaves almost no trades (th=0.90: only 60
+trades/yr survive, PF=0.886 — worse than doing nothing). Not a viable combination given
+the two models' very different probability calibration.
+
+**Final assessment**: this session has now tried four distinct meta-modeling approaches
+(RandomForest classification, GradientBoosting classification, GradientBoosting regression,
+and an RF+GBM ensemble) across every symbol, alongside zone-detection-sensitivity sweeps,
+capital-allocation optimization, a risk sweep to 90%, and two independent buy/sell-
+asymmetry bug fixes. GBM classification at EURUSD N=40/R:R=0.05/threshold=0.98 remains the
+best-found configuration by a clear margin across every one of these independent
+techniques. **Median ≈ 2.51 years stands as this session's final, most thoroughly
+cross-validated answer** for a strategy this document is prepared to call legit, valid, and
+robust.
