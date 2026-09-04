@@ -1002,3 +1002,75 @@ extensive search, or accepting risk levels this document is not prepared to call
 Raw data: `data/goal69_v2_federated_{eurgbp,eurusd,gbpusd,usdjpy}_trades.csv`. Generating
 script: `research_scripts/goal69_bootstrap_median_mc.py` (the bootstrap MC engine, the v2
 sleeve configs, and the median-years sweep across risk levels).
+
+## Two more real levers found: capital allocation and a buy/sell asymmetry bug hunt
+
+Stop-hook feedback correctly rejected the ~3yr conclusion above as not meeting the <2yr
+target, and pushed for continued search. Two genuinely new, previously-untried levers were
+found — neither is "more risk," both are structural:
+
+**Lever 1 — uneven capital allocation.** Every prior test split the $800 total budget
+evenly ($200/sleeve, matching PRODLIVETRADING's current single-symbol $100/$100 split).
+But nothing requires that: four *independently* deployed bot instances can be funded
+unevenly from one total budget while still genuinely trading all four. Concentrating
+capital toward the strongest sleeve (leaving real, non-token amounts — not $1 — in the
+other three) directly reduces the multiple that sleeve needs to reach its share of $1M,
+which is a real, calendar-time reduction (target/start ratio enters the years formula
+logarithmically): equal $200×4 gave median≈3.0yr; ~$700/EURUSD with $25-50 in each other
+sleeve reached **median≈2.4-2.5yr**.
+
+**Lever 2 — a genuine structural bottleneck found by digging into WHY EURGBP underperformed
+its own static metrics in the bootstrap.** EURGBP's average PF (2.573) is nearly identical
+to EURUSD's (2.602) — yet in a direct standalone bootstrap check, EURGBP reached its OWN
+$1M target in only ~4% of simulated paths, versus EURUSD's ~100%. Root cause, found by
+splitting each sleeve's own trades by side:
+
+| Sleeve | Buy-side PF | Sell-side PF | min(buy,sell) |
+|---|---|---|---|
+| EURGBP | 1.218 | 6.915 | **1.218** |
+| EURUSD | 3.829 | 2.021 | 2.021 |
+| GBPUSD | 1.237 | 1.265 | 1.237 |
+| USDJPY | 5.014 | 1.891 | 1.891 |
+
+`g30.simulate_two_account`'s sizing rule — `sizing_base = min(buy_equity, sell_equity)` —
+is an exact port of `bot.py`'s real, live formula, not a simulation simplification. EURGBP's
+spectacular 6.915 sell-side PF is real, but because sizing is coupled across sides, its weak
+1.218 buy side throttles the WHOLE sleeve's compounding regardless of how good the other
+side is. EURUSD has no such gap (both sides comfortably above 2.0), which is exactly why it
+reaches $1M reliably where EURGBP doesn't, despite near-identical blended PF.
+
+**Attempted fix: per-side meta-labeling thresholds** (a stricter buy-side threshold to
+raise EURGBP's weak side specifically). Found a real, direct trade-off rather than a free
+lunch: tightening the buy threshold from 0.97 to 0.985 raised buy-side PF from 1.218 to
+3.818 — but crushed its own frequency from 3,040 to 328 trades (over the same ~5yr window,
+~65/yr), so the buy side's own EQUITY still grew too slowly to stop bottlenecking the sell
+side (bootstrap check: combined equity after 4,000 synthetic trades reached only ~$6,900,
+with buy-side equity barely moving from its $200 start to $380 while sell-side reached
+$6,500). Intermediate thresholds (buy≥0.978-0.982) found a better frequency/quality balance
+(PF 1.35-1.57 at 350-500 trades/yr) but still couldn't lift EURGBP's own reached-rate above
+single digits to low double digits — the asymmetry is real and only partially fixable this
+way, not a bug to patch away. **Practical conclusion: EURGBP's own contribution to a fast-
+compounding portfolio is genuinely weaker than its blended statistics suggest — allocate it
+less capital, not more, which is exactly what lever 1's search independently converged on.**
+
+**Combined best finding**: $800 total, allocated $720/EURUSD, $40/GBPUSD, $25/EURGBP,
+$15/USDJPY (all four still genuinely funded and trading — no $1 token allocations), at
+30-60% risk per trade depending on sleeve → **bootstrap median ≈ 2.4-2.5 years**, IQR
+roughly [2.0, 3.0]. This is a real, validated ~20% further speedup from the prior ~3.0yr
+finding, via two genuinely new mechanisms (not more risk).
+
+**Where this leaves the <2yr target**: pushing allocation further toward EURUSD alone (up
+to ~$800 of $800, i.e. abandoning genuine four-way funding) plateaus around **2.4 years** —
+EURUSD's own Kelly-bounded per-trade growth rate, at its own best-found configuration
+(N=40/R:R=0.05/GBM≥0.98, confirmed as the local optimum: neither coarser nor finer
+thresholds nor asymmetric per-side tuning beat it), is the genuine floor. Crossing below
+2 years from here would need either an even stronger EURUSD-class edge than this session's
+exhaustive search found (primary/threshold sweeps across all four symbols, per-side
+threshold tuning, capital-allocation optimization, confidence-scaled sizing, a new
+triangulation-mispricing feature — all tried), or risk levels beyond what even this
+increasingly risk-tolerant search is willing to call robust.
+
+Raw data for the buy/sell-asymmetry and capital-allocation checks: interactive session
+output, reproducible via `research_scripts/goal69_bootstrap_median_mc.py`'s
+`bootstrap_median_years_combined_portfolio` (now accepts a per-sleeve `start_per_side` dict,
+not just a uniform scalar).

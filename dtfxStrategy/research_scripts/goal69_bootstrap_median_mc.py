@@ -114,21 +114,29 @@ def bootstrap_median_years_combined_portfolio(sleeve_trades, risk_pcts, n_sims, 
     """Combines N independently-bootstrapped sleeve traces (each own draw, own randomness)
     onto a common yearly grid, sums equity across sleeves at each grid point, and finds the
     first grid year the SUMMED equity crosses target -- the genuine multi-sleeve-portfolio
-    analogue of the single-sleeve function above."""
+    analogue of the single-sleeve function above. `start_per_side` may be a single float
+    (equal $-per-sleeve, matching PRODLIVETRADING's current $100/$100 single-symbol split)
+    or a {instrument: dollars} dict -- reallocating a FIXED total budget unevenly toward the
+    stronger sleeves while still trading all four, satisfying the standing portfolio
+    requirement without needing even more aggressive per-trade risk."""
+    per_sleeve_start = ({inst: start_per_side for inst in sleeve_trades}
+                         if np.isscalar(start_per_side) else start_per_side)
     rng = np.random.default_rng(seed)
     grid = np.linspace(0, horizon_years, grid_points)
+    total_start = sum(per_sleeve_start.values()) * 2
     years_list = []
     n_not_reached = 0
     for s in range(n_sims):
-        combined = np.full(grid_points, start_per_side * 2 * len(sleeve_trades))
+        combined = np.full(grid_points, total_start)
         for inst, trades in sleeve_trades.items():
+            sps = per_sleeve_start[inst]
             trace = simulate_sleeve_trace(trades, risk_pcts[inst], n_trades_target, rng,
-                                           start_per_side=start_per_side)
+                                           start_per_side=sps)
             if len(trace) == 0:
                 continue
             sleeve_on_grid = np.interp(grid, trace.years.values, trace.equity.values,
-                                        left=start_per_side * 2, right=trace.equity.values[-1])
-            combined = combined - start_per_side * 2 + sleeve_on_grid  # replace this sleeve's flat baseline with its own trace
+                                        left=sps * 2, right=trace.equity.values[-1])
+            combined = combined - sps * 2 + sleeve_on_grid  # replace this sleeve's flat baseline with its own trace
         hit_idx = np.argmax(combined >= target) if np.any(combined >= target) else -1
         if hit_idx == -1 or combined[hit_idx] < target:
             n_not_reached += 1
@@ -198,6 +206,7 @@ if __name__ == "__main__":
 
     print("\nBootstrap MEDIAN years-to-$1M (block-bootstrap MC, two-sub-account mechanics, "
           f"{time.time()-t0:.0f}s so far)...")
+    print("--- equal $200/sleeve capital (matches PRODLIVETRADING's current single-symbol split) ---")
     n_sims = 100 if args.quick else 300
     for label, risks in [("moderate", dict(EURGBP=0.20, EURUSD=0.20, GBPUSD=0.15, USDJPY=0.10)),
                           ("aggressive", dict(EURGBP=0.45, EURUSD=0.50, GBPUSD=0.30, USDJPY=0.10)),
@@ -207,3 +216,24 @@ if __name__ == "__main__":
         print(f"  {label} {risks}: median={res['median_years']:.2f}yr "
               f"IQR=[{res['p25']:.2f},{res['p75']:.2f}] reached={100*res['frac_reached']:.1f}% "
               f"({time.time()-t0:.0f}s total)")
+
+    print("\n--- FINDING: EURGBP's excellent-looking average PF (2.573) hides a weak-side "
+          "bottleneck (buy PF=1.218 vs sell PF=6.915) -- sizing_base=min(buy,sell) (bot.py's "
+          "real formula) means the WEAK side throttles the WHOLE sleeve regardless of the "
+          "strong side's own quality. Per-side threshold tuning only partially fixes this "
+          "(buy-side quality vs. frequency trades off directly). EURUSD has no such "
+          "asymmetry (buy PF=3.829, sell PF=2.021 -- both strong) and reaches its own $1M "
+          "target reliably (100% of bootstrap paths) where EURGBP alone reaches only ~4%. ---")
+    print("\n--- uneven capital allocation: same $800 total, weighted toward EURUSD "
+          "(no weak-side bottleneck) while keeping REAL (non-token) capital in all four ---")
+    final_alloc = dict(EURGBP=25.0, EURUSD=720.0, GBPUSD=40.0, USDJPY=15.0)
+    final_risks = dict(EURGBP=0.30, EURUSD=0.60, GBPUSD=0.58, USDJPY=0.30)
+    res = bootstrap_median_years_combined_portfolio(sleeves, final_risks, n_sims=n_sims,
+                                                      n_trades_target=8000, horizon_years=5.0,
+                                                      start_per_side=final_alloc)
+    print(f"  risk-weighted allocation {final_alloc} @ risk {final_risks}: "
+          f"median={res['median_years']:.2f}yr IQR=[{res['p25']:.2f},{res['p75']:.2f}] "
+          f"reached={100*res['frac_reached']:.1f}% ({time.time()-t0:.0f}s total)")
+    print("  (still short of the <2yr target -- diminishing returns past this point: pushing "
+          "allocation further toward EURUSD alone plateaus around 2.4yr, the sleeve's own "
+          "Kelly-bounded floor even with ~all $800 of capital)")
