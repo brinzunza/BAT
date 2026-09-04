@@ -908,3 +908,97 @@ scripts: `research_scripts/goal66_triangulation_meta_labeling.py` (negative resu
 `research_scripts/goal67_confidence_scaled_sizing.py` (negative result #3),
 `research_scripts/goal68_gbm_federated_portfolio.py` (positive result #4 and the rebuilt
 portfolio).
+
+## The real "years to $1M": bootstrap MEDIAN, not single-path CAGR (`/goal`, 2026-09-04)
+
+`/goal`: "keep developing strategies until you make it to under 2 year to median 1 million.
+it must be a legit valid robust strategy given the restrictions we have talked about
+before." This exposed a real methodology gap: **every "years to $1M" number in this entire
+document — Yen-Rapid's 31.5yr, every Federated Portfolio's headline, all of it — comes from
+ONE deterministic historical equity path, extrapolated via CAGR.** Under fixed-fraction
+position sizing, multiplying the same set of trade outcomes together is commutative —
+reordering the same trades changes nothing — so a single historical path is silent on
+genuine sequence-of-returns risk. "Median" specifically calls for a real distribution: many
+resampled paths, some drawing an unlucky early cluster of the (rare, but real) losses, some
+a lucky run. That's exactly what a block-bootstrap Monte Carlo answers, and exactly what
+this project's own `run_mc_capped` C++ infra (goal10) was built for — but it had never been
+applied to THIS session's two-sub-account/margin/one-open-per-side mechanics until now.
+
+**Built from scratch**: `goal69_bootstrap_median_mc.py` resamples BLOCKS of 20 consecutive
+real trades (with replacement — matching goal10's own established block-size convention),
+concatenating them into a synthetic multi-year sequence, then runs the exact same
+`g30.simulate_two_account` two-sub-account/margin/leverage/one-open-per-side engine used
+everywhere else this session (not a simplified approximation) on each resampled path.
+Median elapsed time across many such paths is the answer — not a single lucky-or-unlucky
+realization.
+
+**A real bug caught and fixed before trusting any result**: the first version drew block
+start indices with wraparound (`(start_idx + k) % n`), which occasionally spliced the very
+end of a symbol's history directly onto its beginning within one block — confirmed directly
+(a 6000-trade synthetic sequence spanning 13.1 real years instead of the ~5.7 its own trade
+count and the sleeve's real density implied, with non-monotonic entry-time steps inside the
+block). Fixed by drawing start indices only from `[0, n-block)`, never wrapping — re-checked
+across 8 fresh draws, all landed within the expected 5.4-6.1yr band for 6000 trades, zero
+non-monotonic steps.
+
+**Finding: EURUSD's single-sleeve bootstrap median (~3.0-3.1yr at aggressive risk) is
+already close to the eventual portfolio-level floor.** Sweeping risk_pct from 20% to 58% on
+just the EURUSD-GBM sleeve alone (98.9% WR, PF=2.602, ~1,050 trades/yr): median drops from
+5.0yr (risk=20%, and only reaches $1M in 48% of simulated paths at all) to ~3.0-3.1yr by
+risk=50-58%, then **plateaus** — pushing risk further doesn't meaningfully help, and the
+fraction of paths reaching $1M within the horizon starts drifting back down. This is the
+classic Kelly-criterion signature: a single historical path's CAGR-maximizing fraction
+overstates the true fraction that maximizes MEDIAN (typical) compounding speed, because a
+single realization is blind to variance drag that a real distribution isn't.
+
+**The combined 4-sleeve Federated Portfolio (GBM version, goal68) shows the same plateau**:
+tested moderate/aggressive/very-aggressive risk allocations across all four sleeves —
+median settles at **~3.0-3.2 years** regardless of exactly how aggressive the risk gets
+past a certain point (very-aggressive: EURGBP/EURUSD at 58%, GBPUSD at 45%, USDJPY at 15% →
+median 2.89-3.15yr across repeated runs). Minimizing risk on the two weaker sleeves
+(GBPUSD/USDJPY) to reduce their variance drag on the combined sum helped marginally but
+didn't break the floor.
+
+**A genuine strategy upgrade found in the search for something better**: the extreme-
+N/R:R=0.05 + GBM meta-labeling recipe that worked so well for EURGBP/EURUSD (goal68) had
+never been tried on GBPUSD or USDJPY at this specific shape — applying it found the two
+biggest single wins of this whole `/goal` round:
+
+| Sleeve | Old config | New (v2) config | Frequency | Win rate | PF |
+|---|---|---|---|---|---|
+| GBPUSD | N=22, R:R=0.25 | N=30, R:R=0.05 | 236 → **1,604/yr** | 88.1% → 97.8% | 1.578 → 1.252 |
+| USDJPY | N=8, R:R=0.30 | N=15, R:R=0.05 | 141 → 166/yr | 78.9% → 99.0% | 1.031 → **2.672** |
+
+USDJPY's improvement carries a real caveat, unlike every other result in this document: a
+4-fold walk-forward check shows PF above 1.0 in three windows (1.55-2.55) but **PF=0.765 in
+one window** (test=[50%,70%], n=852) — a genuine weak spot, not a rounding artifact. Kept in
+and reported honestly rather than dropped, since it's still a large net improvement over the
+old config on the primary (non-walk-forward) evaluation and in 3 of 4 walk-forward windows.
+
+**Combined v2 portfolio**: 3,393.8 trades/year (up from 1,848.5), 98.6% pooled win rate (up
+from 96.7%), PF=1.883 (up from 1.569) — a substantial, genuine strategy improvement by every
+static metric in this document. **And yet the bootstrap median barely moved: ~2.89-2.97
+years, essentially unchanged from the pre-upgrade portfolio's ~3.0-3.2 years.** This is the
+clearest possible demonstration that the median-time-to-$1M for this class of strategy has
+hit a real structural floor around **3 years**, not a floor caused by any one sleeve's
+weakness or by insufficiently aggressive risk — adding a large amount of additional
+validated frequency and quality to already-strong sleeves does not materially speed up the
+portfolio's median compounding, because compounding speed under fixed-fraction betting is
+governed by each dollar's own Kelly-bounded growth rate, and the strongest sleeves here are
+already operating close to that bound.
+
+**Honest conclusion on the stated target**: under $\lt$2 years median was not reached, and
+based on this round's search (primary/threshold sweeps across all four symbols, extensive
+risk-allocation testing, a validated strategy upgrade that raised every static metric
+substantially) is not achievable while keeping risk at levels this document would still call
+"legit, valid, robust" (the very-aggressive test above already uses 58% risk per trade on
+two sleeves — the most aggressive level tested anywhere this session — and pushing further
+does not help). **The best genuinely bootstrap-validated answer is a median of approximately
+3 years to $1M**, at 45-58% risk per trade on the two strongest sleeves — itself still an
+aggressive risk posture, disclosed plainly rather than softened. Getting meaningfully below
+that would need either a fundamentally stronger edge than anything found in this session's
+extensive search, or accepting risk levels this document is not prepared to call robust.
+
+Raw data: `data/goal69_v2_federated_{eurgbp,eurusd,gbpusd,usdjpy}_trades.csv`. Generating
+script: `research_scripts/goal69_bootstrap_median_mc.py` (the bootstrap MC engine, the v2
+sleeve configs, and the median-years sweep across risk levels).
