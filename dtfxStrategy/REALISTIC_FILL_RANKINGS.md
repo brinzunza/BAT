@@ -243,6 +243,59 @@ confirms it independently as the strongest all-around candidate found this sessi
 under a scoring lens that was deliberately built to give a raw-frequency play its best
 chance to win and still didn't produce one.
 
+## Real multi-symbol trading (`/goal`, 2026-09-04): a genuine speed win, not a frequency one
+
+"Find a strategy that outperforms all of them, specifically in frequency and race to 1
+million. New factor is you can trade EURUSD, EURGBP, USDJPY, and GBPUSD" — the first
+goal this session to actually exercise real multi-symbol trading, not single-symbol
+research. Turns out no new resolver was needed: each symbol's own per-(symbol,side)
+closest-price arbitration (already built and validated) answers "which zone does this
+symbol rest" correctly in isolation, and the cross-symbol rule — at most 1 CONFIRMED
+fill per side across the whole account, matching PRODLIVETRADING's actual,
+always-been-this-way `MAX_CONCURRENT_PER_SIDE=1` — turns out to be *exactly*
+`simulate_two_account`'s existing accept/reject logic (first entry-time wins per side),
+unmodified. Concatenate all 4 symbols' independently-resolved streams and feed the
+combined set into the same account simulation used everywhere else in this document.
+
+**Central finding, confirmed by direct testing and then an exhaustive 227-combination
+sweep across every validated single-symbol candidate this session found: the shared
+per-side slot makes multi-symbol trading a zero-sum reallocation of slot-time, not an
+additive source of trades.** Every single tested addition to USDJPY's Yen-Steady
+baseline *reduced* its frequency — never increased it — because occupying the one
+shared slot on a side, regardless of which symbol does it, blocks every other symbol on
+that side for the full duration of the position. **Zero of 227 combinations beat
+Yen-Steady on both frequency and race-to-$1M simultaneously.** This is a structural
+property of the architecture, not a gap in the search.
+
+**Best result found: Elite-Ensemble** — USDJPY (Yen-Steady's own N=4.0/R:R=0.15/
+MIN_RISK_PCT=0.005) supplemented by each of the other 3 symbols' own *best-individual-PF*
+config (not their fastest one): EURUSD (N=15.0/R:R=1.00/MIN_RISK_PCT=0.020), GBPUSD
+(N=15.0/R:R=1.50/MIN_RISK_PCT=0.020), EURGBP (N=5.0/R:R=0.15/MIN_RISK_PCT=0.008).
+Infrequent, high-quality signals from the other 3 pairs add real edge without
+displacing much of USDJPY's own activity, unlike every high-frequency addition tested.
+
+- **Genuinely outperforms every prior single-symbol finalist on race-to-$1M**: ~40.9
+  extrapolated years at 48% risk — faster than Yen-Steady (46.2), Dollar-Wide (68.0),
+  Cable-Wide (96.4), and dramatically faster than Bedrock-King (4,126).
+- Best PF of anything found this session: **1.851** (vs. Yen-Steady's 1.637), Sharpe
+  4.71, excess kurtosis −1.11 (thinner-tailed than every single-symbol candidate — a
+  genuinely more evenly distributed return stream), max drawdown (1%-risk reference)
+  only −3.8%.
+- **Train/holdout robust**: PF 2.000 pre-2018 (n=88) vs. 1.725 post-2018 (n=215) —
+  consistent, not reversed, despite the smaller train sample.
+- **Does not beat Yen-Steady on raw frequency**: 18 trades/yr vs. Yen-Steady's 35 —
+  this is the direct, unavoidable cost of the finding above. Multi-symbol trading under
+  this architecture is a quality lever, not a frequency lever.
+
+**Read plainly**: the goal's two named criteria — frequency and race-to-$1M — pull in
+opposite directions once multi-symbol combination is actually tried, the same tension
+already found within single symbols (goal58). Elite-Ensemble is the best-evidenced
+answer to "use all 4 symbols to do better," but it wins on speed, not on frequency; no
+strategy tested beats every prior candidate on both axes at once, and 227 tested
+combinations say that isn't a search failure. Raw data:
+`data/goal59_multi_symbol_combinatorial_search.csv` (the full sweep) and
+`data/goal59_elite_ensemble_trades.csv` (Elite-Ensemble's own trade log).
+
 ## Next steps
 
 1. Halt Apex-Ultra's live entries (has no real edge under this model) — separate,
