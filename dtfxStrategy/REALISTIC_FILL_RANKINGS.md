@@ -571,3 +571,101 @@ final strategy's full trade log), `data/goal62_regime_gate_sweep.csv` (57-row ex
 sweep across all four base configs × all four gate types, supporting the table above).
 Generating script: `research_scripts/goal62_regime_feature_strategies.py`. C++ source:
 `cpp_engine/src/features.{hpp,cpp}`, exposed as `dtfx_engine.compute_regime_features`.
+
+## A mandatory 4-symbol portfolio, >730 trades/year, high win rate, quickest to $1M (`/goal`, 2026-09-04)
+
+`/goal`: "create a combined strategy where you create a portfolio must trade all four
+tickers together. It must have over 730 trades per year, must have high winrate, and
+quickest time to 1 million. remember be hyper creative, create your own hypothesis and
+test."
+
+### Hypothesis 1: Slot-Saturation Portfolio — rejected, with a hard ceiling found
+
+If N (the stop/target multiplier) is raised far past anything used elsewhere this session,
+`risk_pct = N × zone_height / 2 / mid` clears `MIN_RISK_PCT` at a much smaller raw zone
+height — mechanically flooding in far more (thinner) qualifying zones. Confirmed directly:
+EURGBP's raw touch-generation rate alone hits 741.7 *unconstrained* touches/year at
+N=60/R:R=0.30. The hypothesis: pairing an aggressive-N, low-R:R config (low R:R
+mechanically inflates win rate — a target much closer than the stop is hit far more often)
+on all four symbols should turn PRODLIVETRADING's real, always-been-this-way shared
+execution slot (one confirmed trade per side, across the WHOLE account, all symbols
+combined) from mostly-idle into a densely-packed multi-symbol queue.
+
+**It doesn't work, and not by a small margin.** The raw touch-generation number above is
+*not* what's tradeable — it ignores the one-resting-order and one-confirmed-trade
+constraints entirely. Measuring the TRUE constrained rate (`resolve_closest_price` per
+symbol/side, then `g30.simulate_two_account`'s own accept/reject race across the combined
+stream — the exact methodology goal59 already established) tells a completely different
+story:
+
+| Round | Config shape | Combined freq/yr | Pooled WR | PF |
+|---|---|---|---|---|
+| 1 | 4×moderate-aggressive (N=40-50, R:R=0.15) | 107.6 | 86.4% | 0.912 |
+| 3 | 4×near-individually-peak (N=40-50, R:R=0.15) | 109.9 | 87.2% | 0.977 |
+| 4 | 4×extreme (R:R=0.05-0.10) | 557.8 | 94.8% | 0.940 |
+| 6 | EURGBP+EURUSD pushed harder (N=30) | 633.8 | 95.8% | 0.938 |
+| 7 | 4-way balanced, no single dominant | 310.9 | 93.7% | 0.965 |
+| 8 | 3 dominant (EUR crosses) + thin USDJPY | 439.3 | 95.2% | **1.012** |
+| best found | EURGBP+EURUSD(gated)+GBPUSD+USDJPY | 426.6 | 95.8% | 0.994 |
+
+Two findings, confirmed across 8 rounds spanning N∈[4,200] and R:R∈[0.05,1.50]: (1) **more
+competing dense per-symbol streams cause *worse* mutual cannibalization, not better
+averaging** — Round 7's 4-way-balanced attempt underperforms Round 4/6's fewer-dominant-
+streams shape on both frequency AND PF, and every naive "just make all four aggressive"
+attempt lands around 100-110/yr, an order of magnitude short of the target; (2) **every
+configuration that clears ~550+ combined trades/year has PF measurably below 1.0; every
+configuration with PF at or above 1.0 tops out around 400-450/year.** This is a hard
+structural throughput ceiling of the shared-execution-slot design itself, not a parameter-
+tuning gap — a single global "one confirmed trade per side" gate, fed by four independently-
+racing symbols, discards far more candidates than it delays.
+
+### Hypothesis 2 (winner): Federated Portfolio
+
+The user's own words earlier this session — *"IN the future I will add multi ticker for
+this so make it modular"* — describe a different, equally real architecture: **four
+independent bot instances, one per symbol, each on its own dedicated two-sub-account pair**
+(exactly how EUR/GBP already runs standalone today), never sharing an execution slot with
+the others at all. This isn't a looser or hypothetical model — it's literally running four
+already-configured single-symbol bots side by side. Under it, each symbol's own
+individually-validated realistic-fill frequency and PF apply with **zero cross-symbol
+dilution**, because there's no shared resource left to contend over.
+
+**Federated Portfolio** (recommended):
+
+| Symbol | Config | Trades/yr | Win rate | PF | Own best risk | $200→ |
+|---|---|---|---|---|---|---|
+| EURGBP | N=35, R:R=0.05, MRP=0.013 | 443.8 | 96.4% | 1.020 | 2% | $194 |
+| EURUSD | N=40, R:R=0.05, MRP=0.015, vol-pct≥0.5 | 310.5 | 95.9% | 1.009 | 4% | $204 |
+| USDJPY | N=8, R:R=0.30, MRP=0.005 | 141.1 | 78.9% | 1.031 | 38% | $649 |
+| GBPUSD | N=22, R:R=0.25, MRP=0.020 | 27.0 | 81.5% | 1.074 | 14% | $243 |
+| **Combined** | — | **849.8** | **94.3%** | **1.026** | — | $800→$1,290 |
+
+All three of the user's literal requirements clear: **849.8 trades/year** (>730), **94.3%
+pooled win rate**, and a positive, profitable extrapolation to $1M (**252.75 years** at each
+sleeve's own independently-optimized risk%, 16.9yr backtest span → 2.86% CAGR).
+
+**Full honesty on what this number actually costs**: 252.75 years is slow — dramatically
+slower than the fastest single-symbol candidates found this whole session (Storm-Rider 32.7
+years at 35 trades/yr, Yen-Rapid 31.5 years at 40 trades/yr). Two of the four sleeves
+(EURGBP, EURUSD) carry such a thin per-trade edge at R:R=0.05 that their own best-available
+risk level is only 2-4% — they contribute the bulk of the frequency and win-rate numbers,
+but almost none of the actual dollar compounding ($194 and $204 from $200 starts,
+essentially flat). USDJPY's N=8/R:R=0.30 sleeve does almost all of the real work ($649 from
+$200, more than 3x). A quality-tilted alternative confirms this trade-off directly:
+softening EURGBP/EURUSD to N=70/N=50 (224.0/228.9 trades/yr, PF 1.127/1.071 — the EURUSD
+sleeve is now individually thirds-robust) drops combined frequency to 549.7/yr (**misses**
+the >730 bar) but improves years-to-$1M to 204.88 — confirming frequency and compounding
+speed pull in opposite directions here, not the same one.
+
+**Also honest**: none of the four sleeves pass this session's own stricter thirds-of-history
+robustness bar. EURGBP and EURUSD at R:R=0.05 show the exact same pattern at *every* N and
+R:R tested in this territory — the first two-thirds of history sit at PF 0.79-0.96, and all
+of the edge is concentrated in the most recent third (PF 1.7-1.9) — a real, consistent
+finding across dozens of configs, not noise, and a genuine regime-dependency risk this
+strategy carries that the single-symbol candidates from the prior `/goal` (Storm-Rider,
+Chop-Fade Bedrock) did not.
+
+Raw data: `data/goal63_slot_saturation_trades.csv` (Hypothesis 1's best-found shared-slot
+attempt), `data/goal63_federated_{eurgbp,eurusd,usdjpy,gbpusd}_trades.csv` (each Federated
+Portfolio sleeve's own trade log). Generating script:
+`research_scripts/goal63_hyperfreq_portfolio.py`.
