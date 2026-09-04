@@ -34,20 +34,34 @@ DATA_DIR = os.path.join(SCRIPT_DIR, "..", "data")
 import goal30_apex_king_deployment as g30
 import goal64_meta_labeling as g64
 
-BLOCK = 20  # matches goal10's own established block-bootstrap convention
+BLOCK = 20  # matches goal10's own established block-bootstrap convention -- confirmed by
+# direct ACF test (net_r shows no significant autocorrelation at any of 30 lags tested) to
+# not actually matter for outcome-dependence once the between-block gap bug below is fixed;
+# kept as the default for continuity with every prior result in this document.
 
 
-def block_bootstrap_sequence(trades, block, n_trades_target, rng):
+def block_bootstrap_sequence(trades, block, n_trades_target, rng, between_block_gaps=None):
     """One synthetic multi-year sequence: draws blocks of `block` consecutive real trades
-    (with replacement), shifts each block's own entry/exit times to continue immediately
-    after the previous block's last exit (preserving each block's own real internal timing
-    -- inter-trade gaps and position durations -- while destroying which calendar period any
-    given block came from). Block start indices are drawn from [0, n-block) -- NOT wrapped
-    past the end of the array: wrapping was tried first and confirmed (via a direct span
-    check) to occasionally splice the end of history directly onto the beginning within one
-    block, producing a non-monotonic, garbled timeline (one observed case: a 6000-trade
-    synthetic sequence spanning 13.1 real years instead of the ~5.7 its own trade count and
-    the sleeve's real density implies) -- a real bug, not a acceptable approximation."""
+    (with replacement), shifts each block's own entry/exit times to continue after the
+    previous block's last exit (preserving each block's own real internal timing -- inter-
+    trade gaps and position durations -- while destroying which calendar period any given
+    block came from). Block start indices are drawn from [0, n-block) -- NOT wrapped past
+    the end of the array: wrapping was tried first and confirmed (via a direct span check)
+    to occasionally splice the end of history directly onto the beginning within one block,
+    producing a non-monotonic, garbled timeline (one observed case: a 6000-trade synthetic
+    sequence spanning 13.1 real years instead of the ~5.7 its own trade count and the
+    sleeve's real density implies) -- a real bug, not an acceptable approximation.
+
+    `between_block_gaps`: the real empirical distribution of exit-to-next-entry gaps (see
+    real_between_block_gaps below) to draw from at each block boundary -- a SECOND bug,
+    found by testing block sizes down to 1 and noticing the median kept improving as block
+    shrank (1.46yr at block=1 vs 3.03yr at block=20): the original code used a fixed +1s
+    placeholder gap between blocks regardless of block size, so smaller blocks hit that
+    artificial near-zero gap far more often, compressing calendar time well below the real
+    historical pace (confirmed directly: a block=1 synthetic sequence implied 1,910
+    trades/yr against the sleeve's real 1,054.5/yr -- nearly double). Drawing a real gap
+    here removes the bias regardless of block size; falls back to the old +1s placeholder
+    only if the caller doesn't supply one (kept for any external caller not yet updated)."""
     t = trades.sort_values("entry_time").reset_index(drop=True)
     n = len(t)
     entry_ns = t.entry_time.values.astype("datetime64[ns]").astype("int64")
@@ -56,11 +70,15 @@ def block_bootstrap_sequence(trades, block, n_trades_target, rng):
     out_rows = []
     cursor = entry_ns[0]
     trades_so_far = 0
+    first_block = True
     while trades_so_far < n_trades_target:
         start_idx = rng.integers(0, n - block)
         idxs = np.arange(start_idx, start_idx + block)
         block_entry = entry_ns[idxs]
         block_exit = exit_ns[idxs]
+        if not first_block and between_block_gaps is not None and len(between_block_gaps):
+            cursor = cursor + int(rng.choice(between_block_gaps))
+        first_block = False
         offset = cursor - block_entry[0]
         new_entry = block_entry + offset
         new_exit = block_exit + offset
@@ -68,19 +86,31 @@ def block_bootstrap_sequence(trades, block, n_trades_target, rng):
         rows["entry_time"] = pd.to_datetime(new_entry)
         rows["exit_time"] = pd.to_datetime(new_exit)
         out_rows.append(rows)
-        cursor = new_exit[-1] + 1_000_000_000  # +1s gap before the next block starts
+        cursor = new_exit[-1] + (1_000_000_000 if between_block_gaps is None else 0)
         trades_so_far += block
 
     return pd.concat(out_rows, ignore_index=True).iloc[:n_trades_target].reset_index(drop=True)
 
 
+def real_between_block_gaps(trades):
+    """The real empirical distribution of exit-to-next-entry gaps in the ACTUAL historical
+    sequence (sorted by entry_time) -- what block_bootstrap_sequence should draw from at
+    each block boundary so the synthetic sequence's overall pace matches history regardless
+    of block size, instead of the fixed near-zero placeholder that biased small blocks."""
+    t = trades.sort_values("entry_time").reset_index(drop=True)
+    entry_ns = t.entry_time.values.astype("datetime64[ns]").astype("int64")
+    exit_ns = t.exit_time.values.astype("datetime64[ns]").astype("int64")
+    return entry_ns[1:] - exit_ns[:-1]
+
+
 def bootstrap_median_years_to_target(trades, risk_pct, n_sims, block=BLOCK, n_trades_target=6000,
                                       target=1_000_000.0, start_per_side=200.0, seed=42):
     rng = np.random.default_rng(seed)
+    gaps = real_between_block_gaps(trades)
     years_list = []
     n_not_reached = 0
     for s in range(n_sims):
-        synth = block_bootstrap_sequence(trades, block, n_trades_target, rng)
+        synth = block_bootstrap_sequence(trades, block, n_trades_target, rng, between_block_gaps=gaps)
         _, _, _, _, trace = g30.simulate_two_account(synth, risk_pct, start_per_side=start_per_side)
         hit = trace[trace.equity_combined >= target] if len(trace) else trace
         if len(hit) == 0:
@@ -99,7 +129,8 @@ def bootstrap_median_years_to_target(trades, risk_pct, n_sims, block=BLOCK, n_tr
 def simulate_sleeve_trace(trades, risk_pct, n_trades_target, rng, start_per_side=200.0, block=BLOCK):
     """One bootstrap-resampled equity TRACE (close_time, equity_combined) for one sleeve --
     the building block for combining multiple independent sleeves' synthetic timelines."""
-    synth = block_bootstrap_sequence(trades, block, n_trades_target, rng)
+    gaps = real_between_block_gaps(trades)
+    synth = block_bootstrap_sequence(trades, block, n_trades_target, rng, between_block_gaps=gaps)
     _, _, _, _, trace = g30.simulate_two_account(synth, risk_pct, start_per_side=start_per_side)
     start_t = synth.entry_time.min()
     if len(trace) == 0:

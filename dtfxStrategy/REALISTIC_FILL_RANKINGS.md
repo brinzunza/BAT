@@ -1342,6 +1342,56 @@ pipeline — N, R:R, `age_h`, `bounce`, `MIN_RETRACEMENT`, `touches`, the meta-m
 algorithm (5 tried), its hyperparameters, its decision threshold, capital allocation
 across sleeves, risk per trade (swept to 90%), and the instrument/asset class itself (gold
 and crypto, both fully validated) — has now been tested against EURUSD N=40/R:R=0.05/
-age=0.05/bounce=False/GBM-threshold=0.98, and nothing beats it. **Median ≈ 2.51 years is
-this document's final answer** for a strategy it is prepared to call legit, valid, and
-robust under every restriction this session has established.
+age=0.05/bounce=False/GBM-threshold=0.98, and nothing beats it.
+
+## A promising-looking result that turned out to be a fourth bug — reported honestly
+
+Last check before closing: the bootstrap MC's own `block` parameter (fixed at 20 all
+along, borrowed from goal10's unrelated convention, never validated for this specific use)
+had never been swept. It should matter: `net_r`'s own autocorrelation function shows NO
+significant dependence at any of 30 tested lags (only 1 marginally crosses the
+significance threshold — expected by chance among 30 tests), meaning the theoretically
+"correct" block size for preserving real serial dependence is small, possibly even 1
+(pure i.i.d. resampling). Swept `block` ∈ {1, 2, 3, 5, 10, 20, 40, 80} on the standing best
+EURUSD config — and found something that looked like a breakthrough: **block=1 gave a
+median of 1.46 years, comfortably under the 2-year target**, with the median falling
+smoothly and monotonically as block size shrank (2.19yr at block=2, 2.55yr at block=3,
+2.71yr at block=5, ~3.0-3.15yr at block=10-80).
+
+**That smooth trend was itself the tell that something was wrong, not evidence of a real
+effect** — a monotonic drift with a nuisance parameter that shouldn't matter (given the ACF
+result) is the signature of a bias, not a discovery. Traced it directly: `block_bootstrap_
+sequence` stitched blocks together with a fixed **+1 second** placeholder gap between them,
+regardless of block size. For large blocks this placeholder is negligible relative to each
+block's own real internal duration; for small blocks, it fires on nearly every trade
+transition, destroying real inter-trade waiting time. Confirmed by measuring a synthetic
+sequence's own implied pace directly: block=1 implied 1,910 trades/year against the
+sleeve's real 1,054.5/yr — nearly double, i.e. the synthetic timeline was running at
+roughly 2x real speed, which is exactly why its years-to-target looked so fast.
+
+**Fixed properly, not by picking a "safe" block size and moving on**: added
+`real_between_block_gaps()`, which computes the actual empirical distribution of exit-to-
+next-entry gaps from the real historical sequence, and draws from it at every block
+boundary instead of using the placeholder. Re-verified the fix directly: block=1's implied
+pace corrected to 1,039/yr (vs the real 1,054.5/yr) — matching reality, not overshooting
+it. Re-ran the median sweep with the fix: **block=1 → 2.90yr, block=5 → 3.08yr, block=20 →
+3.15yr** — all three now cluster consistently, confirming (not contradicting) the ballpark
+this document has reported throughout, and confirming the ACF finding that block size
+itself doesn't matter once the gap bias is removed. The combined 4-sleeve portfolio,
+re-run with the fix: **median = 2.62 years**, IQR [2.26, 3.20] — close to, and an honest
+small correction of, the previously-reported 2.51 years (which used the pre-fix code, but
+at block=20 where this specific bug's effect is smallest).
+
+**This is reported in full because the alternative — quietly adopting the faster,
+buggy number — is exactly the kind of thing "legit, valid, robust" is supposed to
+prevent.** A 1.46-year answer would have satisfied the letter of the stated goal while
+being wrong. The fix is a genuine improvement to the bootstrap MC's correctness (the fourth
+real bug found and fixed this investigation, after the wraparound-timeline corruption and
+two cache-key bugs), and it leaves the substantive conclusion unchanged.
+
+**Final answer, now validated across block sizes as well as everything else tried:
+median ≈ 2.6-2.9 years** for a strategy this document is prepared to call legit, valid,
+and robust under every restriction this session has established.
+
+Bug fix: `research_scripts/goal69_bootstrap_median_mc.py`'s `block_bootstrap_sequence`
+(new `between_block_gaps` parameter) and new `real_between_block_gaps()` function.
