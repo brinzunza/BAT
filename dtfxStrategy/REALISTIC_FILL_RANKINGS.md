@@ -1140,3 +1140,62 @@ Raw data: `data/goal69_v3_{eurgbp,gbpusd}_trades.csv` (EURUSD/USDJPY v3 configs 
 unchanged from v2, same files as before). Generating script:
 `research_scripts/goal69_bootstrap_median_mc.py` (`V3_SLEEVES`, `BEST_ALLOCATION`,
 `BEST_RISKS`).
+
+## One more genuinely new axis tried: zone-detection sensitivity (`MIN_RETRACEMENT`)
+
+Stop-hook feedback again correctly noted 2.51yr exceeds the target. Every prior test this
+whole session — every N/R:R sweep, every meta-labeling threshold, every capital allocation
+— operated on the SAME underlying zone population, detected with `MIN_RETRACEMENT=2` (a
+pivot-strictness constant, held fixed since before this session began). This round tested
+whether the zones THEMSELVES were the limiting factor, not just how they're filtered:
+`MIN_RETRACEMENT` ∈ {1, 3, 4} for EURUSD (1=loosest pivot criterion → far more, noisier
+candidate zones; 4=strictest → far fewer, more significant ones).
+
+**A real bug caught while doing this**: `goal62_regime_feature_strategies.py`'s
+`impulse_velocity_lookup(inst)` cached its result keyed by `inst` alone, not
+`(inst, MIN_RETRACEMENT)` — since this lookup's own contents depend on
+`rs._prep_zones(inst, pg.MIN_RETRACEMENT)`, varying `MIN_RETRACEMENT` within one Python
+process caused every value after the first to silently reuse the first value's lookup,
+joining mismatched `(mid, created_at)` keys onto the wrong zones and losing nearly all rows
+to `build_labeled_touches`'s own `.dropna()`. Confirmed directly: a loop testing
+MIN_RETRACEMENT ∈ {1,2,3,4} in one process reported wildly wrong touch counts (e.g. "16,403"
+and "2,113" for MR=2 and MR=3) that a fresh, isolated process for the same values
+corrected to their true counts (130,468 and 68,547). Every actual THRESHOLD-SWEEP and
+bootstrap result used in this document's conclusions was run as its own fresh process (so
+none were corrupted by this), but the cache itself was a real latent bug — fixed by keying
+on `(inst, pg.MIN_RETRACEMENT)`, confirmed as a no-op for every existing caller (which all
+use the fixed `MIN_RETRACEMENT=2`, so they get the same effective cache key as before).
+
+**Result: MIN_RETRACEMENT=2 (the existing default) remains best for both EURUSD and
+USDJPY**, checked with clean, uncorrupted data after the fix:
+
+| Symbol | MIN_RETRACEMENT | Raw touches | Best GBM th | Frequency | min(buy,sell) PF |
+|---|---|---|---|---|---|
+| EURUSD | 1 | 215,460 | 0.98 | 1,231/yr | 1.836 (worse than MR=2's 2.021) |
+| EURUSD | **2 (current)** | 130,468 | 0.98 | **1,054.5/yr** | **2.021** |
+| EURUSD | 3 | 68,547 | any tested | ≤436/yr | <1.0 (never profitable) |
+| EURUSD | 4 | 33,416 | 0.98 | 150.3/yr | <1.0 (min side) |
+| USDJPY | 1 | 150,698 | 0.98 | 179.4/yr (barely above MR=2's 166) | <1.0 (min side) |
+| USDJPY | **2 (current)** | — | 0.98 | 166.4/yr | 1.891 |
+
+MR=1's much larger raw candidate pool (13x more touches) looked promising on paper but
+produces a *lower-quality* population overall — even after meta-labeling filters it down,
+the best achievable balance (both sides' PF) is worse than MR=2's, not better, and its own
+standalone bootstrap reached-rate confirmed this directly (4-12%, similar to EURGBP's
+pre-fix asymmetry problem). MR=3/4's smaller, stricter pools simply don't have enough
+volume left after filtering to matter. This closes out zone-detection sensitivity as a
+lever — the current default was already, coincidentally or not, the right choice.
+
+**Assessment after this round**: every one of the following, independently, converges on
+EURUSD N=40/R:R=0.05/GBM-threshold=0.98 as the local optimum: the original N/R:R grid
+search, the fine threshold sweep (0.001 resolution around the cliff at 0.98), and now the
+zone-detection-sensitivity sweep. Three independent search axes agreeing is strong evidence
+this is a genuine ceiling for this strategy family and data, not a search gap. Combined
+with the earlier risk sweep (median WORSENS past 60%, proven not assumed) and the capital-
+allocation optimum (giving more to reliable-but-slower sleeves also WORSENS the median),
+**median ≈ 2.5 years remains the best validated, legitimate answer** — every lever
+identified across this document's several rounds of search has been tried.
+
+Raw data: interactive session output (this was a diagnostic/negative-result round; no new
+trade logs to persist). Bug fix: `research_scripts/goal62_regime_feature_strategies.py`'s
+`impulse_velocity_lookup` cache key.

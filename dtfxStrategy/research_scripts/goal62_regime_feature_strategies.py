@@ -66,8 +66,17 @@ def impulse_velocity_lookup(inst):
     """{(round(mid,8), created_at_ns): pips/minute of the zone-forming impulse}. Keyed
     identically to how g51's own output pairs (entry_price, created_at) so it can be joined
     onto g51's touches without re-deriving any of its (already validated) fill logic."""
-    if inst in _impulse_cache:
-        return _impulse_cache[inst]
+    # Cache key must include MIN_RETRACEMENT (not just inst) -- confirmed bug found
+    # 2026-09-04 while testing alternate retracement values: since this lookup depends on
+    # rs._prep_zones(inst, pg.MIN_RETRACEMENT)'s own zone set, an inst-only key silently
+    # returns the FIRST-computed retracement's lookup for every later call at a different
+    # pg.MIN_RETRACEMENT, mismatching (mid,created_at) keys onto the wrong zones and losing
+    # nearly all rows to build_labeled_touches's own .dropna(). Never a problem before this
+    # session, since MIN_RETRACEMENT had never varied -- confirmed harmless no-op for every
+    # existing caller (they all still get key=(inst, 2), same as the old inst-only key did).
+    key = (inst, pg.MIN_RETRACEMENT)
+    if key in _impulse_cache:
+        return _impulse_cache[key]
     times, lows, highs, df = rs.load_instrument(inst)
     times_ns = times.astype("datetime64[ns]").astype("int64")
     z = rs._prep_zones(inst, pg.MIN_RETRACEMENT)
@@ -79,7 +88,7 @@ def impulse_velocity_lookup(inst):
     velocity_pips_per_min = ((top - bottom) / pip) / dur_min
     mid_r = np.round(mid, 8)
     lookup = {(mid_r[k], c_ns[k]): velocity_pips_per_min[k] for k in range(len(mid_r))}
-    _impulse_cache[inst] = lookup
+    _impulse_cache[key] = lookup
     return lookup
 
 
