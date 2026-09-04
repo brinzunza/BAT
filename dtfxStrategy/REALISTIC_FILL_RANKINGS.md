@@ -146,22 +146,72 @@ clears it:
 | 3 | CANA+ / CANA (faithful) | 0.341 | No |
 | ... | (all others) | <0.30 | No |
 
+## Cross-symbol search: quickest validated path to $1M (`/goal`, 2026-09-04)
+
+Bedrock-King is net profitable but slow: at its best tested risk (4%), its 495-trade,
+16-year EUR/GBP track record compounds $100→$100 combined into just $207 — extrapolated
+CAGR 0.2%, ~4,126 years to $1M. Bedrock-King's own drawback (low frequency limiting how
+much a real edge can compound within available history) turned out to generalize past
+EUR/GBP specifically, not the single-symbol restriction: over 1,500 (N, R:R,
+MIN_RISK_PCT) configs swept across all four symbols, at every risk level from 2% to 60%,
+**none reached $1M within their own available history** — best full-history multiple
+achieved was ~14x (EURUSD, at an unsustainable 60% risk carrying a −54% drawdown).
+
+Ranking candidates instead by *extrapolated* years-to-$1M (CAGR from each candidate's
+own best-tested risk level, projected forward at that same rate — the literal $1M
+threshold isn't reached inside any dataset tested, so this is the honest way to answer
+"quickest," not a claim that $1M is imminent):
+
+| Candidate | Instrument | N | R:R | MIN_RISK_PCT | Best risk | CAGR | Max DD | Extrapolated years to $1M | Trades |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Yen-Punch** | USDJPY | 4.0 | 0.75 | 0.005 | 28% | **29.3%** | −33.3% | **~33** | 122 |
+| Yen-Steady | USDJPY | 4.0 | 0.15 | 0.005 | 36% | 20.3% | −21.3% | ~46 | 244 |
+| Dollar-Wide | EURUSD | 15.0 | 1.00 | 0.020 | 60% | 13.3% | −54.3% | ~68 | 123 |
+| Cable-Wide | GBPUSD | 15.0 | 1.50 | 0.020 | 28% | 9.2% | −26.8% | ~96 | 124 |
+| Bedrock-King | EURGBP | 22.0 | 0.75 | 0.020 | 4% | 0.2% | −10.7% | ~4,126 | 495 |
+
+**Winner: Yen-Punch** (USDJPY, N=4.0, R:R=0.75, age=0.08h, 20 touches, MIN_RISK_PCT=0.005,
+RISK_PCT=0.28) — net profitable and fastest validated extrapolated path to $1M of
+everything found this session.
+
+- **Train/holdout (midpoint split, USDJPY only has data from 2018 so the 2018-01-01 split
+  used elsewhere doesn't apply): PF 1.462 (pre-2023-02-10, n=52) vs. PF 1.662
+  (post-split, n=70)** — holdout is *better* than train, the opposite of overfitting.
+- Full history: 122 trades / 7.0 years (17.5/yr), WR 68.85%, PF 1.573, mean_r +0.182.
+- **Sharpe 4.67**, excess kurtosis +0.56 (much less fat-tailed than Bedrock-King's +5.06
+  — a more evenly-distributed return stream, not a few outsized trades carrying it),
+  Calmar 1.05, max drawdown (1%-risk reference curve) only −3.0%.
+
+**Caveats, stated plainly**: 122 trades is a genuinely modest sample — smaller than
+Bedrock-King's 495, and USDJPY's own data only goes back to 2018 (7 years), so this
+hasn't been tested across as many market regimes. The winning RISK_PCT (28%) is far
+above the 6% this project has used everywhere else, chosen here purely to minimize
+years-to-$1M — the −33.3% max drawdown at that risk level is a real, honest cost of that
+choice, not hidden. "Years to $1M" is an extrapolation from a realized CAGR, not a
+literal event observed in the data — treat the ~33-year figure as illustrative of
+relative speed between candidates, not a forecast. Before any live consideration: verify
+independently on GBP/USD-adjacent JPY crosses' data quality, re-validate at a more
+conservative RISK_PCT (the Sharpe/Calmar numbers above are strong even before pushing
+risk to 28%), and run the same margin/MC validation Bedrock-King still needs.
+
 ## Next steps
 
 1. Halt Apex-Ultra's live entries (has no real edge under this model) — separate,
-   more urgent action from whether Bedrock-King gets deployed.
-2. Finer sweep around Bedrock-King's neighborhood (N=20–28, R:R=0.5–1.0,
-   MIN_RISK_PCT=0.013–0.025) to check for a materially better nearby point.
-3. Check the other 3 symbols (EURUSD, GBPUSD, USDJPY) under this same corrected model
-   and search methodology — EUR/GBP won every PRE-correction comparison run this
-   session; that conclusion needs revisiting from scratch now that the fill model itself
-   has changed.
-4. Full margin/MC validation (goal52-style) on Bedrock-King before any deployment
-   decision, plus a real practice-account smoke test given how different its trading
-   cadence is from anything previously run live.
+   more urgent action from any new deployment decision.
+2. Decide between Bedrock-King (EUR/GBP, matches current deployment scope, slower but
+   deeper-validated) and Yen-Punch (USDJPY, faster but thinner sample, would mean
+   switching PRODLIVETRADING's traded symbol) — or hold for further validation on both.
+3. Finer sweep around both candidates' neighborhoods, and a genuine train/holdout split
+   for Yen-Punch that doesn't rely on a single midpoint cut, once more USDJPY history is
+   available or a robustness check across multiple split points is run.
+4. Full margin/MC validation (goal52-style) plus a real practice-account smoke test on
+   whichever candidate moves forward, given how different both are from anything
+   previously run live.
 
 Raw data: `data/goal53_leaderboard_realistic_fill.csv` (leaderboard reproduction),
 `data/goal54_realistic_fill_search.csv` + `data/goal54b_extended_search.csv` (search
 sweeps), `data/goal55_extreme_n_sweep.csv` (the rejected N-up-to-50 region) +
 `data/goal55_train_holdout_validation.csv` (the 2018 split that separated Bedrock-King
-from it). Generating scripts: `research_scripts/goal5{1,3,4,5}_*.py`.
+from it), `data/goal56_fastest_to_1m_screen.csv` (the EUR/GBP speed screen) and the
+cross-symbol screen/validation behind the table above. Generating scripts:
+`research_scripts/goal5{1,3,4,5,6}_*.py`.
