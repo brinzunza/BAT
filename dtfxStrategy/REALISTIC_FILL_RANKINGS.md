@@ -1292,3 +1292,24 @@ established symbols, zone-detection sensitivity, capital allocation, a risk swee
 and — this round — two entirely different asset classes. No configuration found in any of
 these searches crosses the 2-year line while keeping risk at a level this document is
 willing to call robust.
+
+## BTCUSD's infrastructure gap fixed and re-tested — confirms, doesn't change, the answer
+
+The previous round flagged BTCUSD's zero-acceptance issue (position sizing floors every
+trade at a minimum of 1.0 "unit," i.e. one whole bitcoin) as unfixed, reasoning its raw
+signal already looked no stronger than gold's. That was an inference, not a measurement —
+worth actually checking rather than assuming. Fixed it with a local-only wrapper around
+`position_size_and_margin` (BTCUSD gets a 0.0001 BTC minimum increment instead of 1.0 unit;
+every other instrument's behavior, including the shared function's exact match to
+PRODLIVETRADING's real `oanda_client.py`, is untouched) and re-ran the full pipeline.
+
+**Confirmed, not assumed**: BTCUSD's best meta-labeled point (th=0.95) gives min(buy,sell)
+PF=1.504 at 271.4/yr — nearly identical in shape to gold's own 1.514 PF at 280.1/yr.
+Standalone bootstrap median: **5.88 years at 46% reached**, essentially matching gold's
+5.68yr/42% and both clearly behind EURUSD's 3.03yr/100%. The inference was correct, now
+with real data behind it rather than an assumption: crypto's raw signal under this exact
+strategy is comparable to gold's, not stronger, and neither beats EURUSD.
+
+This closes the cross-asset investigation with a fully validated (not partially-explored)
+negative result on both alternatives tried. **Median ≈ 2.51 years remains the final
+answer.**
