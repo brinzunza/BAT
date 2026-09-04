@@ -25,6 +25,7 @@ pybind11_add_module(dtfx_engine
   src/zone_detect.cpp
   src/backtest.cpp
   src/monte_carlo.cpp
+  src/features.cpp
   src/bindings.cpp
 )
 

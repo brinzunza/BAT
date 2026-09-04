@@ -463,3 +463,111 @@ sweeps), `data/goal55_extreme_n_sweep.csv` (the rejected N-up-to-50 region) +
 from it), `data/goal56_fastest_to_1m_screen.csv` (the EUR/GBP speed screen) and the
 cross-symbol screen/validation behind the table above. Generating scripts:
 `research_scripts/goal5{1,3,4,5,6}_*.py`.
+
+## Hyper-creative synthetic indicators + a new C++ regime engine (`/goal`, 2026-09-04)
+
+`/goal`: "try adding new parameters... combine the strategy with other synthetic
+indicators... be hyper creative and use niche ideas... use C++ for the engines for large
+data and computational tasks. find profitable, frequent, high winrate strategies. At
+least 3 unique ones."
+
+None of the fully-validated realistic-fill machinery above (fill-depth model, one-spread
+cost cap, closest-price resolver, thirds-split robustness bar) is touched. This layer only
+decides, per already-qualifying zone touch, whether to ALSO require a market-regime or
+zone-quality reading to fire — every gate defaults to off, so the ungated baseline is
+always exactly reproducible for direct before/after comparison.
+
+### Three new indicators
+
+Two are computed by a new C++ function, `dtfx_engine.compute_regime_features` (added to
+`cpp_engine/src/features.cpp`, exposed via `bindings.cpp` — build with
+`cpp_engine/build.sh` as before): a strided grid (default every 50 bars, from the trailing
+500-bar window, forward-filled between grid points — a regime read has no business
+refreshing every single bar) computes, in one pass, per instrument:
+
+1. **Efficiency Ratio** (Kaufman ER): `|net directional move| / |total path length|` over
+   the window — near 0 in a choppy market, near 1 in a clean trend. A zone-fade is a
+   mean-reversion bet; the wager is it should fire only when the market genuinely IS
+   choppy, not when price is trending straight through the zone.
+2. **Hurst estimate**: a fast two-scale rescaled-range (R/S) approximation
+   (`log(RS_full/RS_half)/log(2)`, RS at the full window vs. half of it) — <0.5
+   anti-persistent/mean-reverting, >0.5 persistent/trending. A cheaper, differently-built
+   second read on the same question as ER, tested independently rather than blended in.
+3. **Volatility percentile**: the window's own realized volatility (stdev of bar-to-bar
+   returns), ranked against the trailing 200 grid points' realized vol via an exact-FIFO
+   `std::multiset` (0 = quietest recently seen, 1 = most volatile).
+
+Multi-threaded (one thread per contiguous output range, each independently re-deriving its
+own small trailing state so chunks need no locking) and validated exact-match against a
+pure-Python reference at 12 spot-checked points spanning EURUSD's full 2009–2026 history
+(max abs diff ≤2.2e-15, floating-point noise) — full pass computes all three features
+over 6.34M bars in **0.13 seconds**.
+
+4. **Impulse Velocity** (pure NumPy — no new per-bar data needed): a new zone-quality
+   construct built straight from each zone's own geometry, not the bar series — the speed,
+   in pips/minute, of the structural break that created the zone (from its pivot bar to
+   the moment it's confirmed). Wager: a zone born from a fast, violent break carries more
+   real institutional intent than one of identical height that formed from a slow grind,
+   and should hold up better on retest.
+
+**Calibration lesson worth recording**: the first sweep attempt anchored gate thresholds
+to each indicator's percentile across the instrument's FULL zone population, and every
+impulse-velocity gate came back completely non-binding — identical trade count at the
+25th/50th/75th percentile. Traced to `MIN_RISK_PCT` already implicitly selecting almost
+entirely for fast-forming zones (USDJPY-Yen-Rapid's actual touches have a median matched
+velocity of ~2,500 pips/min vs. ~240 pips/min across the full unfiltered zone population) —
+population-wide percentiles sat two orders of magnitude below where a heavily-pre-filtered
+config's touches actually live. Fix: calibrate every gate threshold against the STRATEGY'S
+OWN already-filtered touch population, not the raw zone population (`percentile_grid` in
+`goal62_regime_feature_strategies.py`).
+
+### Four validated strategies, one per symbol, three different headline indicators
+
+Each starts from an already-validated base config from earlier in this document and adds
+exactly one gate. Every number below is fully robust — all three thirds-of-history PF>1.0,
+and (where a train/holdout split applies) both halves PF>1.0 too:
+
+| Strategy | Symbol | Base | Gate | Trades/yr | Win rate | PF | Sharpe | years-to-$1M |
+|---|---|---|---|---|---|---|---|---|
+| **Storm-Rider** | USDJPY | Yen-Rapid | vol-percentile ≥ 0.40 | 40.0→**35.2** | 93.2%→**93.9%** | 1.779→**1.992** | 4.40→**5.24** | 31.5→32.7 |
+| **Chop-Fade Balanced** | EURUSD | Balanced-Dollar | Efficiency Ratio ≤ 0.05 | 135.8→**71.9** | 70.2%→**70.7%** | 1.158→**1.190** | 1.34→**1.45** | 319.4→**232.1** |
+| **Chop-Fade Bedrock** | EURGBP | Bedrock-King | Efficiency Ratio ≤ 0.07 | 31.0→**22.2** | 63.2%→**63.9%** | 1.267→**1.306** | 2.01→**2.31** | 2509.2→**166.4** |
+| **Velocity-Cable** | GBPUSD | Cable-Wide | Impulse Velocity ≥ 2,154 pips/min | 8.1→**6.0** | 49.2%→**52.2%** | 1.439→**1.622** | 3.00→**3.95** | 95.1→**93.5** |
+
+Standouts:
+
+- **Storm-Rider** is the best all-around candidate of the four — still very frequent
+  (35/yr), a 93.9% win rate, PF nearly 2.0, Sharpe 5.24, and a vanishing −1.7% max
+  drawdown (1%-risk reference). The vol-percentile floor's job here is narrow but
+  effective: cut only the deadest-quiet ~40% of USDJPY's own recent-volatility
+  distribution, where a near-guaranteed-small-target trade (R:R=0.15) barely clears the
+  spread even on a full win.
+- **Chop-Fade Bedrock**'s headline number is the years-to-$1M column: Bedrock-King alone
+  was net profitable but glacial (2,509 years, effectively "never" in practice); requiring
+  Efficiency Ratio ≤0.07 (genuinely choppy conditions only) at entry makes it **15x
+  faster** while *raising*, not lowering, PF and win rate — fewer trades, but each one
+  carries real edge instead of some being trend-environment noise. Still slow in absolute
+  terms (166 years) — an honest improvement, not a fix for the underlying frequency
+  problem.
+- **Chop-Fade Balanced** keeps genuine frequency (72/yr, still among the highest of any
+  candidate this session) while improving every other axis — the strongest demonstration
+  that a regime gate doesn't have to trade away frequency for quality.
+- **Velocity-Cable** is the impulse-velocity showcase: PF +12.7%, win rate +3pp, Sharpe
+  +32%, on a config (Cable-Wide) that started as the weakest-win-rate baseline of the four
+  (49.2%, barely above a coin flip before edge) — confirming the construct adds real
+  signal beyond what MIN_RISK_PCT/N/R:R alone already select for.
+
+**Honest negative finding**: Hurst-gated variants were tested on every one of the four base
+configs and never beat the same base config's Efficiency-Ratio or volatility-percentile
+gate, and on several configs (e.g. Yen-Rapid, Cable-Wide) actively hurt PF and thirds-split
+robustness relative to no gate at all. The cheap two-scale R/S approximation used here is
+likely too noisy at this bar-count/window-size combination to add signal beyond what ER
+already captures more directly — a full multi-scale R/S regression might do better, but
+wasn't pursued given ER and vol-percentile already cleared the bar.
+
+Raw data: `data/goal62_storm_rider_trades.csv`, `data/goal62_chop_fade_balanced_trades.csv`,
+`data/goal62_chop_fade_bedrock_trades.csv`, `data/goal62_velocity_cable_trades.csv` (each
+final strategy's full trade log), `data/goal62_regime_gate_sweep.csv` (57-row exploratory
+sweep across all four base configs × all four gate types, supporting the table above).
+Generating script: `research_scripts/goal62_regime_feature_strategies.py`. C++ source:
+`cpp_engine/src/features.{hpp,cpp}`, exposed as `dtfx_engine.compute_regime_features`.

@@ -7,6 +7,7 @@ C++ port of the three pieces almost every script in `research_scripts/` builds o
 | Zone detection (pivots + structure FSM) | `dtfx_robust_search.py::_prep_zones` (pure Python, not JIT'd) | `src/pivots.cpp`, `src/structure_fsm.cpp`, `src/zone_detect.cpp` |
 | Backtest engine | `prod_filter_grid_search.py::_simulate_generic` (numba) | `src/backtest.cpp` |
 | Monte Carlo engine | `goal10_cana_nt_mc_capped.py::run_mc_capped` (numba) | `src/monte_carlo.cpp`, multi-threaded |
+| Regime-feature engine (new, 2026-09-04) | none — new construct, no Python original | `src/features.cpp`, multi-threaded |
 
 Every strategy/account parameter (stop/target mult, fill age, bounce requirement, touches,
 probe/excursion, account start/risk/cap/targets) is a **runtime argument** in all three —
@@ -82,7 +83,20 @@ run_mc_capped(net_r, n_sims, block, max_trades, seed,
               start=200.0, risk_frac=0.05, cap=2_000_000.0,
               target1=1e6, target2=1e7, ruin_floor=1.0, n_threads=0)
     -> (trades_to_1m, trades_to_10m, max_drawdown, ruined)
+
+compute_regime_features(high, low, close, window=500, stride=50,
+                         vol_lookback_points=200, n_threads=0)
+    -> (efficiency_ratio, hurst_est, vol_percentile, realized_vol)
 ```
+
+`compute_regime_features` is new (2026-09-04, `/goal` — hyper-creative synthetic
+indicators): per-bar market-regime features used as zone-touch GATES, not zone-detection
+inputs, by `research_scripts/goal62_regime_feature_strategies.py`. Recomputed only every
+`stride` bars from the trailing `window` bars, forward-filled between grid points.
+Multi-threaded (one thread per contiguous output range); validated exact-match against a
+pure-Python reference (see `validate.py`) — 6.34M EURUSD bars in 0.13s. See
+`REALISTIC_FILL_RANKINGS.md`'s "Hyper-creative synthetic indicators" section for what each
+of the three outputs means and the strategies built on them.
 
 All arrays are numpy; signatures mirror the Python originals as closely as possible so
 they're near drop-in replacements.

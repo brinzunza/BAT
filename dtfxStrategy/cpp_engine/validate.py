@@ -164,10 +164,78 @@ def validate_monte_carlo():
         check(f"{key}: py={py_v:.4f} cpp={c_v:.4f} (rel diff {rel_diff:.2%})", rel_diff < 0.05)
 
 
+def validate_regime_features():
+    """No numba/Python original exists (this is a new construct, 2026-09-04) -- validated
+    against a direct pure-Python/NumPy re-derivation of the same formulas instead, at a
+    handful of grid-aligned points spanning the full history. Deterministic -- exact
+    equality expected."""
+    print("\n=== Regime features (compute_regime_features) ===")
+    inst = "EURUSD"
+    times, lows, highs, df = rs.load_instrument(inst)
+    close = df["close"].values.astype(np.float64)
+    high = df["high"].values.astype(np.float64)
+    low = df["low"].values.astype(np.float64)
+    n = len(close)
+    window, stride, lookback = 500, 50, 200
+
+    er, hurst, volpct, rvol = dtfx_engine.compute_regime_features(high, low, close, window,
+                                                                   stride, lookback, 0)
+    ret = np.diff(close, prepend=close[0])
+    ret[0] = 0.0
+
+    def rescaled_range(seg):
+        if len(seg) < 2:
+            return 0.0
+        mean = seg.mean()
+        cum = np.concatenate([[0.0], np.cumsum(seg - mean)])
+        s = seg.std(ddof=1)
+        return (cum.max() - cum.min()) / s if s > 0 else 0.0
+
+    def py_point(i):
+        ws = i - window + 1
+        if ws < 1:
+            return None
+        seg = ret[ws:i + 1]
+        net = abs(close[i] - close[ws - 1])
+        path = np.abs(seg).sum()
+        er_v = net / path if path > 0 else 0.0
+        rs_full = rescaled_range(seg)
+        half = window // 2
+        rs_half = rescaled_range(ret[i - half + 1:i + 1])
+        hurst_v = np.log(rs_full / rs_half) / np.log(2.0) if rs_full > 0 and rs_half > 0 else np.nan
+        return er_v, hurst_v, seg.std(ddof=1)
+
+    n_grid = (n - (window - 1)) // stride
+    check_gs = np.linspace(5, n_grid - 5, 12).astype(int)
+    max_diffs = {"er": 0.0, "hurst": 0.0, "rvol": 0.0}
+    for g in check_gs:
+        i = g * stride + (window - 1)
+        ref = py_point(i)
+        if ref is None:
+            continue
+        er_v, hurst_v, rvol_v = ref
+        max_diffs["er"] = max(max_diffs["er"], abs(er[i] - er_v))
+        max_diffs["rvol"] = max(max_diffs["rvol"], abs(rvol[i] - rvol_v))
+        if not (np.isnan(hurst[i]) and np.isnan(hurst_v)):
+            max_diffs["hurst"] = max(max_diffs["hurst"], abs(hurst[i] - hurst_v))
+
+    for key, tol in [("er", 1e-9), ("hurst", 1e-9), ("rvol", 1e-9)]:
+        check(f"{key} matches Python reference at 12 spot-checked points "
+              f"(max abs diff {max_diffs[key]:.2e})", max_diffs[key] < tol)
+
+    warm = window - 1 + stride * 2
+    check("no NaN after warmup", not np.isnan(er[warm:]).any() and not np.isnan(volpct[warm:]).any())
+    check("vol_percentile stays in [0,1]",
+          bool(((volpct[warm:] >= 0) & (volpct[warm:] <= 1)).all()))
+    block = er[warm + 1000:warm + 1000 + stride - 1]
+    check("forward-fill holds constant within a stride block", bool(np.allclose(block, block[0])))
+
+
 if __name__ == "__main__":
     validate_zone_detection()
     validate_backtest_engine()
     validate_monte_carlo()
+    validate_regime_features()
     print()
     if failures == 0:
         print(f"ALL CHECKS PASSED ({PASS})")

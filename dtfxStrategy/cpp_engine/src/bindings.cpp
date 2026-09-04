@@ -8,6 +8,7 @@
 #include "zone_detect.hpp"
 #include "backtest.hpp"
 #include "monte_carlo.hpp"
+#include "features.hpp"
 
 namespace py = pybind11;
 
@@ -107,6 +108,16 @@ py::tuple py_run_mc_capped(f64arr net_r, int64_t n_sims, int64_t block, int64_t 
                            to_bool(r.ruined));
 }
 
+py::tuple py_compute_regime_features(f64arr high, f64arr low, f64arr close, int64_t window,
+                                      int64_t stride, int64_t vol_lookback_points,
+                                      int n_threads) {
+    const int64_t n_bars = close.shape(0);
+    RegimeFeatures r = compute_regime_features(high.data(), low.data(), close.data(), n_bars,
+                                                window, stride, vol_lookback_points, n_threads);
+    return py::make_tuple(to_f64(r.efficiency_ratio), to_f64(r.hurst_est),
+                           to_f64(r.vol_percentile), to_f64(r.realized_vol));
+}
+
 }  // namespace
 
 PYBIND11_MODULE(dtfx_engine, m) {
@@ -149,4 +160,16 @@ PYBIND11_MODULE(dtfx_engine, m) {
           "Position-sizing-capped block-bootstrap Monte Carlo, multi-threaded -> "
           "(trades_to_1m, trades_to_10m, max_drawdown, ruined). "
           "Account params default to today's assumptions but are all runtime overridable.");
+
+    m.def("compute_regime_features", &py_compute_regime_features,
+          py::arg("high"), py::arg("low"), py::arg("close"), py::arg("window") = 500,
+          py::arg("stride") = 50, py::arg("vol_lookback_points") = 200, py::arg("n_threads") = 0,
+          "Strided-grid, forward-filled regime features over the full bar history -> "
+          "(efficiency_ratio, hurst_est, vol_percentile, realized_vol), each length n_bars. "
+          "efficiency_ratio: Kaufman ER (0=choppy, 1=trending). hurst_est: fast two-scale R/S "
+          "Hurst estimate (<0.5 mean-reverting, >0.5 trending). vol_percentile: current "
+          "window's realized vol ranked against the trailing vol_lookback_points grid points "
+          "(0=quietest recently seen, 1=most volatile). Recomputed only every `stride` bars "
+          "from the trailing `window` bars, held constant between grid points -- a regime "
+          "read has no business refreshing every single bar.");
 }
