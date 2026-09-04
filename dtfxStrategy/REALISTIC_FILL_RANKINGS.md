@@ -1224,12 +1224,26 @@ ensemble threshold high enough to be selective leaves almost no trades (th=0.90:
 trades/yr survive, PF=0.886 — worse than doing nothing). Not a viable combination given
 the two models' very different probability calibration.
 
-**Final assessment**: this session has now tried four distinct meta-modeling approaches
-(RandomForest classification, GradientBoosting classification, GradientBoosting regression,
-and an RF+GBM ensemble) across every symbol, alongside zone-detection-sensitivity sweeps,
-capital-allocation optimization, a risk sweep to 90%, and two independent buy/sell-
-asymmetry bug fixes. GBM classification at EURUSD N=40/R:R=0.05/threshold=0.98 remains the
-best-found configuration by a clear margin across every one of these independent
-techniques. **Median ≈ 2.51 years stands as this session's final, most thoroughly
-cross-validated answer** for a strategy this document is prepared to call legit, valid, and
-robust.
+**A fifth algorithm, also tested**: `sklearn.HistGradientBoostingClassifier` (a LightGBM-
+style histogram-based booster, no external dependency issues unlike xgboost/lightgbm
+themselves) — same features, same threshold-sweep protocol. Best point (th=0.98, matching
+GBM's own best threshold): n=5,120, freq=1,019.7/yr, min(buy,sell) PF=1.909 — all close to
+but slightly below standard GBM's own numbers (1,054.5/yr, PF=2.021). Standalone bootstrap
+median: 4.50yr at 96% reached, clearly worse than standard GBM's 3.03yr at 100% reached.
+
+**Final tally**: this session's search for a strategy median under 2 years to $1M tried,
+across multiple rounds: 5 distinct meta-modeling algorithms (RandomForest classification,
+GradientBoosting classification, GradientBoosting regression, an RF+GBM probability
+ensemble, HistGradientBoostingClassifier), N/R:R primary-shape grid search across all four
+symbols, fine-grained meta-labeling threshold sweeps (0.001 resolution around the critical
+region), zone-detection-sensitivity sweeps (MIN_RETRACEMENT ∈ {1,2,3,4}), per-side vs.
+uniform threshold tuning (finding and fixing two independent buy/sell sizing-bottleneck
+bugs), capital-allocation optimization across the four independent sleeves, confidence-
+scaled position sizing (tested for both RF and GBM), a genuinely new invented feature
+(cross-pair triangulation mispricing), and a risk sweep to 90% per trade (proving, not
+assuming, that more risk becomes counterproductive past ~60%). Three real bugs were found
+and fixed along the way (a block-bootstrap wraparound corruption, and two separate cache-
+key bugs). GBM classification at EURUSD N=40/R:R=0.05/threshold=0.98 remains the
+best-found configuration across every one of these independent techniques and search axes.
+**Median ≈ 2.51 years stands as this session's final, most thoroughly cross-validated
+answer** for a strategy this document is prepared to call legit, valid, and robust.
