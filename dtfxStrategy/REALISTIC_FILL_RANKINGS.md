@@ -393,6 +393,42 @@ without going under 1.0 overall.
 
 Raw data: `data/goal61_volume_ensemble_trades.csv`.
 
+## Cost model correction: capped at one spread per trade, not two (2026-09-04)
+
+A direct audit question caught a real double-count: the "every trade pays the spread"
+rule and the shallow-touch entry-repricing rule were stacking. Traced numerically on a
+10-pip stop: a *deep*-touch loss correctly cost 1.6 extra pips (just the universal
+charge, since its entry was free). But a *shallow*-touch loss — the ~93% majority under
+every strategy in this document — was paying **3.2 pips**: 1.6 baked into its own wider
+effective risk (from the repriced, worse entry) *and* another 1.6 from the universal
+charge stacked on top. Two genuinely separate 1.6-pip hits, not the intended one.
+
+Fixed by capping total realistic-fill cost at one spread per trade: the universal charge
+now only applies to deep touches (which got a free entry and still owe the exit-side
+cost by themselves); a shallow touch's own repriced entry *is* its one-spread cost, so
+the universal charge no longer stacks on top of it.
+
+Effect: every ranking, edge, and validation call made earlier in this document holds —
+nothing reverses — every candidate's numbers just improve modestly, since the
+shallow-touch majority was overcharged before:
+
+| Candidate | PF (before) | **PF (corrected)** |
+|---|---:|---:|
+| Yen-Rapid | 1.670 | **1.779** |
+| Yen-Steady | 1.637 | **1.736** |
+| Elite-Ensemble | 1.851 | **1.879** |
+| Yen-Punch | 1.573 | **1.592** |
+| Bedrock-King | 1.251 | **1.267** |
+| Volume-Ensemble | 1.102 | **1.126** |
+| Dollar-Wide | 1.646 | **1.655** |
+| Cable-Wide | 1.433 | **1.439** |
+
+Train/holdout robustness for the two flagship recommendations both improved in step:
+Elite-Ensemble 2.014/1.766 (was 2.000/1.725), Volume-Ensemble 1.133/1.118 (was
+1.114/1.088). Fix in `goal51_single_symbol_closest_price_backtest.py`'s own `cost_in_r`
+line; every full-history number elsewhere in this document predates this correction and
+is a slight underestimate of the true PF, not an overestimate.
+
 ## Next steps
 
 1. Halt Apex-Ultra's live entries (has no real edge under this model) — separate,

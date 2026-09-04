@@ -133,7 +133,17 @@ def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy
     # from this cost was always paired with "and entry is free too"; now that entry isn't
     # assumed free, a win's own exit shouldn't get a free pass either. Conservative by
     # design, not mechanistically derived from a specific execution model.
-    cost_in_r = spread_price / effective_risk
+    #
+    # Capped at ONE spread's worth of total cost per trade (2026-09-04, at the user's
+    # explicit direction), not stacked with the entry-side adjustment above: a shallow
+    # touch already paid via its own repriced (worse) entry -- realistic_entry is
+    # spread_price away from mid, which is exactly what shows up here as a wider
+    # effective_risk and (for wins) a smaller numerator. Also charging cost_in_r on top
+    # would double-count the same underlying friction as two separate spread-widths
+    # (confirmed as 3.2 pips of total damage on a 10-pip stop, not the intended 1.6) --
+    # so only a DEEP touch, which got a genuinely free entry, still owes this cost by
+    # itself.
+    cost_in_r = np.where(shallow_touch, 0.0, spread_price / effective_risk)
     net_r = r_gross - cost_in_r
     # Old model kept alongside for direct comparison (assumed a free, always-at-mid fill,
     # spread charged only on stop-outs).
