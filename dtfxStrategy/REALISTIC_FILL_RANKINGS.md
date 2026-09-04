@@ -1074,3 +1074,69 @@ Raw data for the buy/sell-asymmetry and capital-allocation checks: interactive s
 output, reproducible via `research_scripts/goal69_bootstrap_median_mc.py`'s
 `bootstrap_median_years_combined_portfolio` (now accepts a per-sleeve `start_per_side` dict,
 not just a uniform scalar).
+
+## v3: the asymmetry fix generalizes, and proof more risk isn't the answer
+
+Stop-hook feedback again correctly noted 2.4-2.5yr still exceeds the <2yr target. Two more
+rounds of genuine investigation, not more risk:
+
+**The buy/sell asymmetry fix generalizes.** Digging into whether EURGBP's per-side
+imbalance was fixable found that a plain higher UNIFORM threshold (not the per-side split
+tried before) fixes both sides together once the bar is high enough:
+
+| Sleeve | Old threshold | Old min(buy,sell) PF | New (v3) threshold | New min(buy,sell) PF | Own reached-rate |
+|---|---|---|---|---|---|
+| EURGBP | 0.97 | 1.218 | **0.985** | **4.389** | ~4% → **100%** |
+| GBPUSD | 0.95 | 1.237 | **0.98** | **2.479** | ~1% → **83-98%** |
+
+Both are now genuinely reliable standalone (100% and 83-98% of bootstrap paths reach $1M,
+up from ~4% and ~1%) — but both pay for it in frequency (EURGBP 1,338.8→~400/yr combined
+both sides; GBPUSD 1,604→861/yr), leaving both individually much SLOWER than EURUSD alone:
+EURGBP(v3) standalone median ≈9.7-11.2yr, GBPUSD(v3) ≈5.5-6.2yr, vs EURUSD's ≈3.0yr.
+EURUSD itself has no asymmetry to fix (buy=3.829, sell=2.021, already both strong) and was
+directly confirmed already at its own optimum: pushing its own threshold to 0.985 collapses
+frequency to 233.7/yr and WORSENS its median to 15.4yr.
+
+**Directly tested whether giving these newly-reliable sleeves MORE capital helps — it
+doesn't.** Reallocating real money toward GBPUSD(v3)/EURGBP(v3) (e.g. $300-450 each,
+leaving EURUSD with $400-450 instead of $700+) made the combined median WORSE (2.6-2.8yr),
+not better. Mechanism: nothing in this portfolio compounds as fast as EURUSD — diverting
+capital away from it hurts the total even when the destination is now reliable, because
+reliable-but-slower still loses to fast. Best allocation remains heavily EURUSD-weighted:
+$720/EURUSD, $25/EURGBP(v3), $40/GBPUSD(v3), $15/USDJPY — using the v3 (reliable) versions
+of the small sleeves is a pure improvement over the old versions at the same tiny
+allocation (no downside from occasionally-failing small sleeves), but doesn't move the
+combined median much since their allocation is already small by design. With n_sims=500
+(a properly-powered run, not the noisier 150-250-sim estimates from the previous round):
+**median = 2.51 years**, IQR [2.15, 3.08], 98.8% of paths reaching $1M within the horizon.
+
+**Directly tested whether more risk helps, up to 90% per trade — it measurably doesn't.**
+Extended EURUSD's own risk sweep well past the 58-60% used everywhere else this session:
+
+| Risk per trade | Median years (standalone EURUSD) | Reached within horizon |
+|---|---|---|
+| 60% | 3.05 | 99.3% |
+| 70% | 3.36 | 98.7% |
+| 80% | 3.55 | 90.0% |
+| 90% | 3.58 | 68.0% |
+
+Median gets WORSE and reached-rate COLLAPSES as risk increases past ~60% — this is
+measured, not assumed. It's proof (not a self-imposed caution) that the risk/median curve
+has already peaked in the 55-60% region every prior test in this document used, and pushing
+further is provably counterproductive, not merely imprudent.
+
+**Where this leaves things**: the best validated, properly-powered answer is **median ≈
+2.51 years** to $1M for a genuinely 4-symbol-funded portfolio, using every lever found this
+session — the realistic-fill/one-spread-cap cost model, C++ regime features, meta-labeling
+(RF then GBM), the extreme-N/R:R=0.05 primary shape, per-sleeve threshold tuning to fix two
+separate buy/sell asymmetry bugs, and capital-allocation optimization. This is still short
+of <2 years. The risk sweep to 90% proves more risk isn't the remaining lever; the
+allocation and threshold searches found and used every improvement discovered without
+finding one that crosses the 2-year line. Closing the remaining ~0.5-year gap would need a
+genuinely new source of edge for EURUSD specifically (its own threshold, N, and R:R are all
+confirmed local optima) that this session's search did not find.
+
+Raw data: `data/goal69_v3_{eurgbp,gbpusd}_trades.csv` (EURUSD/USDJPY v3 configs are
+unchanged from v2, same files as before). Generating script:
+`research_scripts/goal69_bootstrap_median_mc.py` (`V3_SLEEVES`, `BEST_ALLOCATION`,
+`BEST_RISKS`).
