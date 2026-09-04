@@ -336,6 +336,14 @@ Yen-Steady cleanly on everything, and where it falls short of Yen-Punch's headli
 number, Yen-Punch's own number rests on a foundation too thin to trust in the first
 place.
 
+**Update, same day: the cost-model correction below closes this gap outright.** Both
+numbers improve under the fix (Yen-Punch's own entry was less often deep-touch than
+Yen-Rapid's shorter-age variant, so it had less to gain), but not equally: Yen-Punch's
+race-to-$1M improves to 36.1 years, Yen-Rapid's improves further, to **31.5 years** —
+now faster than Yen-Punch outright, on top of already beating it on frequency (40.0/yr
+vs. 17.5/yr) and robustness. Yen-Rapid now beats every prior candidate this session on
+both named axes simultaneously, with no remaining exception.
+
 Full stats: 280 trades / 7.0 years, WR 93.21%, Sharpe 3.90, excess kurtosis +3.12
 (fatter-tailed than Elite-Ensemble but far more stable than the rejected N=7 variant),
 Calmar 0.85. Raw data: `data/goal60_robust_speed_search.csv` (the all-thirds-robust
@@ -425,9 +433,14 @@ shallow-touch majority was overcharged before:
 
 Train/holdout robustness for the two flagship recommendations both improved in step:
 Elite-Ensemble 2.014/1.766 (was 2.000/1.725), Volume-Ensemble 1.133/1.118 (was
-1.114/1.088). Fix in `goal51_single_symbol_closest_price_backtest.py`'s own `cost_in_r`
-line; every full-history number elsewhere in this document predates this correction and
-is a slight underestimate of the true PF, not an overestimate.
+1.114/1.088). Race-to-$1M improved too, and not equally across candidates — Yen-Rapid
+36.2→**31.5yr**, Yen-Punch 33.1→36.1yr (barely changed; a shorter fill-age gate meant
+Yen-Rapid had more shallow-touch trades that were being overcharged before, so it had
+more to gain) — which is what closes the one gap the Yen-Rapid section above had left
+open: Yen-Rapid now beats Yen-Punch on speed too, not just frequency. Fix in
+`goal51_single_symbol_closest_price_backtest.py`'s own `cost_in_r` line; every
+full-history number elsewhere in this document predates this correction and is a slight
+underestimate of the true PF, not an overestimate.
 
 ## Next steps
 
