@@ -1313,3 +1313,35 @@ strategy is comparable to gold's, not stronger, and neither beats EURUSD.
 This closes the cross-asset investigation with a fully validated (not partially-explored)
 negative result on both alternatives tried. **Median ≈ 2.51 years remains the final
 answer.**
+
+## The last three untouched DTFX parameters
+
+Three knobs this whole session's meta-labeling era had held fixed without ever actually
+testing alternatives, closing out the parameter space completely:
+
+- **`age_h` (MIN_FILL_AGE)**: swept {0.02, 0.03, 0.08, 0.10} against the fixed 0.05 used
+  everywhere else. age=0.02/0.03 (identical results — the gate isn't binding differently
+  between them) looked BETTER on static metrics (freq=1,119/yr, min-side PF=2.168, both
+  above the 0.05 config's 1,054.5/yr and 2.021) — but its own standalone bootstrap median
+  is 3.69-4.03yr, WORSE than 0.05's 3.03yr. Another case (like the hyperparameter-tuning
+  round) of static metrics pointing the wrong way; the bootstrap MC is what actually
+  matters and it disagrees. age=0.08/0.10 both give lower frequency with no PF
+  compensation — also worse.
+- **`bounce` (require-bounce re-arm gating)**: never tested True this whole meta-labeling
+  era (every prior candidate used unconditional re-arm). At its own best threshold
+  (0.98): min-side PF=2.873 (higher than 0.05/bounce=False's 2.021!) but frequency
+  collapses to 275.3/yr. Standalone bootstrap median: 10.66yr at 100% reached — far worse.
+  Bounce-gating trades away far too much frequency for the quality it buys back.
+- **`touches` (MAX_ZONE_TOUCHES cap)**: swept {10, 30, 40} against the default 20 — no
+  meaningful effect either way (1,072.7-1,075.4/yr across all three, versus 20's own
+  1,054.5/yr) — this parameter simply isn't binding at any of these levels for EURUSD's
+  own touch population.
+
+**This closes the entire DTFX + meta-labeling parameter space.** Every tunable knob in the
+pipeline — N, R:R, `age_h`, `bounce`, `MIN_RETRACEMENT`, `touches`, the meta-model
+algorithm (5 tried), its hyperparameters, its decision threshold, capital allocation
+across sleeves, risk per trade (swept to 90%), and the instrument/asset class itself (gold
+and crypto, both fully validated) — has now been tested against EURUSD N=40/R:R=0.05/
+age=0.05/bounce=False/GBM-threshold=0.98, and nothing beats it. **Median ≈ 2.51 years is
+this document's final answer** for a strategy it is prepared to call legit, valid, and
+robust under every restriction this session has established.
