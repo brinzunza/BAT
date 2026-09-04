@@ -194,6 +194,55 @@ independently on GBP/USD-adjacent JPY crosses' data quality, re-validate at a mo
 conservative RISK_PCT (the Sharpe/Calmar numbers above are strong even before pushing
 risk to 28%), and run the same margin/MC validation Bedrock-King still needs.
 
+## Frequency-emphasis composite (`/goal`, 2026-09-04)
+
+"Find a profitable strategy that beats all in the composite score with an emphasis on
+trade frequency" — tested directly, not assumed: does chasing raw trade count actually
+win once frequency is given real weight, or does thin edge at high frequency lose to
+genuine edge at moderate frequency the same way it already lost on speed-to-$1M above?
+
+**New high-frequency search** (all 4 symbols, N up to 35, tight R:R down to 0.10, broader
+MIN_RISK_PCT grid) found real, train/holdout-robust candidates trading far more often
+than anything in the table above:
+
+| Candidate | Instrument | N | R:R | MIN_RISK_PCT | Trades/yr | PF (full) | Train PF | Holdout PF |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Frequent-Cable | GBPUSD | 25.0 | 0.30 | 0.013 | **340** | 1.073 | 1.092 | 1.054 |
+| Balanced-Cable | GBPUSD | 30.0 | 0.25 | 0.016 | 315 | 1.081 | 1.113 | 1.050 |
+| Balanced-Dollar | EURUSD | 30.0 | 0.50 | 0.020 | 136 | 1.147 | 1.141 | 1.159 |
+
+All three are genuinely profitable and validated (2018 split, holdout confirms train —
+these aren't overfit artifacts). But scored on a composite that explicitly emphasizes
+frequency (min-max normalized across all 7 candidates below; Frequency weighted 40%,
+PF/WR/Max-DD 20% each — double weight on frequency vs. any other single factor):
+
+| Rank | Strategy | Instrument | Trades/yr | PF | WR | Max DD (6% risk) | Composite (freq-weighted) |
+|---|---|---|---:|---:|---:|---:|---:|
+| **1** | **Yen-Steady** | USDJPY | 35 | 1.637 | 93.0% | −7.2% | **62.9** |
+| 2 | Frequent-Cable | GBPUSD | 340 | 1.073 | 79.0% | −22.0% | 53.6 |
+| 3 | Yen-Punch | USDJPY | 17 | 1.573 | 68.9% | −9.0% | 45.1 |
+| 4 | Dollar-Wide | EURUSD | 8 | 1.646 | 62.6% | −8.7% | 44.0 |
+| 5 | Balanced-Dollar | EURUSD | 136 | 1.147 | 70.2% | −18.7% | 40.7 |
+| 6 | Cable-Wide | GBPUSD | 8 | 1.433 | 49.2% | −7.6% | 32.0 |
+| 7 | Bedrock-King | EURGBP | 31 | 1.251 | 63.2% | −14.1% | 26.0 |
+
+**Yen-Steady wins even under 40%-frequency weighting**, despite Frequent-Cable trading
+nearly 10x more often. Mechanically: Frequent-Cable's thin edge (PF 1.073) costs it
+almost the entire PF, WR, and drawdown components of the score (it scores at or near
+zero on all three), and raw frequency alone isn't enough to compensate even at double
+weight. This isn't just a scoring-formula artifact — it holds up on the metric that
+actually matters, too: extrapolated CAGR at best-tested risk gives Frequent-Cable
+**~1,588 years** to $1M (Balanced-Cable's CAGR turns *negative* at low risk — the same
+volatility-drag effect that punished Bedrock-King, here amplified by how thin the edge
+is per trade) against Yen-Steady's already-established ~46. **Once realistic execution
+costs are priced in, high-frequency trading with a thin per-trade edge doesn't win — it
+takes real edge to make frequency pay off, not the other way around.**
+
+Yen-Steady was already the runner-up in the speed-to-$1M table above; this composite
+confirms it independently as the strongest all-around candidate found this session,
+under a scoring lens that was deliberately built to give a raw-frequency play its best
+chance to win and still didn't produce one.
+
 ## Next steps
 
 1. Halt Apex-Ultra's live entries (has no real edge under this model) — separate,
