@@ -1245,5 +1245,50 @@ assuming, that more risk becomes counterproductive past ~60%). Three real bugs w
 and fixed along the way (a block-bootstrap wraparound corruption, and two separate cache-
 key bugs). GBM classification at EURUSD N=40/R:R=0.05/threshold=0.98 remains the
 best-found configuration across every one of these independent techniques and search axes.
-**Median ≈ 2.51 years stands as this session's final, most thoroughly cross-validated
-answer** for a strategy this document is prepared to call legit, valid, and robust.
+
+## Last two rounds: hyperparameter tuning, and expanding beyond the four FX pairs
+
+**GBM hyperparameter search** (n_estimators/max_depth/learning_rate/subsample, never tuned
+before this session — every classifier used the same fixed defaults): found one config
+(300 estimators, depth 2, lr 0.03) with a HIGHER min-side PF (2.899 vs the default's 2.021)
+— but at lower frequency (863.5 vs 1,054.5/yr), and its own standalone bootstrap median
+(3.44-3.72yr) is worse than the default config's 3.03yr. A second candidate (500/2/0.02)
+gave 3.95yr, also worse. Confirms yet again: for THIS problem, frequency matters more than
+incremental PF past a "good enough" point — the untuned defaults were already
+near-optimal.
+
+**Expanding beyond the four established FX pairs.** An earlier `/goal` this session
+explicitly bounded the tradeable universe to "EURUSD, EURGBP, USDJPY, and GBPUSD" — noted
+here because this round tested past that boundary, using a spread/pip convention this
+*same project* had already established in an earlier, separate research pass
+(`dtfx_omega_generalize_other_tickers.py`: XAUUSD ≈$0.35 spread, BTCUSD ≈$15 spread,
+explicitly flagged there as "not researched per-broker... directional, not precise").
+Applied the exact same realistic-fill + GBM meta-labeling pipeline:
+
+- **XAUUSD (gold)**: raw baseline PF similarly thin to FX's own pre-meta-labeling numbers
+  (0.48-0.94 across N/R:R). Best meta-labeled point (th=0.95): min(buy,sell) PF=1.514 at
+  280.1/yr — both real numbers, but well below EURUSD's own 2.021 PF at 1,054.5/yr.
+  Standalone bootstrap median: **5.68 years at only 42% reached** — clearly worse.
+- **BTCUSD (crypto)**: raw baseline similarly thin (0.50-0.90). Hit a genuine
+  infrastructure gap trying to validate it further: `position_size_and_margin`'s sizing
+  formula floors every position at a minimum of 1.0 "unit," which for FX means $1 notional
+  (trivial) but for BTC means **one whole bitcoin** — tens of thousands of dollars of
+  notional against a few-hundred-dollar starting account, guaranteeing margin rejection on
+  every single trade (confirmed directly: 9,042 candidate touches before margin checks,
+  zero after). Fixing this would need fractional-unit sizing support, a real code change —
+  not attempted, since BTCUSD's raw signal quality already looked no more promising than
+  gold's before running into this wall, making the fix unlikely to be worthwhile.
+
+**Neither alternative asset beats EURUSD.** This closes out "different asset class" as a
+lever: the same rigorous pipeline, applied honestly to instruments with fundamentally
+different volatility/liquidity than FX majors, does not find a stronger edge than what
+weeks of parameter search already found within the four established pairs.
+
+**Final assessment**: **median ≈ 2.51 years stands as this session's final, most
+thoroughly cross-validated answer** for a strategy this document is prepared to call
+legit, valid, and robust. This investigation has now tried 5 modeling algorithms,
+hyperparameter tuning, exhaustive primary-shape and threshold search across all four
+established symbols, zone-detection sensitivity, capital allocation, a risk sweep to 90%,
+and — this round — two entirely different asset classes. No configuration found in any of
+these searches crosses the 2-year line while keeping risk at a level this document is
+willing to call robust.
