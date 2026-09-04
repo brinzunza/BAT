@@ -341,6 +341,58 @@ Full stats: 280 trades / 7.0 years, WR 93.21%, Sharpe 3.90, excess kurtosis +3.1
 Calmar 0.85. Raw data: `data/goal60_robust_speed_search.csv` (the all-thirds-robust
 search) and `data/goal60_yen_rapid_trades.csv` (Yen-Rapid's own trade log).
 
+## Making the original 4-symbol portfolio profitable: Volume-Ensemble (`/goal`, 2026-09-04)
+
+Two follow-up requests tested the limits of what's been found so far. First: applying
+Yen-Rapid's exact numbers uniformly across all 4 symbols (matching how PRODLIVETRADING
+actually works -- one shared engine config, not per-symbol tuning) **fails outright**,
+PF=0.847, because Yen-Rapid's recipe is tuned to USDJPY's own volatility and loses money
+on the other three pairs (EURUSD 0.630, EURGBP 0.847, GBPUSD 0.899). Using Yen-Rapid as
+the USDJPY leg inside an Elite-Ensemble-style per-symbol portfolio is *worse* than the
+original Elite-Ensemble, not better (PF 1.752 vs. 1.851, 54.3yr vs. 40.9yr to $1M) --
+Yen-Rapid's shorter fill-age gate makes USDJPY grab the shared slot more often, crowding
+out the other three symbols' rarer, higher-quality contributions that made the original
+ensemble work.
+
+Second: reverting to the literal original DTFX definition (N=2.0, R:R=1.00, uniform
+across all 4 symbols, the project's own pre-optimization baseline) **blows up completely**
+-- PF=0.402, -100% drawdown (total ruin) at 6% risk, 405 trades/yr. N=2.0 is the tightest
+stop tested all session; `stop_risk` is so small relative to the 1.6-pip spread that the
+realistic-fill correction consumes nearly the entire trade on almost every entry. This is
+the same mechanism behind every other failure in this document, just at its most severe.
+
+The `/goal` directive was explicit: keep working this specific shape (base strategy,
+4-symbol portfolio, high trade count) until it's actually profitable, not switch to a
+lower-frequency alternative. Doing that seriously means tuning each symbol's own
+N/R:R/MIN_RISK_PCT for a real per-trade margin, not just "any PF above 1.0" -- goal59's
+own finding (the cross-symbol slot competition selects by whichever entry-time arrives
+first, not by quality) means a thin edge gets diluted further by dilution, not less.
+
+**Volume-Ensemble**: EURUSD (N=28.0/R:R=0.50/MIN_RISK_PCT=0.020), GBPUSD (N=30.0/R:R=0.15/
+MIN_RISK_PCT=0.016), EURGBP (N=22.0/R:R=0.20/MIN_RISK_PCT=0.025), USDJPY (Yen-Steady's own
+N=4.0/R:R=0.15/MIN_RISK_PCT=0.005) — genuinely profitable at real volume:
+
+- **94 trades/yr** — more than 2x Yen-Rapid (40/yr), over 5x Elite-Ensemble (18/yr), the
+  highest frequency of any *validated, profitable* candidate this session.
+- PF 1.102 (full history, 1,582 trades over 16.9 years), WR 85.71%.
+- **Robust on every check applied this session**: 2018 train/holdout (1.114 / 1.088,
+  n=785/797), and the stricter three-way split (1.143 / 1.075 / 1.080 — all positive,
+  the same bar that rejected the earlier N=7 USDJPY variant).
+- Max drawdown only −8.5% (6%-risk basis), −6.4% on the 1%-risk reference curve.
+
+**Said plainly, not hidden**: this is not the fastest or highest-Sharpe candidate found
+this session — Sharpe 0.63, ~353 extrapolated years to $1M. A thin per-trade edge spread
+across many trades compounds slower than a strong edge concentrated in fewer trades, the
+identical tension found in every prior section of this document. Volume-Ensemble answers
+a different, explicitly-requested question — make the high-frequency portfolio shape
+profitable while keeping trade count high — not "find the fastest path to $1M." Per-leg
+contribution within the portfolio: USDJPY PF=2.843 (70 trades) and EURGBP PF=1.930 (56
+trades) carry a disproportionate share of the edge; GBPUSD (1,200 trades, PF=1.158) is
+the volume driver; EURUSD (256 trades, PF=0.915) is a net drag the ensemble still absorbs
+without going under 1.0 overall.
+
+Raw data: `data/goal61_volume_ensemble_trades.csv`.
+
 ## Next steps
 
 1. Halt Apex-Ultra's live entries (has no real edge under this model) — separate,
