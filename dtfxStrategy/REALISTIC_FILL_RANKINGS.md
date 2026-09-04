@@ -828,3 +828,83 @@ figure is real but leans on EURUSD's own $200→$23,122 growth at a 50% per-trad
 
 Raw data: `data/goal65_metalabeled_federated_{eurgbp,eurusd,gbpusd,usdjpy}_trades.csv`.
 Generating script: `research_scripts/goal65_metalabeled_federated_portfolio.py`.
+
+## Four more ideas tested (`/goal`, 2026-09-04): one real improvement, three honest negatives
+
+`/goal`: "keep researching, developing, and inventing around the factors of dtfx to find a
+better strategy." Four follow-up ideas, tested against the meta-labeled Federated Portfolio:
+
+**1. Rescue USDJPY's weak sleeve (PF=1.031) — negative.** Swept N=4-15 at R:R=0.05-0.30
+(the same extreme low-R:R shape that worked so well for EURGBP/EURUSD): every baseline is
+badly unprofitable on raw touches (PF as low as 0.008), and meta-labeling never lifts any of
+them past the plain N=8/R:R=0.30 sleeve's own 1.031. USDJPY's zone geometry at these
+configs just doesn't carry enough edge relative to the fixed spread cost for a quality
+filter to rescue — kept ungated, an honest limit rather than a forced fix.
+
+**2. Triangulation mispricing — a new invented factor, negative as tested.** EUR/GBP =
+(EUR/USD)/(GBP/USD) by construction (triangular arbitrage) — a classic FX microstructure
+identity never used anywhere in this project before. Built as a rolling z-scored deviation
+between EURGBP's actual price and what EURUSD/GBPUSD jointly imply. Shows a mild, genuine
+standalone pattern (win rate ranges 76-85% across deciles, U-shaped — extreme mispricing in
+*either* direction correlates with slightly higher win rate) but adding it to the meta-model
+changes nothing measurable (EURGBP true-accepted PF 2.286 → 2.348, within noise; the
+classifier ranks it 9th of 15 features once impulse_velocity/zone_height_pips are already
+in the model). Kept as a documented negative rather than silently dropped.
+
+**3. Confidence-scaled position sizing — negative, but instructive.** Meta-labeling's own
+literature treats meta_prob as usable for BOTH filtering and bet-sizing, not filtering
+alone — tried sizing each accepted trade's risk_pct in proportion to its own confidence
+instead of one fixed risk_pct for the whole stream. Found the binary filter had already
+done all the useful work: among EURGBP's meta≥0.85 accepted trades, RandomForest's own
+probability output only spans [0.850, 0.915] (std=0.011) — essentially no resolution left
+to size against. Best scaled result was 0.04 years faster than fixed-optimal risk, i.e.
+noise. Motivated finding #4 below.
+
+**4. GradientBoostingClassifier instead of RandomForestClassifier — real improvement,
+walk-forward validated.** Finding #3's own diagnosis (RF's probabilities are coarse/
+clustered) suggested the meta-model itself, not just how its output gets used, was leaving
+value on the table. Swapping in `sklearn.GradientBoostingClassifier` (same features, same
+train/test protocol) gives materially smoother, better-calibrated probabilities and — at a
+correspondingly higher threshold — a genuinely better operating point on 2 of 3 gated
+sleeves:
+
+| Sleeve | RF (goal64/65) | GBM (goal68) | Change |
+|---|---|---|---|
+| EURGBP | 1,331.7/yr, WR 98.9%, PF 2.286 | 1,338.8/yr, WR 99.0%, PF **2.573** | same frequency, better PF |
+| EURUSD | 279.5/yr, WR 98.9%, PF 2.609 | **1,054.5/yr**, WR 98.9%, PF 2.602 | **~4x frequency**, same PF |
+| GBPUSD | 344.3/yr, WR 87.5%, PF 1.477 | 236.0/yr, WR 88.1%, PF 1.578 | lower freq, better PF (RF's own 344.3/yr version is still available if frequency matters more here) |
+
+EURUSD's jump is the standout: RF's coarse probability grid was forcing an artificial
+cliff between adjacent thresholds, discarding a huge number of genuinely good trades along
+with the bad ones; GBM's smoother output finds a threshold that keeps far more of the good
+trades at essentially the same win rate and PF. Confirmed via the same 5-fold walk-forward
+protocol as goal64 on both EURGBP and EURUSD — PF stays comfortably above 1.0 in every
+window for both, including the same early, badly-unprofitable-at-baseline windows that
+validated the original RF result.
+
+**Rebuilt Federated Portfolio (GBM sleeves for EURGBP/EURUSD/GBPUSD, USDJPY still ungated
+per finding #1)**: combined 1,848.5 trades/yr, 96.7% pooled win rate, PF=1.569 (up from the
+RF version's 1.434). Years-to-$1M reported across a risk-cap spectrum, not just the single
+CAGR-maximizing number, because the unconstrained optimum pushes EURUSD's own sleeve to
+**58% risk per trade** — the most aggressive level found anywhere this session:
+
+| Risk cap | Combined final ($200×4 start) | CAGR | Years to $1M |
+|---|---|---|---|
+| ≤10% | $12,781 | 37.8% | 22.2 |
+| ≤20% | $238,109 | 93.4% | 10.8 |
+| ≤30% | $1,122,971 | 131.4% | 8.5 |
+| unrestricted (58% on EURUSD) | $6,509,733 | 183.6% | **6.84** |
+
+At every risk level, EURUSD's own sleeve dominates the portfolio's total dollar growth by
+a wide margin (e.g. $6.49M of the unrestricted total's $6.51M) — its 98.9% win rate and 2.6
+PF at over 1,000 trades/year compound far faster than the other three sleeves combined.
+USDJPY's own drawdown stays severe (-47% to -52%) across every risk level tested, an honest
+reminder that its sleeve is barely profitable (PF=1.031) regardless of position sizing — but
+since these are four genuinely independent sub-account pairs (goal63's architecture), that
+drawdown never touches the other three sleeves' capital.
+
+Raw data: `data/goal68_gbm_federated_{eurgbp,eurusd,gbpusd,usdjpy}_trades.csv`. Generating
+scripts: `research_scripts/goal66_triangulation_meta_labeling.py` (negative result #2),
+`research_scripts/goal67_confidence_scaled_sizing.py` (negative result #3),
+`research_scripts/goal68_gbm_federated_portfolio.py` (positive result #4 and the rebuilt
+portfolio).
