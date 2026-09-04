@@ -51,7 +51,15 @@ rs, pg = g29.rs, g29.pg
 dtfx_engine = rs.dtfx_engine
 
 
-def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy):
+def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy,
+                                 fill_depth_pips=None, min_risk_pct=None):
+    """fill_depth_pips: how many pips beyond mid the entry bar's low/high must reach to
+    count as a genuine passive limit fill (default: pg.SPREAD_PIPS_TYPICAL, the full
+    spread -- the user's own specified, deliberately conservative threshold). The
+    textbook-derived depth for "the ask/bid genuinely crossed the limit" is HALF the
+    spread (mid = (bid+ask)/2, so ask = mid + spread/2), computable here by passing
+    pg.SPREAD_PIPS_TYPICAL/2 -- kept as an explicit parameter, not hardcoded, specifically
+    so both can be compared side by side rather than silently picking one."""
     """Like goal29.build_trades_with_side, scoped to one instrument/side, but also keeps
     touch_num and created_at -- both dropped by the original, both needed to derive
     dispatch times below."""
@@ -62,7 +70,7 @@ def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy
 
     target_mult = n * rr
     risk_pct = (n * (z["top"] - z["bottom"]) / 2.0) / z["mid"]
-    risk_ok = risk_pct >= pg.MIN_RISK_PCT
+    risk_ok = risk_pct >= (pg.MIN_RISK_PCT if min_risk_pct is None else min_risk_pct)
     mask = risk_ok & (z["is_buy"] == side_is_buy)
     top, bottom, mid = z["top"][mask], z["bottom"][mask], z["mid"][mask]
     is_buy_arr, start_idx, c_ns = z["is_buy"][mask], z["start_idx"][mask], created_ns[mask]
@@ -82,9 +90,54 @@ def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy
 
     pip = pg.PIP_SIZE[inst]
     spread_price = pg.SPREAD_PIPS_TYPICAL * pip
-    r_gross = np.where(is_win, rr, -1.0)
-    cost_in_r = np.where(is_win, 0.0, spread_price / stop_risk)
+
+    # Realistic fill model (added after a live EUR/GBP order sat resting well past when
+    # the backtest would have called it filled): a resting BUY limit only actually fills
+    # once the ASK reaches its price, a SELL limit only once the BID does -- not the MID
+    # this project's 1-minute OHLC data is built from. Treating "the bar's low/high
+    # reached mid" as a clean, free fill silently assumes a mid-priced execution that a
+    # real bid/ask spread never actually offers. For each touch, check the entry bar's own
+    # low/high against a full SPREAD_PIPS_TYPICAL beyond mid (the fully-conservative
+    # threshold, not just half the spread) in the direction price would need to travel to
+    # guarantee the ask/bid actually crossed the limit:
+    #   - reached: a genuine limit fill really did happen, exactly at mid, same as before.
+    #   - fell short (touched mid but not the full spread beyond it): still a real touch --
+    #     discarding it would just as unrealistically UNDER-count trade frequency as
+    #     assuming a free fill OVER-counts quality -- so it's kept, but priced as what a
+    #     bot that insisted on getting the trade would have had to do: cross the spread via
+    #     a market order, SPREAD_PIPS_TYPICAL worse than mid in the adverse direction.
+    # Stop/target stay anchored to mid (the zone's own geometry, unaffected by how the
+    # entry itself got filled) -- a worse entry then mechanically costs on BOTH sides: less
+    # distance to target (smaller win) and more distance to stop (a stop-out is still
+    # exactly -1 of ITS OWN, now-larger, R by definition -- see effective_risk below), which
+    # is exactly the honest, symmetric cost a bad fill should carry. Win/loss itself is NOT
+    # re-simulated from the shifted entry (would need tick data this project doesn't have);
+    # only the entry price -- and the R-multiple that follows from it -- is corrected.
+    depth_price = (pg.SPREAD_PIPS_TYPICAL if fill_depth_pips is None else fill_depth_pips) * pip
+    entry_low, entry_high = lows[entry_idx], highs[entry_idx]
+    mid_r = np.round(entry_mid, 8)
+    deep_enough = np.where(side_is_buy, entry_low <= mid_r - depth_price,
+                                        entry_high >= mid_r + depth_price)
+    shallow_touch = ~deep_enough
+    realistic_entry = np.where(deep_enough, mid_r,
+                                mid_r + spread_price if side_is_buy else mid_r - spread_price)
+    stop_price = mid_r - stop_risk if side_is_buy else mid_r + stop_risk
+    target_price = mid_r + stop_risk * rr if side_is_buy else mid_r - stop_risk * rr
+    effective_risk = np.abs(realistic_entry - stop_price)
+    win_gross_r = ((target_price - realistic_entry) / effective_risk if side_is_buy
+                   else (realistic_entry - target_price) / effective_risk)
+
+    r_gross = np.where(is_win, win_gross_r, -1.0)
+    # Every trade pays the spread now, not just stop-outs (2026-09-04, at the user's
+    # explicit direction) -- the "passive-fill target" assumption that used to excuse wins
+    # from this cost was always paired with "and entry is free too"; now that entry isn't
+    # assumed free, a win's own exit shouldn't get a free pass either. Conservative by
+    # design, not mechanistically derived from a specific execution model.
+    cost_in_r = spread_price / effective_risk
     net_r = r_gross - cost_in_r
+    # Old model kept alongside for direct comparison (assumed a free, always-at-mid fill,
+    # spread charged only on stop-outs).
+    net_r_free_fill = np.where(is_win, rr, -1.0) - np.where(is_win, 0.0, spread_price / stop_risk)
 
     # simulate_generic_ex has no zone-index output (per goal29's own docstring), so a
     # touch can't be traced back to its zone by output position. mid and created_at ARE
@@ -116,8 +169,17 @@ def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy
         "created_at": pd.to_datetime(created_at_col),
         "entry_time": pd.to_datetime(times[entry_idx]),
         "exit_time": pd.to_datetime(times[exit_idx]),
-        "entry_price": np.round(entry_mid, 8), "stop_risk": stop_risk,
-        "net_r": net_r, "is_win": is_win,
+        # entry_price stays the zone's own mid, not the realistic fill price -- it's used
+        # as the zone-identity key by resolve_closest_price's re-arm grouping below (see
+        # its own docstring), and as the sizing/margin reference elsewhere; a per-touch
+        # fill-price wobble of ~1 spread would break that grouping for no real benefit,
+        # since margin/sizing math is insensitive to a difference this small anyway. Only
+        # net_r -- the number that actually drives WR/PF/Sharpe/ranking -- reflects the
+        # realistic-fill correction; net_r_free_fill and shallow_touch are kept alongside
+        # for direct before/after comparison.
+        "entry_price": mid_r, "stop_risk": stop_risk,
+        "net_r": net_r, "net_r_free_fill": net_r_free_fill,
+        "shallow_touch": shallow_touch, "is_win": is_win,
     })
 
 
