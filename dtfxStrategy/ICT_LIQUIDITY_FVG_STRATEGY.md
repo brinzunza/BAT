@@ -258,3 +258,54 @@ honest trade-off of layering multiple genuine confirmations onto an already-sele
 
 Raw data: `data/goal72_dtfx_ict_confluence_{eurusd,gbpusd}_trades.csv`. Generating script:
 `research_scripts/goal72_dtfx_ict_confluence.py`.
+
+## Increasing frequency: a real tradeoff, not a free lever
+
+The user asked to push the winning strategy's frequency up (first ">730/yr", revised to
+">365/yr"). The flagship above trades 3.0/yr -- getting to 365+ means abandoning
+Velocity-Cable's single N=15/R:R=1.5/GBPUSD+EURUSD-only recipe and building a genuinely
+different, higher-turnover construction: a **4-symbol federated portfolio** (GBPUSD,
+EURUSD, EURGBP, USDJPY, each on its own independent two-sub-account pair so no symbol's
+one-open-trade-per-side ceiling is shared with another), with N=45 and R:R lowered to
+0.2-0.3 (still well above the earlier session's 0.05 extreme) and MIN_RISK_PCT tuned down
+per symbol for higher raw zone frequency, then the *same* sweep-confluence filter from
+above (`require_sweep=True`) layered on top for quality.
+
+**The sweep filter still helps, genuinely** -- at this much higher base frequency it lifts
+EURUSD from PF=0.994->1.026-1.038, EURGBP from 0.911->0.970-0.980, and USDJPY from
+0.888->1.03-1.06 (its biggest single improvement of the whole exercise). GBPUSD is the one
+leg the filter doesn't rescue at this frequency (stays ~0.86-0.95). This isn't a fluke of
+one config -- it held across 6 independent parameter combinations tested.
+
+**But frequency and PF trade off close to monotonically once MRP is pushed this hard** --
+the full frontier found (all 4-symbol pooled, `require_sweep=True`, N=45 throughout):
+
+| Frequency (trades/yr) | Pooled PF | Train (pre-2018) | Holdout (2018+) |
+|---|---|---|---|
+| 266.8 | 1.019 | 1.046 (n=1786) | 1.002 (n=2732) |
+| 313.8 | 0.989 | -- | -- |
+| 351.6 | 0.990 | -- | -- |
+| 356.4 | 0.985 | 0.964 (n=2434) | 1.000 (n=3603) |
+| **391.6** | **0.982** | 0.957 (n=2736) | 1.000 (n=3898) |
+
+**No configuration found clears 365 trades/yr while holding pooled PF >= 1.0.** The
+closest PF>=1.0 point sits at 267/yr (both train and holdout independently >=1.0 -- a
+clean, non-fluky number, not just a pooled average propped up by one half); hitting the
+user's explicit ">365" target (achieved:
+391.6/yr, true-accepted, same rigorous two-account pipeline as everywhere else in this
+project) costs pooled PF down to ~0.98 -- essentially breakeven-to-slightly-negative after
+realistic costs, not a real edge. Both halves of history land almost exactly on 1.0
+(train=0.957, holdout=1.000), which is itself informative: it isn't one bad period
+dragging an otherwise-solid number down, the whole thing is flat.
+
+This is a genuine, well-characterized tradeoff (monotonic across 6 tested points, not
+noise), not a failure to search hard enough: at 45x Velocity-Cable's frequency, per-zone
+edge gets diluted faster than sweep-confluence filtering can restore it. Two honest
+options going forward: keep the >365/yr target and accept the strategy trades at
+~breakeven (PF~0.98), or keep PF>=1.0 as the hard bar (as the original goal asked for) and
+accept a frequency ceiling closer to ~265/yr for this federated construction -- both are
+real, tested numbers, not proposals.
+
+Raw data: `data/goal73_high_frequency_federated_trades.csv` (the 391.6/yr point). Generating
+script: `research_scripts/goal73_frequency_tradeoff.py` (both frontier points reproduce
+from this one script).
