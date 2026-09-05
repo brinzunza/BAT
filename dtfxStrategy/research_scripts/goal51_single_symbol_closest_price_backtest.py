@@ -128,23 +128,14 @@ def build_touches_with_metadata(inst, n, rr, age_h, bounce, touches, side_is_buy
                    else (realistic_entry - target_price) / effective_risk)
 
     r_gross = np.where(is_win, win_gross_r, -1.0)
-    # Every trade pays the spread now, not just stop-outs (2026-09-04, at the user's
-    # explicit direction) -- the "passive-fill target" assumption that used to excuse wins
-    # from this cost was always paired with "and entry is free too"; now that entry isn't
-    # assumed free, a win's own exit shouldn't get a free pass either. Conservative by
-    # design, not mechanistically derived from a specific execution model.
-    #
-    # Capped at ONE spread's worth of total cost per trade (2026-09-04, at the user's
-    # explicit direction), not stacked with the entry-side adjustment above: a shallow
-    # touch already paid via its own repriced (worse) entry -- realistic_entry is
-    # spread_price away from mid, which is exactly what shows up here as a wider
-    # effective_risk and (for wins) a smaller numerator. Also charging cost_in_r on top
-    # would double-count the same underlying friction as two separate spread-widths
-    # (confirmed as 3.2 pips of total damage on a 10-pip stop, not the intended 1.6) --
-    # so only a DEEP touch, which got a genuinely free entry, still owes this cost by
-    # itself.
-    cost_in_r = np.where(shallow_touch, 0.0, spread_price / effective_risk)
-    net_r = r_gross - cost_in_r
+    # A deep touch (price traveled the full spread past mid) pays no spread cost at all,
+    # neither on entry nor exit (2026-09-04, at the user's explicit direction, reversing
+    # the brief "every trade pays the spread" rule that stood earlier this session): if
+    # price moved far enough past mid to guarantee a genuine limit fill, that fill is
+    # treated as fully free. A shallow touch still pays -- but only via the entry-side
+    # repricing above (realistic_entry a full spread away from mid), never a second time
+    # here, since that would double-count the same friction as two separate spread-widths.
+    net_r = r_gross
     # Old model kept alongside for direct comparison (assumed a free, always-at-mid fill,
     # spread charged only on stop-outs).
     net_r_free_fill = np.where(is_win, rr, -1.0) - np.where(is_win, 0.0, spread_price / stop_risk)

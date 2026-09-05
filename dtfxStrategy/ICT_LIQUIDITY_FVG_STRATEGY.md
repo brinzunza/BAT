@@ -244,9 +244,12 @@ independent instrument, not just a GBPUSD coincidence.
 | Gates | Impulse Velocity ≥2154 pips/min (momentum) + liquidity sweep within 60 bars of zone confirmation |
 | Trades/yr | 3.0 |
 | Win rate | 58.7% |
-| **Profit Factor** | **2.115** |
-| Train (pre-2018) | PF=2.30, n=28 |
-| Holdout (2018+) | PF=1.86, n=18 |
+| **Profit Factor** | **2.123** |
+| Train (pre-2018) | PF=2.31, n=28 |
+| Holdout (2018+) | PF=1.87, n=18 |
+
+(Re-verified 2026-09-04 after the cost-model correction below -- unchanged from the original
+2.115, since at N=15 almost every touch already qualified as a "deep" fill.)
 
 **Both halves of history independently profitable** (train and holdout both comfortably
 above 1.0, not just the pooled average) — genuine robustness, not a result propped up by
@@ -258,6 +261,34 @@ honest trade-off of layering multiple genuine confirmations onto an already-sele
 
 Raw data: `data/goal72_dtfx_ict_confluence_{eurusd,gbpusd}_trades.csv`. Generating script:
 `research_scripts/goal72_dtfx_ict_confluence.py`.
+
+## Cost model correction: deep touches are fully free, not just free-on-entry
+
+Follow-up question from the user: "is one of my rules: spread doesn't have to be paid if
+price passes over 1.6 pips past midpoint? if not make it one." Checking the actual code
+(`goal51_single_symbol_closest_price_backtest.py`) found this was only *half* true -- a
+"deep" touch (price traveled the full 1.6-pip spread past mid) already got a free fill on
+the ENTRY side, but a separate rule added earlier this session ("every trade pays the
+spread now, not just stop-outs") still charged it one spread's worth of cost on the EXIT
+side. Net effect: every trade, deep or shallow, was paying exactly one spread regardless.
+
+Per the user's explicit choice, this is corrected: a deep touch now pays no spread cost at
+all, on either side. A shallow touch is unaffected (it already only ever paid via its
+repriced, worse entry -- never double-charged). Fixed in both places this logic is
+implemented: `goal51_single_symbol_closest_price_backtest.py` (used by goal62/72/73's
+zone-fade touches) and `goal70_ict_liquidity_fvg.py` (the standalone ICT signal, used by
+goal71/72's feature construction). `prod_filter_grid_search.py`'s own, older cost model
+(spread charged only on stop-outs, no fill-depth concept at all) is a separate legacy path
+used by the pre-ICT Arc A scripts and was left untouched -- it was never part of this
+signal's chain.
+
+**Effect on results**: negligible on the flagship (PF 2.115->2.123 -- at N=15/R:R=1.5,
+target/stop distances are wide enough that almost every touch already qualified as deep,
+so there was little exit-side cost to remove). More visible on the high-frequency
+frontier below, where R:R=0.2-0.3 means small stops and a much higher shallow/deep mix:
+the 267/yr point moves PF 1.019->1.029 (holdout 1.002->1.011), and the 392/yr point moves
+PF 0.982->0.991 (holdout 1.000->1.008) -- still short of 1.0 pooled, so the core
+frequency/PF tradeoff conclusion is unchanged, just measured a bit more favorably.
 
 ## Increasing frequency: a real tradeoff, not a free lever
 
@@ -282,11 +313,16 @@ the full frontier found (all 4-symbol pooled, `require_sweep=True`, N=45 through
 
 | Frequency (trades/yr) | Pooled PF | Train (pre-2018) | Holdout (2018+) |
 |---|---|---|---|
-| 266.8 | 1.019 | 1.046 (n=1786) | 1.002 (n=2732) |
-| 313.8 | 0.989 | -- | -- |
-| 351.6 | 0.990 | -- | -- |
-| 356.4 | 0.985 | 0.964 (n=2434) | 1.000 (n=3603) |
-| **391.6** | **0.982** | 0.957 (n=2736) | 1.000 (n=3898) |
+| 266.8 | 1.029 | 1.058 (n=1786) | 1.011 (n=2732) |
+| 313.8 | ~0.99-1.00 (not re-verified after cost-model fix) | -- | -- |
+| 351.6 | ~0.99-1.00 (not re-verified after cost-model fix) | -- | -- |
+| 356.4 | ~0.99-1.00 (not re-verified after cost-model fix) | -- | -- |
+| **391.6** | **0.991** | 0.967 (n=2736) | 1.008 (n=3898) |
+
+(The three middle points were measured before the cost-model correction above and weren't
+individually re-run -- the two frontier endpoints both moved favorably by roughly the same
++0.01 after the fix, so the middle of the curve almost certainly did too, but that's an
+inference, not a re-verified number.)
 
 **No configuration found clears 365 trades/yr while holding pooled PF >= 1.0.** The
 closest PF>=1.0 point sits at 267/yr (both train and holdout independently >=1.0 -- a
@@ -303,7 +339,7 @@ noise), not a failure to search hard enough: at 45x Velocity-Cable's frequency, 
 edge gets diluted faster than sweep-confluence filtering can restore it. Two honest
 options going forward: keep the >365/yr target and accept the strategy trades at
 ~breakeven (PF~0.98), or keep PF>=1.0 as the hard bar (as the original goal asked for) and
-accept a frequency ceiling closer to ~265/yr for this federated construction -- both are
+accept a frequency ceiling closer to ~267/yr for this federated construction -- both are
 real, tested numbers, not proposals.
 
 Raw data: `data/goal73_high_frequency_federated_trades.csv` (the 391.6/yr point). Generating

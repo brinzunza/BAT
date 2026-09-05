@@ -352,8 +352,11 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
                         win_gross_r = (rr if deep_enough else (target_price - realistic_entry) / eff_risk) if side_is_buy else \
                                       (rr if deep_enough else (realistic_entry - target_price) / eff_risk)
                         r_gross = win_gross_r if is_win else -1.0
-                        cost_in_r = 0.0 if not deep_enough else spread_price / eff_risk
-                        net_r = r_gross - cost_in_r
+                        # A deep touch pays no spread cost at all (fully free fill); a
+                        # shallow touch already paid via its repriced (worse) entry above --
+                        # see goal51_single_symbol_closest_price_backtest.py's fuller
+                        # explanation of this same rule.
+                        net_r = r_gross
                         rows.append(dict(instrument=inst, is_buy=side_is_buy, sweep_idx=si,
                                           fvg_idx=fi, entry_idx=j, exit_idx=exit_idx,
                                           entry_time=times[j], exit_time=times[exit_idx],
