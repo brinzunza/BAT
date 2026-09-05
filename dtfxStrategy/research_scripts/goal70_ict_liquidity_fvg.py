@@ -171,7 +171,14 @@ def trend_state(high, low, swing_lookback=60):
 
 def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer_pips=2.0,
                        min_fvg_atr_ratio=None, atr_window=200, min_stop_pips=5.0,
-                       require_trend_alignment=False, trend_swing_lookback=60):
+                       require_trend_alignment=False, trend_swing_lookback=60,
+                       target_mode="fixed_rr", min_liquidity_rr=1.0, max_liquidity_rr=6.0,
+                       require_rejection_candle=False):
+    """target_mode='liquidity': targets the nearest already-known OPPOSING swing level (the
+    next liquidity pool a sweep-then-continuation move is classically expected to run to)
+    instead of a fixed R:R multiple -- falls back to `rr` when that level implies an R:R
+    outside [min_liquidity_rr, max_liquidity_rr] (too close to be worth it, or implausibly
+    far to trust as a real target)."""
     """Core signal: after a liquidity sweep, look forward up to `fvg_lookahead` bars for a
     same-direction Fair Value Gap (momentum/institutional-push confirmation) -- entry when
     price returns to touch that FVG zone, stop beyond the sweep's own extreme (plus a small
@@ -213,7 +220,7 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
     fvg_idx_bull = np.where(is_bull_fvg)[0]
     fvg_idx_bear = np.where(is_bear_fvg)[0]
 
-    def build_side(sweep_idx, fvg_idx, gap_lo, gap_hi, sweep_extreme, side_is_buy):
+    def build_side(sweep_idx, fvg_idx, gap_lo, gap_hi, sweep_extreme, opposing_level, side_is_buy):
         rows = []
         fj = 0
         for si in sweep_idx:
@@ -233,7 +240,13 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
                 if stop_risk <= 0 or stop_risk < min_stop_pips * pip:
                     k += 1
                     continue
-                target_price = mid + stop_risk * rr if side_is_buy else mid - stop_risk * rr
+                if target_mode == "liquidity":
+                    opp = opposing_level[fi]
+                    implied_rr = ((opp - mid) / stop_risk) if side_is_buy else ((mid - opp) / stop_risk)
+                    use_rr = implied_rr if (not np.isnan(opp) and min_liquidity_rr <= implied_rr <= max_liquidity_rr) else rr
+                    target_price = mid + stop_risk * use_rr if side_is_buy else mid - stop_risk * use_rr
+                else:
+                    target_price = mid + stop_risk * rr if side_is_buy else mid - stop_risk * rr
                 entry_search_start = fi + 1
                 max_window = 60 * 24 * 5
                 end = min(entry_search_start + max_window, n)
@@ -243,6 +256,13 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
                         touched = low_[j] <= mid
                     else:
                         touched = high_[j] >= mid
+                    if touched and require_rejection_candle:
+                        bar_range = high_[j] - low_[j]
+                        if bar_range <= 0:
+                            touched = False
+                        else:
+                            close_pos = (close_[j] - low_[j]) / bar_range
+                            touched = close_pos >= 0.5 if side_is_buy else close_pos <= 0.5
                     if touched:
                         deep_enough = (low_[j] <= mid - spread_price) if side_is_buy else (high_[j] >= mid + spread_price)
                         realistic_entry = mid if deep_enough else (mid + spread_price if side_is_buy else mid - spread_price)
@@ -286,8 +306,10 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
                     break
         return rows
 
-    rows_buy = build_side(sweep_idx_bull, fvg_idx_bull, bull_lo, bull_hi, swing_low_level, True)
-    rows_sell = build_side(sweep_idx_bear, fvg_idx_bear, bear_lo, bear_hi, swing_high_level, False)
+    rows_buy = build_side(sweep_idx_bull, fvg_idx_bull, bull_lo, bull_hi, swing_low_level,
+                           swing_high_level, True)
+    rows_sell = build_side(sweep_idx_bear, fvg_idx_bear, bear_lo, bear_hi, swing_high_level,
+                            swing_low_level, False)
     t = pd.DataFrame(rows_buy + rows_sell)
     if not t.empty:
         # A given FVG can be "claimed" by more than one preceding sweep within lookahead --

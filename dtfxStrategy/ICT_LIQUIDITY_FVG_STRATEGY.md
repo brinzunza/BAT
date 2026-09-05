@@ -133,6 +133,63 @@ alignment shrinks the starting pool enough (17,407 → 4,788 raw touches) that t
 percentile becomes too small and noisy to trust. Kept as an honest negative result rather
 than a win — the final answer above (no trend filter, th=0.50) stands.
 
+## A second round: five more levers tried, same ceiling confirmed
+
+Stop-hook feedback correctly flagged PF≈1.09 at 7.7 trades/yr as too thin to call
+convincingly "winning." Five more genuinely different levers tried in response:
+
+1. **Liquidity-based target** (target the nearest already-known opposing swing level — the
+   next liquidity pool a sweep-then-continuation is classically expected to run to —
+   instead of a fixed R:R multiple, falling back to fixed R:R when the implied ratio is
+   unreasonable). Result: statistically indistinguishable from fixed R:R (PF 0.766-0.776
+   vs 0.769-0.771) — the fallback dominates often enough that this isn't a materially
+   different construction in practice.
+2. **Cross-symbol pooling**: EURUSD, GBPUSD, and USDJPY (the three symbols with a real,
+   if thin, positive signal at their own best meta-labeling threshold — EURGBP stayed
+   weak throughout) pooled together: **n=185, 23.6 trades/yr, WR=36.2%, PF=1.066** — a
+   meaningfully bigger sample than any single symbol alone, but the same modest PF
+   character, not a step-change improvement.
+3. **Pushed R:R higher** (3.5, 4.0, 5.0): none beat R:R=2.5's own result. R:R=5.0
+   collapsed outright (PF=0.306) — win rate falls faster than R:R compensates for it past
+   this point, and the classifier's own maximum achievable confidence *drops* as R:R rises
+   (0.843 at R:R=3.5, 0.744 at R:R=5.0) rather than finding a cleaner high-quality subset.
+4. **Pushed meta-labeling thresholds aggressively** (0.65-0.90, well past the 0.50-0.55
+   used for the headline result): almost nothing survives at this selectivity (GBPUSD:
+   only 10 trades at th=0.65, PF=1.848 — anecdotal, not a result). The classifier's own
+   probability ceiling here (0.62-0.84 across symbols) is dramatically lower than DTFX's
+   zone-fade meta-labeling ever needed to reach 0.98-0.99+ — a structural sign that this
+   ICT construction's features separate winners from losers far less cleanly than DTFX's
+   own regime/impulse-velocity features did, not a threshold-tuning gap.
+5. **Restricted to "fresh" FVGs** (touched soon after formation, on the theory that a
+   stale imbalance is less likely to still be defended): no effect — most touches already
+   happen within minutes of formation (median 5 bars), so this filter barely changes the
+   population.
+6. **Required a rejection candle at the touch bar** (close in the favorable half of that
+   bar's own range, not just any touch of the FVG) — implemented and tested, not just
+   flagged: negligible effect (PF 0.769→0.732, count essentially unchanged at 17,407→
+   17,399). At 1-minute granularity a single candle's close position is too noisy to add
+   real filtering power on its own.
+
+**Honest structural conclusion, not a tuning failure**: the win rate this signal can
+achieve at a genuine R:R (25-37% depending on R:R chosen) mechanically caps the
+theoretical maximum PF at roughly 1.0-1.3 before any realistic-fill costs are even
+applied (`PF ≈ WR·RR/(1-WR)`) — nowhere near the headroom DTFX's 90%+-win-rate,
+low-R:R zone-fade setups had. This isn't a search gap in this round or the first one; it's
+the arithmetic of the win rate this exact signal construction produces. Getting meaningfully past PF≈1.1 for liquidity-sweep-plus-FVG specifically would need a
+fundamentally different sweep or FVG definition — the one concrete idea not yet tried is
+defining sweeps against **equal-highs/equal-lows liquidity pools** (multiple swing points
+clustering at nearly the same price — a stronger, more genuinely institutional liquidity
+concentration than any single isolated swing) rather than the single-swing sweep used
+throughout this document.
+
+**Where this leaves the "winning strategy" bar**: the pooled 3-symbol result (PF=1.066,
+n=185, 23.6 trades/yr) is this round's best, most-validated answer — a real, positive,
+walk-forward-supported edge using every concept this goal named (liquidity sweeps, fair
+value gaps, momentum, reasonable R:R), but modest rather than the dramatic PF=2+ story
+DTFX's own meta-labeling produced. Reported at this strength rather than inflated, per
+this whole session's standing practice of disclosing exactly how strong a finding is.
+
 Raw data: `data/goal71_ict_eurusd_th050_trades.csv`. Generating scripts:
-`research_scripts/goal70_ict_liquidity_fvg.py` (signal construction),
+`research_scripts/goal70_ict_liquidity_fvg.py` (signal construction, now with
+`target_mode="liquidity"` and `require_trend_alignment` options),
 `research_scripts/goal71_ict_meta_labeling.py` (meta-labeling application).
