@@ -102,6 +102,38 @@ def confirmed_swing_levels(is_swing, price, lookback, n):
     return pd.Series(out).ffill().values
 
 
+def equal_level_clusters(is_swing, price, lookback, n, eq_tol_pips, pip, max_lookback_swings=20):
+    """Equal-highs/equal-lows: a confirmed swing is part of a liquidity-pool CLUSTER when
+    it sits within `eq_tol_pips` of an earlier swing (checked against the last
+    `max_lookback_swings` prior swings, not the whole history -- an ICT equal-high/low pool
+    is a LOCAL phenomenon, not a claim that price never revisited that level in 10 years).
+    Returns a forward-filled 'most recent confirmed equal-level price known as of bar i'
+    series that only updates on an actual cluster (rarer, and by construction a stronger
+    liquidity concentration than any single isolated swing)."""
+    swing_idx = np.where(is_swing)[0]
+    swing_val = price[swing_idx]
+    confirmed_at = swing_idx + lookback
+    valid = confirmed_at < n
+    confirmed_at, swing_val = confirmed_at[valid], swing_val[valid]
+
+    cluster_confirmed_at = []
+    cluster_price = []
+    tol = eq_tol_pips * pip
+    for i in range(1, len(swing_val)):
+        lo = max(0, i - max_lookback_swings)
+        prior = swing_val[lo:i]
+        diffs = np.abs(prior - swing_val[i])
+        j = np.argmin(diffs)
+        if diffs[j] <= tol:
+            cluster_confirmed_at.append(confirmed_at[i])
+            cluster_price.append((prior[j] + swing_val[i]) / 2.0)
+
+    out = np.full(n, np.nan)
+    if cluster_confirmed_at:
+        out[np.array(cluster_confirmed_at)] = np.array(cluster_price)
+    return pd.Series(out).ffill().values
+
+
 def detect_liquidity_sweeps(open_, high, low, close, swing_lookback=15):
     """Bullish sweep at bar i: low[i] wicks below the most recent CONFIRMED swing low (the
     resting sell-stop cluster assumed to sit just beyond it) but close[i] snaps back above
@@ -130,6 +162,33 @@ def detect_liquidity_sweeps(open_, high, low, close, swing_lookback=15):
     bullish_sweep[0] = False
     bearish_sweep[0] = False
     return bullish_sweep, bearish_sweep, swing_low_level, swing_high_level
+
+
+def detect_equal_level_sweeps(high, low, close, swing_lookback, eq_tol_pips, pip,
+                               max_lookback_swings=20):
+    """Same sweep mechanic as detect_liquidity_sweeps, but against equal-highs/equal-lows
+    liquidity POOLS (2+ swings clustering within eq_tol_pips of each other) instead of any
+    single isolated swing -- a stronger, more genuinely institutional liquidity
+    concentration, and by construction a rarer, more selective sweep."""
+    n = len(close)
+    is_swing_high, is_swing_low = detect_swings(high, low, swing_lookback)
+    eql_level = equal_level_clusters(is_swing_low, low, swing_lookback, n, eq_tol_pips, pip,
+                                      max_lookback_swings)
+    eqh_level = equal_level_clusters(is_swing_high, high, swing_lookback, n, eq_tol_pips, pip,
+                                      max_lookback_swings)
+
+    prior_eql = np.roll(eql_level, 1)
+    prior_eqh = np.roll(eqh_level, 1)
+    prior_eql[0] = np.nan
+    prior_eqh[0] = np.nan
+
+    bullish_sweep = (low < prior_eql) & (close > prior_eql)
+    bearish_sweep = (high > prior_eqh) & (close < prior_eqh)
+    bullish_sweep = bullish_sweep & ~np.roll(bullish_sweep, 1)
+    bearish_sweep = bearish_sweep & ~np.roll(bearish_sweep, 1)
+    bullish_sweep[0] = False
+    bearish_sweep[0] = False
+    return bullish_sweep, bearish_sweep, eql_level, eqh_level
 
 
 def trend_state(high, low, swing_lookback=60):
@@ -173,7 +232,8 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
                        min_fvg_atr_ratio=None, atr_window=200, min_stop_pips=5.0,
                        require_trend_alignment=False, trend_swing_lookback=60,
                        target_mode="fixed_rr", min_liquidity_rr=1.0, max_liquidity_rr=6.0,
-                       require_rejection_candle=False):
+                       require_rejection_candle=False, sweep_mode="single_swing",
+                       eq_tol_pips=3.0, eq_max_lookback_swings=20):
     """target_mode='liquidity': targets the nearest already-known OPPOSING swing level (the
     next liquidity pool a sweep-then-continuation move is classically expected to run to)
     instead of a fixed R:R multiple -- falls back to `rr` when that level implies an R:R
@@ -197,8 +257,12 @@ def build_ict_touches(inst, rr, swing_lookback=15, fvg_lookahead=10, stop_buffer
     pip = pg.PIP_SIZE[inst]
     spread_price = pg.SPREAD_PIPS_TYPICAL * pip
 
-    bullish_sweep, bearish_sweep, swing_low_level, swing_high_level = detect_liquidity_sweeps(
-        open_, high_, low_, close_, swing_lookback)
+    if sweep_mode == "equal_levels":
+        bullish_sweep, bearish_sweep, swing_low_level, swing_high_level = detect_equal_level_sweeps(
+            high_, low_, close_, swing_lookback, eq_tol_pips, pip, max_lookback_swings=eq_max_lookback_swings)
+    else:
+        bullish_sweep, bearish_sweep, swing_low_level, swing_high_level = detect_liquidity_sweeps(
+            open_, high_, low_, close_, swing_lookback)
     is_bull_fvg, bull_lo, bull_hi, is_bear_fvg, bear_lo, bear_hi = detect_fvg(high_, low_)
 
     if require_trend_alignment:
