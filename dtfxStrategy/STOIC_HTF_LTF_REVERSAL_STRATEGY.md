@@ -131,3 +131,55 @@ every R:R tested, not merely under-tuned).
 Raw data: `data/goal74_htf_ltf_reversal_{gbpusd,eurgbp}_trades.csv` and the pooled
 `data/goal74_htf_ltf_reversal_pooled_trades.csv`. Generating script:
 `research_scripts/goal74_htf_ltf_reversal_strategy.py`.
+
+## Part 2: the follow-up video ("do the same with this one")
+
+A second Stoic Trader video, explicitly framed as a follow-up to the one above,
+reinforces the same core mechanics and adds a richer vocabulary: "move origin" (the
+impulse leg that originated the current trend stage) versus "area responsible for the
+break" (the most recent leg immediately before the structural break that confirmed a new
+high/low), with price often bouncing at the nearer "area responsible" zone first and, if
+that fails, continuing to the more distant "move origin" zone. Checked against the
+existing implementation: `goal74` already tests **every** historical zone matching the
+current HTF trend direction (not just the newest one), so both of these zones are already
+eligible candidates -- no code change was needed for this part.
+
+The one genuinely new, addable idea is an explicit extra confirmation the video calls out:
+*"if you want more confirmation, you're looking for the violation of the SND responsible
+for the break"* -- after the local LTF reversal fires, also require that price has closed
+back through the specific OPPOSING-direction zone that had been responsible for creating
+the leg now being reversed.
+
+**Sanity-checked before implementing**: DTFX zones do not strictly alternate direction
+(confirmed on GBPUSD -- only 35.9% of consecutive zones flip side, mean same-direction run
+length 2.78), so "the most recent prior opposing-direction zone" is a real, non-tautological
+lookup, not a filter that would be true by construction.
+
+**Result: a near-total no-op, verified two ways.** Implemented as "has price closed beyond
+the opposing zone's own extreme, checked over the full span from this zone's own creation
+to the touch's entry" -- pass rate 99.95-100% across all four symbols. Suspecting the window
+was simply too generous (an old level, crossed by mere coincidence over a long span), a much
+tighter version was tested too: checking only the trailing 60 bars before entry (the same
+window used for the LTF sweep confluence check). Pass rate: still 99.95-100%, unchanged. Not
+a bug (both windows checked directly, not inferred) -- at this project's standard
+zone-detection granularity, an opposing zone's level is essentially always already crossed
+by the time any new zone of the same granularity re-forms nearby, so this condition ends up
+correlated with the already-required LTF sweep rather than adding independent information.
+
+| Test | n | pass rate |
+|---|---|---|
+| EURUSD, 60-bar / full-span window | 1382 | 100.00% / 100.00% |
+| USDJPY, 60-bar / full-span window | 702 | 100.00% / 100.00% |
+| GBPUSD, 60-bar / full-span window | 2164 | 99.95% / 99.95% |
+| EURGBP, 60-bar / full-span window | 351 | 100.00% / 100.00% |
+
+The one row it did drop for GBPUSD shifted the true-accepted count from 882 to 968 purely
+through this project's already-documented shared-slot acceptance-pipeline sensitivity
+(dropping even a single candidate can change which trades win the one-open-position race) --
+not because the confirmation identified a genuinely better trade subset. Conclusion: this
+extra confirmation, implemented as faithfully as the available zone data allows, adds no
+real discriminating power. **`goal74`'s recipe (GBPUSD R:R=2.5 + EURGBP R:R=4.0, pooled
+PF=1.125) stands unchanged** -- Part 2 doesn't move the result, but the idea was tested
+honestly rather than assumed to help.
+
+Generating script: `research_scripts/goal75_sd_violation_confirmation.py`.
