@@ -1,0 +1,79 @@
+[
+  {
+    "symbol": "EURUSD",
+    "rows": 9095879,
+    "suspect_rows": 2,
+    "counts": {
+      "nonfinite": 0,
+      "nonpositive": 1,
+      "inconsistent": 0,
+      "extreme_vs_prior_median": 2
+    },
+    "years": {
+      "2001": 2
+    },
+    "examples": [
+      {
+        "time": "2001-06-07T23:32:00.000",
+        "open": 1965.0001,
+        "high": 1965.0001,
+        "low": 1965.0001,
+        "close": 1965.0001,
+        "nonfinite": false,
+        "nonpositive": false,
+        "inconsistent": false,
+        "extreme_vs_prior_median": true
+      },
+      {
+        "time": "2001-09-11T20:12:00.000",
+        "open": -0.0001,
+        "high": -0.0001,
+        "low": -0.0001,
+        "close": -0.0001,
+        "nonfinite": false,
+        "nonpositive": true,
+        "inconsistent": false,
+        "extreme_vs_prior_median": true
+      }
+    ]
+  },
+  {
+    "symbol": "GBPUSD",
+    "rows": 9259973,
+    "suspect_rows": 0,
+    "counts": {
+      "nonfinite": 0,
+      "nonpositive": 0,
+      "inconsistent": 0,
+      "extreme_vs_prior_median": 0
+    },
+    "years": {},
+    "examples": []
+  },
+  {
+    "symbol": "USDJPY",
+    "rows": 6135456,
+    "suspect_rows": 0,
+    "counts": {
+      "nonfinite": 0,
+      "nonpositive": 0,
+      "inconsistent": 0,
+      "extreme_vs_prior_median": 0
+    },
+    "years": {},
+    "examples": []
+  },
+  {
+    "symbol": "EURGBP",
+    "rows": 8127882,
+    "suspect_rows": 0,
+    "counts": {
+      "nonfinite": 0,
+      "nonpositive": 0,
+      "inconsistent": 0,
+      "extreme_vs_prior_median": 0
+    },
+    "years": {},
+    "examples": []
+  }
+]

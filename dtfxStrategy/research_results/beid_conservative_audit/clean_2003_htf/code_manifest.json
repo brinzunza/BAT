@@ -1,0 +1,17 @@
+{
+  "code_sha256": {
+    "beid_conservative_audit.py": "26dc04c02aec1a7550aad23b4728ed25bf4e97662640b2eae781946c9c573376",
+    "beid_fine_execution.py": "ae5365887a7577e77874fac5bbbab204cc81270556ef4a21e2468eea765e4293",
+    "beid_clean_htf_study.py": "a71d9470e6308b4028803f612750059a491098e9a963ebef3d7a2bffaf95e9ae",
+    "beid_data_quality.py": "7af93b24ab629e12117a530e876a3311a4289ba9df18bb7ef69d70c3f79c691d",
+    "beid_validation_uncertainty.py": "33e1b65ca3998e6c9c6cd6080fe65842d5d0570247fe7a0ee1be1933cee84116",
+    "beid_bidask_check.py": "67ffa9f11361233dcf97f74c59fd19955f442b2c645f33d249e9b929f1d71c9e",
+    "beid_quote_cost_probe.py": "6332168050c3df0780777e96a37e54120957709a17e986d7e95fdfecc8205dd8"
+  },
+  "libraries": {
+    "pandas": "2.1.4",
+    "numpy": "1.26.3",
+    "numba": "0.63.1"
+  },
+  "note": "Adding created_time metadata after clean run does not change fills or selection."
+}

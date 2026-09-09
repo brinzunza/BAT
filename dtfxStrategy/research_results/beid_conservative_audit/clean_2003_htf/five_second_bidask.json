@@ -1,0 +1,35 @@
+{
+  "status": "short historical quote check; not sufficient for statistical validation",
+  "coverage": [
+    {
+      "symbol": "EURUSD",
+      "first": "2026-08-27 22:41:50",
+      "last": "2026-09-09 17:19:10",
+      "quote_bars": 119999,
+      "candidate_trades": 0
+    },
+    {
+      "symbol": "GBPUSD",
+      "first": "2026-08-28 16:44:45",
+      "last": "2026-09-09 17:19:10",
+      "quote_bars": 120000,
+      "candidate_trades": 0
+    },
+    {
+      "symbol": "USDJPY",
+      "first": "2026-08-31 03:22:20",
+      "last": "2026-09-09 17:19:15",
+      "quote_bars": 119999,
+      "candidate_trades": 0
+    },
+    {
+      "symbol": "EURGBP",
+      "first": "2026-08-25 12:47:20",
+      "last": "2026-09-09 17:19:10",
+      "quote_bars": 120000,
+      "candidate_trades": 0
+    }
+  ],
+  "results": [],
+  "spread_accounting": "embedded in bid/ask fill and exit triggers; no extra spread deduction"
+}

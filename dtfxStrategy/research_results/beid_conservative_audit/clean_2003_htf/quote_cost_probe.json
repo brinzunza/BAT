@@ -1,0 +1,380 @@
+{
+  "status": "cross-source costs only; no inference of executable BEID profitability",
+  "scheduled_hours": 385,
+  "attempted_hours": 32,
+  "complete_hours": 21,
+  "observed_events": 22,
+  "records": [
+    {
+      "symbol": "GBPUSD",
+      "hour": "2026-01-29 15:00:00",
+      "status": "complete",
+      "quotes": 21368,
+      "events": [
+        {
+          "fill_time": "2026-01-29 15:17:00",
+          "median_spread_pips": 0.7,
+          "p95_spread_pips": 0.9
+        }
+      ],
+      "sha256": "69552059c63a0296c0df0587ad0ea6e8ddd92de40dea524c1e81ece83df7a263"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2024-11-06 00:00:00",
+      "status": "complete",
+      "quotes": 23951,
+      "events": [
+        {
+          "fill_time": "2024-11-06 00:12:00",
+          "median_spread_pips": 1.2,
+          "p95_spread_pips": 1.6
+        },
+        {
+          "fill_time": "2024-11-06 00:20:00",
+          "median_spread_pips": 1.2999999999999998,
+          "p95_spread_pips": 1.7999999999999998
+        }
+      ],
+      "sha256": "bf8c3e8c4e65065cf38856b31be0f84ef5aab8f1e2b7bfe8687ff417f928f33a"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2025-03-07 13:00:00",
+      "status": "complete",
+      "quotes": 20284,
+      "events": [
+        {
+          "fill_time": "2025-03-07 13:30:00",
+          "median_spread_pips": 1.6,
+          "p95_spread_pips": 5.8999999999999995
+        }
+      ],
+      "sha256": "487164aa5270c2ada2931c2dffd4fa520d7e8bd412fa79ddcb910e48abdc0829"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2016-08-31 02:00:00",
+      "status": "complete",
+      "quotes": 8178,
+      "events": [
+        {
+          "fill_time": "2016-08-31 02:12:00",
+          "median_spread_pips": 1.1,
+          "p95_spread_pips": 1.4999999999999998
+        }
+      ],
+      "sha256": "d2de61fc2863552106da3a2b0103bb43ccc13737bf8fe867f6f3bccd6a0ba7ca"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2025-11-26 01:00:00",
+      "status": "complete",
+      "quotes": 7551,
+      "events": [
+        {
+          "fill_time": "2025-11-26 01:33:00",
+          "median_spread_pips": 0.4,
+          "p95_spread_pips": 0.8999999999999999
+        }
+      ],
+      "sha256": "e6d75ce133128816c73d11306da99714bf0ed55b511ddf0603355f9172e5b6f7"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2026-04-07 08:00:00",
+      "status": "complete",
+      "quotes": 6574,
+      "events": [
+        {
+          "fill_time": "2026-04-07 08:36:00",
+          "median_spread_pips": 0.6,
+          "p95_spread_pips": 0.8
+        }
+      ],
+      "sha256": "08565cc90b19397921909cc5cf482c0de2b311494e61e01a9509507e8066bc4c"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2018-01-31 19:00:00",
+      "status": "complete",
+      "quotes": 13433,
+      "events": [
+        {
+          "fill_time": "2018-01-31 19:13:00",
+          "median_spread_pips": 1.1,
+          "p95_spread_pips": 1.2999999999999998
+        }
+      ],
+      "sha256": "99a9d875f1667d7fcf95cb21ae658cf1149560afcd40dc64d2bc5e207f2d9218"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2022-05-10 15:00:00",
+      "status": "complete",
+      "quotes": 7934,
+      "events": [
+        {
+          "fill_time": "2022-05-10 15:04:00",
+          "median_spread_pips": 0.4,
+          "p95_spread_pips": 0.6
+        }
+      ],
+      "sha256": "0cd2f27204958acaacd6110d5fd498d2e28458e7f68fa8448c21f86bfee4a470"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2025-02-20 14:00:00",
+      "status": "complete",
+      "quotes": 10685,
+      "events": [
+        {
+          "fill_time": "2025-02-20 14:01:00",
+          "median_spread_pips": 0.7,
+          "p95_spread_pips": 0.8999999999999999
+        }
+      ],
+      "sha256": "32bc2d49ba86946d984021b1cfa1a8bbc4d55bd29839f1932a807d310b53dd3e"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2022-06-17 11:00:00",
+      "status": "complete",
+      "quotes": 8871,
+      "events": [
+        {
+          "fill_time": "2022-06-17 11:57:00",
+          "median_spread_pips": 0.9,
+          "p95_spread_pips": 1.2
+        }
+      ],
+      "sha256": "c601afb59471f21615ab0ad6ce25cca9963422e10f026e326b06dd6c9de7dc00"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2020-12-24 15:00:00",
+      "status": "complete",
+      "quotes": 9216,
+      "events": [
+        {
+          "fill_time": "2020-12-24 15:02:00",
+          "median_spread_pips": 1.1,
+          "p95_spread_pips": 1.8
+        }
+      ],
+      "sha256": "525d1e2c5a2708a3113cc117749fcaf02a23f2af3bc9723e7f56671b3cdb20ae"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2023-06-26 06:00:00",
+      "status": "complete",
+      "quotes": 5119,
+      "events": [
+        {
+          "fill_time": "2023-06-26 06:36:00",
+          "median_spread_pips": 0.8,
+          "p95_spread_pips": 1.1
+        }
+      ],
+      "sha256": "4d1871387d6edab458d17b7846e5d9cab47f8c662d30535edfc7e4957f0391c7"
+    },
+    {
+      "symbol": "EURGBP",
+      "hour": "2023-12-13 22:00:00",
+      "status": "complete",
+      "quotes": 2312,
+      "events": [
+        {
+          "fill_time": "2023-12-13 22:37:00",
+          "median_spread_pips": 5.199999999999999,
+          "p95_spread_pips": 11.745
+        }
+      ],
+      "sha256": "d4a3beb5e0c75331e67adb9775983d39a8555b6516a1f08b963b29f9284da521"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2024-02-01 15:00:00",
+      "status": "complete",
+      "quotes": 22226,
+      "events": [
+        {
+          "fill_time": "2024-02-01 15:00:00",
+          "median_spread_pips": 1.0,
+          "p95_spread_pips": 3.514999999999998
+        }
+      ],
+      "sha256": "dbc5fe6a54f2a4da604233846dba1b2f9fd068dceabf19d8a407e8780842b76f"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2021-02-25 14:00:00",
+      "status": "complete",
+      "quotes": 8049,
+      "events": [
+        {
+          "fill_time": "2021-02-25 14:45:00",
+          "median_spread_pips": 0.6,
+          "p95_spread_pips": 0.8
+        }
+      ],
+      "sha256": "74b85c16e04849f78c51751363c8758eb9097ed50bda33392502c0e0f74c07b8"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2025-05-26 06:00:00",
+      "status": "complete",
+      "quotes": 6641,
+      "events": [
+        {
+          "fill_time": "2025-05-26 06:27:00",
+          "median_spread_pips": 0.7,
+          "p95_spread_pips": 0.8999999999999999
+        }
+      ],
+      "sha256": "7d8f7981c70a55fa67f6e22fd9ca87e0c20a1c8e53786b92b671356c360baf7c"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2025-08-26 08:00:00",
+      "status": "complete",
+      "quotes": 4543,
+      "events": [
+        {
+          "fill_time": "2025-08-26 08:16:00",
+          "median_spread_pips": 0.8,
+          "p95_spread_pips": 1.1
+        }
+      ],
+      "sha256": "1c5f946284ae3c5ac61923f9ac0a03ea8484e86db06ca79580c91d6ea3568931"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2025-06-02 15:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2023-02-10 10:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "USDJPY",
+      "hour": "2024-04-19 01:00:00",
+      "status": "complete",
+      "quotes": 13182,
+      "events": [
+        {
+          "fill_time": "2024-04-19 01:33:00",
+          "median_spread_pips": 0.7,
+          "p95_spread_pips": 1.0
+        }
+      ],
+      "sha256": "9521c28cc6303e538c03ea8720013856190800c5edc07557904f9d56127e7d4d"
+    },
+    {
+      "symbol": "EURGBP",
+      "hour": "2025-01-17 21:00:00",
+      "status": "complete",
+      "quotes": 1634,
+      "events": [
+        {
+          "fill_time": "2025-01-17 21:57:00",
+          "median_spread_pips": 3.55,
+          "p95_spread_pips": 4.385
+        }
+      ],
+      "sha256": "47bd474d5174a1a8328faffb4a90d239d456aa08b02ea10e2432c3d393b9c556"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2020-12-17 14:00:00",
+      "status": "complete",
+      "quotes": 6592,
+      "events": [
+        {
+          "fill_time": "2020-12-17 14:53:00",
+          "median_spread_pips": 0.8,
+          "p95_spread_pips": 1.1
+        }
+      ],
+      "sha256": "e88d02c83c5ee71156a32dac5afab6fa26438ca09c357a7300408f0a5884d5b1"
+    },
+    {
+      "symbol": "EURUSD",
+      "hour": "2020-05-13 13:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "EURUSD",
+      "hour": "2020-03-16 13:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "EURUSD",
+      "hour": "2016-08-17 04:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2023-07-27 12:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "EURGBP",
+      "hour": "2016-03-02 10:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2021-02-11 13:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2018-10-12 08:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "EURUSD",
+      "hour": "2016-12-15 18:00:00",
+      "status": "complete",
+      "quotes": 4305,
+      "events": [
+        {
+          "fill_time": "2016-12-15 18:55:00",
+          "median_spread_pips": 0.1,
+          "p95_spread_pips": 0.2
+        }
+      ],
+      "sha256": "a83cd1efcd178bb0758a049c22045a05f46cd94f8f13e9d6b30455a5e2523324"
+    },
+    {
+      "symbol": "GBPUSD",
+      "hour": "2019-04-01 20:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    },
+    {
+      "symbol": "EURUSD",
+      "hour": "2023-11-13 15:00:00",
+      "status": "failed",
+      "error": "curl: (56) The requested URL returned error: 503\n"
+    }
+  ],
+  "entry_minute_spread_quantiles_pips": [
+    0.1,
+    0.8,
+    1.5700000000000007,
+    5.199999999999999
+  ]
+}

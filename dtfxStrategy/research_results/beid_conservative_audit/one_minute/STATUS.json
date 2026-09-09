@@ -1,0 +1,5 @@
+{
+  "status": "INVALIDATED: corrupt raw EURUSD prices in 2001",
+  "use": "execution diagnostics only; not valid strategy performance",
+  "replacement": "clean_2003_htf study with all instruments restarted in 2003"
+}
