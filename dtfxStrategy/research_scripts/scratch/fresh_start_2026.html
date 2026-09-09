@@ -1,0 +1,237 @@
+<title>The Fresh Start</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --candle-up: #2F7A57; --candle-down: #A8462C; --wick: #566254;
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 52px 24px 80px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(32px, 5vw, 48px); line-height: 1.06; letter-spacing: -0.01em; margin: 0 0 18px; text-wrap: balance; }
+  .dek { font-size: 16.5px; color: var(--ink-dim); max-width: 70ch; margin: 0 0 4px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 25px; letter-spacing: -0.005em; margin: 0 0 6px; text-wrap: balance; }
+  h3 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15.5px; margin: 0 0 4px; }
+  .section-sub { color: var(--ink-dim); font-size: 14.5px; max-width: 68ch; margin: 0 0 22px; }
+  section { margin-top: 54px; }
+  section:first-of-type { margin-top: 40px; }
+  p { margin: 0 0 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow); }
+  figcaption { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
+  .overflow-x { overflow-x: auto; border-radius: 10px; }
+  svg.chart { display: block; height: auto; }
+  svg.chart:not(.chart-wide) { width: 100%; }
+  svg.chart-wide { width: 2028px; max-width: none; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 15px 14px; box-shadow: var(--shadow); }
+  .stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; }
+  .stat .value { font-family: "IBM Plex Mono", monospace; font-size: 19px; font-weight: 500; margin-top: 5px; }
+  .stat .sub { font-size: 11px; color: var(--ink-faint); margin-top: 3px; }
+
+  .legend-row { display: flex; gap: 20px; align-items: center; margin-bottom: 12px; font-size: 12.5px; color: var(--ink-dim); flex-wrap: wrap; }
+  .legend-row .sw { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: 2px; }
+
+  table.balance { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 640px; }
+  table.balance th { text-align: right; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.balance th:first-child, table.balance td:first-child { text-align: left; }
+  table.balance td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+  table.balance td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; color: var(--ink-dim); }
+  table.balance tr.month-row td { font-weight: 600; background: var(--surface-raised); }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+  .caveat b { color: var(--ink-dim); }
+
+  .more-links { display: grid; gap: 10px; }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 66px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">EURUSD · GBPUSD · USDJPY · EURGBP · Jan 1 – Sep 3, 2026 · fresh $100/$100 reset</p>
+  <h1>The Fresh Start</h1>
+  <p class="dek">Not a continuation of the 17-year simulation this time — <b>a clean $100 buy / $100 sell reset on January 1, 2026</b>, as if the accounts opened that morning. Same rule, same 30% entry pick, same 5% risk and 1-per-side concurrency; the only thing that's different is the starting balance and the date.</p>
+
+  <section>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Starting balance</div><div class="value">$200</div><div class="sub">$100 buy + $100 sell</div></div>
+      <div class="stat"><div class="label">30% pick, today</div><div class="value" style="color:var(--buy-strong);">$95,290</div><div class="sub">$84,711 buy + $10,578 sell</div></div>
+      <div class="stat"><div class="label">50% baseline, today</div><div class="value">$5,438</div><div class="sub">$5,060 buy + $378 sell</div></div>
+    </div>
+    <p class="section-sub" style="margin-top:14px;">30% pick: 2,579 trades, WR 50.91%, PF 2.489, max drawdown −5.11%. 50% baseline: 11,647 trades, WR 48.93%, PF 1.184, max drawdown −12.52%.</p>
+  </section>
+
+  <section id="daily">
+    <h2>Day by day</h2>
+    <p class="section-sub">Combined balance (buy + sell), log scale — a straight-line slope here means steady compounding; the sharper the upward bend, the faster growth accelerated that week.</p>
+    <div class="card">
+      <div class="legend-row">
+        <span><span class="sw" style="background:var(--buy);"></span>30% entry (pick) — $200 → $95,290</span>
+        <span><span class="sw" style="background:var(--ink-faint);"></span>50% entry (v1) — $200 → $5,438</span>
+      </div>
+      <div class="overflow-x">
+<svg class="chart chart-wide" viewBox="0 0 2028 260" role="img" aria-label="Combined account balance on a log scale from January through early September 2026, starting at 200 dollars. The 30 percent entry strategy climbs steadily to about 95,000 dollars; the 50 percent baseline climbs more slowly to about 5,400 dollars.">
+  <line x1="54" y1="224.8" x2="2014" y2="224.8" stroke="var(--grid)" stroke-width="1"/>
+  <text x="48" y="227.8" text-anchor="end" font-size="10" fill="var(--ink-faint)">$200</text>
+  <line x1="54" y1="173.6" x2="2014" y2="173.6" stroke="var(--grid)" stroke-width="1"/>
+  <text x="48" y="176.6" text-anchor="end" font-size="10" fill="var(--ink-faint)">$1K</text>
+  <line x1="54" y1="100.2" x2="2014" y2="100.2" stroke="var(--grid)" stroke-width="1"/>
+  <text x="48" y="103.2" text-anchor="end" font-size="10" fill="var(--ink-faint)">$10K</text>
+  <line x1="54" y1="26.9" x2="2014" y2="26.9" stroke="var(--grid)" stroke-width="1"/>
+  <text x="48" y="29.9" text-anchor="end" font-size="10" fill="var(--ink-faint)">$100K</text>
+  <line x1="308.96" y1="14" x2="308.96" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="312.96" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Feb</text>
+  <line x1="532.05" y1="14" x2="532.05" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="536.05" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Mar</text>
+  <line x1="779.04" y1="14" x2="779.04" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="783.04" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Apr</text>
+  <line x1="1018.07" y1="14" x2="1018.07" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="1022.07" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">May</text>
+  <line x1="1265.06" y1="14" x2="1265.06" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="1269.06" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Jun</text>
+  <line x1="1504.08" y1="14" x2="1504.08" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="1508.08" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Jul</text>
+  <line x1="1751.07" y1="14" x2="1751.07" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="1755.07" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Aug</text>
+  <line x1="1998.07" y1="14" x2="1998.07" y2="234" stroke="var(--grid)" stroke-width="1" stroke-dasharray="2,3"/>
+  <text x="2002.07" y="250" font-size="10.5" fill="var(--ink-dim)" font-weight="600">Sep</text>
+  <polyline points="54.0,224.8 62.0,223.6 69.9,222.7 77.9,222.7 85.9,221.3 93.8,218.0 101.8,216.7 109.8,214.8 117.7,212.1 125.7,212.7 133.7,212.7 141.6,211.3 149.6,209.3 157.6,206.9 165.5,204.1 173.5,201.5 181.5,201.6 189.4,201.6 197.4,201.8 205.4,200.4 213.3,199.1 221.3,196.5 229.3,194.5 237.3,193.1 245.2,193.1 253.2,192.5 261.2,190.7 269.1,190.6 277.1,189.3 285.1,188.9 293.0,190.2 301.0,190.2 309.0,190.0 316.9,188.2 324.9,186.9 332.9,184.7 340.8,183.0 348.8,180.9 356.8,180.9 364.7,179.9 372.7,177.1 380.7,177.9 388.6,176.7 396.6,176.8 404.6,174.0 412.5,174.0 420.5,173.3 428.5,172.8 436.4,171.4 444.4,169.7 452.4,168.4 460.3,167.5 468.3,167.5 476.3,167.2 484.2,166.6 492.2,166.9 500.2,165.1 508.1,164.3 516.1,164.1 524.1,164.1 532.0,163.7 540.0,164.1 548.0,163.7 556.0,162.4 563.9,163.1 571.9,162.2 579.9,162.2 587.8,161.9 595.8,162.1 603.8,161.7 611.7,160.4 619.7,159.0 627.7,158.2 635.6,158.2 643.6,157.9 651.6,157.0 659.5,157.1 667.5,157.7 675.5,157.0 683.4,156.2 691.4,156.2 699.4,155.6 707.3,156.4 715.3,155.9 723.3,154.7 731.2,154.2 739.2,153.9 747.2,153.9 755.1,153.6 763.1,152.7 771.1,152.3 779.0,152.1 787.0,151.1 795.0,150.9 802.9,150.9 810.9,150.8 818.9,150.4 826.8,150.6 834.8,149.8 842.8,149.2 850.7,148.9 858.7,148.9 866.7,148.8 874.7,148.6 882.6,148.3 890.6,148.2 898.6,147.6 906.5,147.5 914.5,147.5 922.5,147.3 930.4,146.7 938.4,146.4 946.4,145.9 954.3,145.8 962.3,145.8 970.3,145.8 978.2,145.9 986.2,145.7 994.2,145.5 1002.1,145.2 1010.1,144.1 1018.1,143.1 1026.0,143.1 1034.0,143.1 1042.0,142.2 1049.9,141.6 1057.9,141.2 1065.9,140.9 1073.8,140.7 1081.8,140.7 1089.8,140.5 1097.7,140.3 1105.7,139.6 1113.7,139.3 1121.6,138.9 1129.6,138.8 1137.6,138.8 1145.5,138.9 1153.5,138.2 1161.5,137.8 1169.4,137.3 1177.4,137.4 1185.4,137.1 1193.3,137.1 1201.3,137.2 1209.3,137.3 1217.3,137.9 1225.2,137.7 1233.2,137.7 1241.2,137.6 1249.1,137.6 1257.1,137.6 1265.1,137.3 1273.0,137.3 1281.0,137.3 1289.0,137.3 1296.9,137.1 1304.9,137.1 1312.9,137.1 1320.8,136.5 1328.8,136.3 1336.8,136.0 1344.7,135.8 1352.7,135.7 1360.7,135.7 1368.6,135.8 1376.6,135.5 1384.6,135.4 1392.5,135.2 1400.5,134.4 1408.5,134.0 1416.4,134.0 1424.4,133.8 1432.4,133.2 1440.3,132.9 1448.3,132.4 1456.3,132.0 1464.2,132.0 1472.2,132.0 1480.2,132.0 1488.1,131.9 1496.1,131.7 1504.1,131.3 1512.0,130.1 1520.0,129.9 1528.0,129.9 1536.0,129.9 1543.9,129.7 1551.9,129.5 1559.9,129.0 1567.8,129.0 1575.8,128.7 1583.8,128.7 1591.7,128.7 1599.7,128.5 1607.7,127.9 1615.6,127.6 1623.6,127.7 1631.6,127.6 1639.5,127.6 1647.5,127.5 1655.5,127.4 1663.4,127.3 1671.4,127.1 1679.4,126.8 1687.3,126.6 1695.3,126.6 1703.3,126.6 1711.2,126.5 1719.2,126.5 1727.2,126.2 1735.1,125.1 1743.1,124.4 1751.1,124.4 1759.0,124.2 1767.0,123.5 1775.0,123.0 1782.9,123.0 1790.9,122.8 1798.9,122.6 1806.8,122.6 1814.8,122.6 1822.8,122.4 1830.7,122.3 1838.7,122.0 1846.7,121.7 1854.7,121.3 1862.6,121.3 1870.6,121.3 1878.6,121.1 1886.5,121.1 1894.5,120.9 1902.5,120.6 1910.4,120.5 1918.4,120.5 1926.4,120.5 1934.3,120.2 1942.3,120.2 1950.3,120.2 1958.2,120.0 1966.2,120.0 1974.2,120.0 1982.1,120.0 1990.1,120.0 1998.1,119.7 2006.0,119.6 2014.0,119.6" fill="none" stroke="var(--ink-faint)" stroke-width="2"/>
+  <polyline points="54.0,224.8 62.0,218.0 69.9,217.5 77.9,217.5 85.9,216.2 93.8,216.0 101.8,215.8 109.8,213.8 117.7,212.1 125.7,210.2 133.7,210.2 141.6,210.3 149.6,208.8 157.6,207.8 165.5,204.8 173.5,203.8 181.5,203.5 189.4,203.5 197.4,203.3 205.4,201.2 213.3,198.7 221.3,197.2 229.3,195.3 237.3,193.1 245.2,193.1 253.2,192.5 261.2,190.3 269.1,187.4 277.1,185.2 285.1,184.5 293.0,180.1 301.0,180.1 309.0,180.1 316.9,178.9 324.9,177.8 332.9,175.6 340.8,171.9 348.8,171.4 356.8,171.4 364.7,170.3 372.7,166.7 380.7,164.5 388.6,163.2 396.6,161.6 404.6,159.8 412.5,159.8 420.5,159.3 428.5,159.1 436.4,157.4 444.4,155.7 452.4,153.7 460.3,150.9 468.3,150.9 476.3,150.5 484.2,148.8 492.2,147.9 500.2,146.4 508.1,145.4 516.1,145.2 524.1,145.2 532.0,144.7 540.0,144.4 548.0,140.3 556.0,137.6 563.9,133.6 571.9,131.7 579.9,131.7 587.8,131.9 595.8,130.0 603.8,127.9 611.7,125.9 619.7,124.4 627.7,124.1 635.6,124.1 643.6,123.5 651.6,122.8 659.5,122.4 667.5,120.5 675.5,117.6 683.4,117.4 691.4,117.4 699.4,116.9 707.3,114.2 715.3,110.0 723.3,107.7 731.2,105.6 739.2,105.1 747.2,105.1 755.1,104.7 763.1,104.0 771.1,102.5 779.0,101.3 787.0,99.4 795.0,98.4 802.9,98.4 810.9,97.5 818.9,97.0 826.8,96.9 834.8,95.2 842.8,94.8 850.7,94.6 858.7,94.6 866.7,94.5 874.7,94.5 882.6,94.1 890.6,93.6 898.6,93.2 906.5,92.9 914.5,92.9 922.5,92.1 930.4,91.4 938.4,91.2 946.4,90.8 954.3,89.9 962.3,89.9 970.3,89.9 978.2,89.9 986.2,89.8 994.2,89.8 1002.1,89.8 1010.1,87.9 1018.1,86.7 1026.0,86.7 1034.0,86.7 1042.0,85.2 1049.9,84.2 1057.9,82.8 1065.9,82.3 1073.8,81.9 1081.8,81.9 1089.8,81.8 1097.7,81.4 1105.7,80.7 1113.7,80.1 1121.6,79.2 1129.6,78.8 1137.6,78.8 1145.5,78.8 1153.5,77.9 1161.5,77.3 1169.4,76.6 1177.4,76.6 1185.4,76.6 1193.3,76.6 1201.3,76.6 1209.3,74.3 1217.3,62.8 1225.2,62.4 1233.2,62.3 1241.2,62.4 1249.1,62.4 1257.1,62.4 1265.1,62.1 1273.0,62.1 1281.0,61.5 1289.0,60.9 1296.9,61.0 1304.9,61.0 1312.9,61.0 1320.8,60.3 1328.8,60.3 1336.8,59.0 1344.7,58.8 1352.7,58.8 1360.7,58.8 1368.6,58.6 1376.6,57.8 1384.6,57.6 1392.5,57.3 1400.5,56.0 1408.5,55.5 1416.4,55.5 1424.4,55.2 1432.4,54.2 1440.3,53.1 1448.3,52.9 1456.3,52.5 1464.2,52.5 1472.2,52.5 1480.2,52.5 1488.1,52.3 1496.1,51.5 1504.1,50.4 1512.0,48.0 1520.0,47.3 1528.0,47.3 1536.0,47.3 1543.9,47.3 1551.9,46.7 1559.9,46.6 1567.8,46.6 1575.8,45.5 1583.8,45.5 1591.7,45.5 1599.7,45.0 1607.7,43.7 1615.6,43.7 1623.6,43.7 1631.6,43.5 1639.5,43.5 1647.5,43.5 1655.5,43.4 1663.4,43.4 1671.4,43.0 1679.4,42.8 1687.3,42.8 1695.3,42.8 1703.3,42.8 1711.2,42.8 1719.2,42.8 1727.2,42.3 1735.1,40.3 1743.1,35.8 1751.1,35.8 1759.0,35.5 1767.0,34.1 1775.0,33.9 1782.9,33.8 1790.9,33.4 1798.9,32.8 1806.8,32.8 1814.8,32.8 1822.8,32.6 1830.7,32.4 1838.7,31.7 1846.7,31.4 1854.7,30.8 1862.6,30.8 1870.6,30.8 1878.6,30.8 1886.5,30.8 1894.5,30.5 1902.5,30.1 1910.4,30.1 1918.4,30.1 1926.4,30.1 1934.3,30.1 1942.3,30.1 1950.3,30.1 1958.2,30.1 1966.2,30.1 1974.2,30.1 1982.1,30.1 1990.1,29.9 1998.1,29.6 2006.0,28.9 2014.0,28.5" fill="none" stroke="var(--buy)" stroke-width="2.4"/>
+  <circle cx="2014.0" cy="28.5" r="4" fill="var(--buy-strong)"/>
+  <circle cx="2014.0" cy="119.6" r="3.6" fill="var(--ink-faint)"/>
+</svg>
+      </div>
+      <figcaption>Note the March jump (crosses $10K) and the late-May jump (sell account wakes up after weeks flat) — visible as the steeper segments on the 30% line.</figcaption>
+    </div>
+  </section>
+
+  <section id="weekly">
+    <h2>Week by week</h2>
+    <p class="section-sub">30% pick shown with both sub-accounts broken out — notice how much of the growth runs through the buy account specifically this year.</p>
+    <div class="card overflow-x">
+      <table class="balance">
+        <thead><tr><th>Week ending</th><th>30% buy</th><th>30% sell</th><th>30% combined</th><th>50% combined</th></tr></thead>
+        <tbody>
+          <tr><td>Jan 2</td><td>$148.30</td><td>$103.88</td><td>$252.18</td><td>$213.70</td></tr>
+          <tr><td>Jan 9</td><td>$221.68</td><td>$95.30</td><td>$316.98</td><td>$292.78</td></tr>
+          <tr><td>Jan 16</td><td>$295.37</td><td>$95.30</td><td>$390.67</td><td>$414.72</td></tr>
+          <tr><td>Jan 23</td><td>$448.02</td><td>$94.05</td><td>$542.07</td><td>$541.74</td></tr>
+          <tr><td>Jan 30</td><td>$629.78</td><td>$184.61</td><td>$814.39</td><td>$593.38</td></tr>
+          <tr><td>Feb 6</td><td>$886.67</td><td>$184.61</td><td>$1,071.28</td><td>$793.68</td></tr>
+          <tr><td>Feb 13</td><td>$1,327.62</td><td>$214.60</td><td>$1,542.21</td><td>$986.38</td></tr>
+          <tr><td>Feb 20</td><td>$1,701.00</td><td>$335.77</td><td>$2,036.77</td><td>$1,208.81</td></tr>
+          <tr><td>Feb 27</td><td>$1,953.31</td><td>$483.46</td><td>$2,436.76</td><td>$1,346.09</td></tr>
+          <tr><td>Mar 6</td><td>$3,017.62</td><td>$708.44</td><td>$3,726.06</td><td>$1,427.93</td></tr>
+          <tr><td>Mar 13</td><td>$4,026.38</td><td>$708.44</td><td>$4,734.82</td><td>$1,618.87</td></tr>
+          <tr><td>Mar 20</td><td>$5,131.93</td><td>$708.44</td><td>$5,840.37</td><td>$1,724.42</td></tr>
+          <tr><td>Mar 27</td><td>$7,200.69</td><td>$1,385.80</td><td>$8,586.48</td><td>$1,852.59</td></tr>
+          <tr><td>Apr 3</td><td>$9,200.09</td><td>$1,385.80</td><td>$10,585.89</td><td>$2,039.69</td></tr>
+          <tr><td>Apr 10</td><td>$10,550.39</td><td>$1,385.80</td><td>$11,936.18</td><td>$2,172.82</td></tr>
+          <tr><td>Apr 17</td><td>$11,215.89</td><td>$1,385.80</td><td>$12,601.69</td><td>$2,269.01</td></tr>
+          <tr><td>Apr 24</td><td>$12,466.46</td><td>$1,385.80</td><td>$13,852.26</td><td>$2,391.24</td></tr>
+          <tr><td>May 1</td><td>$13,575.40</td><td>$1,711.18</td><td>$15,286.59</td><td>$2,604.58</td></tr>
+          <tr><td>May 8</td><td>$15,299.57</td><td>$2,477.20</td><td>$17,776.77</td><td>$2,807.22</td></tr>
+          <tr><td>May 15</td><td>$16,790.82</td><td>$2,837.70</td><td>$19,628.52</td><td>$2,980.46</td></tr>
+          <tr><td>May 22</td><td>$18,256.12</td><td>$2,763.26</td><td>$21,019.38</td><td>$3,140.06</td></tr>
+          <tr><td>May 29</td><td>$22,042.20</td><td>$10,744.89</td><td>$32,787.09</td><td>$3,096.69</td></tr>
+          <tr><td>Jun 5</td><td>$23,173.59</td><td>$11,088.61</td><td>$34,262.20</td><td>$3,147.22</td></tr>
+          <tr><td>Jun 12</td><td>$25,701.72</td><td>$11,088.61</td><td>$36,790.32</td><td>$3,284.44</td></tr>
+          <tr><td>Jun 19</td><td>$29,644.94</td><td>$11,088.61</td><td>$40,733.55</td><td>$3,463.97</td></tr>
+          <tr><td>Jun 26</td><td>$33,753.46</td><td>$11,088.61</td><td>$44,842.07</td><td>$3,687.06</td></tr>
+          <tr><td>Jul 3</td><td>$41,562.70</td><td>$11,088.61</td><td>$52,651.31</td><td>$3,944.79</td></tr>
+          <tr><td>Jul 10</td><td>$44,673.50</td><td>$11,088.61</td><td>$55,762.11</td><td>$4,088.70</td></tr>
+          <tr><td>Jul 17</td><td>$48,317.33</td><td>$11,088.61</td><td>$59,405.94</td><td>$4,234.72</td></tr>
+          <tr><td>Jul 24</td><td>$49,580.96</td><td>$11,088.61</td><td>$60,669.56</td><td>$4,366.03</td></tr>
+          <tr><td>Jul 31</td><td>$63,441.40</td><td>$12,098.35</td><td>$75,539.75</td><td>$4,679.73</td></tr>
+          <tr><td>Aug 7</td><td>$72,453.96</td><td>$10,578.36</td><td>$83,032.31</td><td>$4,951.60</td></tr>
+          <tr><td>Aug 14</td><td>$77,870.70</td><td>$10,578.36</td><td>$88,449.06</td><td>$5,167.59</td></tr>
+          <tr><td>Aug 21</td><td>$79,931.48</td><td>$10,578.36</td><td>$90,509.83</td><td>$5,301.85</td></tr>
+          <tr><td>Aug 28</td><td>$80,037.28</td><td>$10,578.36</td><td>$90,615.64</td><td>$5,378.64</td></tr>
+          <tr><td>Sep 4</td><td>$84,711.15</td><td>$10,578.36</td><td>$95,289.51</td><td>$5,438.33</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub" style="margin-top:14px;">The sell account sat flat for weeks at a stretch (Jan 16–23, Feb 13–20, Mar 20 through Apr 24) — no sell-side signal won its race for the one open slot in those windows, while the buy account kept compounding on its own. That's the two-account architecture working as designed: growth on one side never borrows capacity from the other, for better or worse.</p>
+  </section>
+
+  <section id="monthly">
+    <h2>Month by month</h2>
+    <div class="card overflow-x">
+      <table class="balance">
+        <thead><tr><th>Month end</th><th>30% pick</th><th>50% baseline</th></tr></thead>
+        <tbody>
+          <tr><td>Start (Jan 1)</td><td>$200.00</td><td>$200.00</td></tr>
+          <tr class="month-row"><td>Jan</td><td>$814.39</td><td>$593.38</td></tr>
+          <tr class="month-row"><td>Feb</td><td>$2,436.76</td><td>$1,346.09</td></tr>
+          <tr class="month-row"><td>Mar</td><td>$9,305.43</td><td>$1,949.27</td></tr>
+          <tr class="month-row"><td>Apr</td><td>$14,753.47</td><td>$2,526.99</td></tr>
+          <tr class="month-row"><td>May</td><td>$32,787.09</td><td>$3,095.54</td></tr>
+          <tr class="month-row"><td>Jun</td><td>$46,253.19</td><td>$3,722.90</td></tr>
+          <tr class="month-row"><td>Jul</td><td>$75,539.75</td><td>$4,679.73</td></tr>
+          <tr class="month-row"><td>Aug</td><td>$90,998.30</td><td>$5,382.97</td></tr>
+          <tr class="month-row"><td>Sep (partial)</td><td>$95,289.51</td><td>$5,438.33</td></tr>
+        </tbody>
+      </table>
+      <figcaption>September covers only the 1st through the 3rd — three trading days, not a full month.</figcaption>
+    </div>
+  </section>
+
+  <section>
+    <h2>Reading this against the other view</h2>
+    <div class="card">
+      <p>This is the mirror image of <a href="https://claude.ai/code/artifact/c07608db-bcbd-4229-b2d4-5bd6b3463034" target="_blank" rel="noopener">The 2026 Scorecard</a>'s continuation view. Both are honest, both are "correct" — they just answer different questions. The Scorecard asks <i>"if this account had really been running since 2009, how did 2026 look?"</i> (answer: enormous in dollars, tiny in percent, because $2M-cap saturation flattens the percentage math). This page asks <i>"if I opened these two accounts today with $100 each, what would I be looking at?"</i> — and here, nowhere near the cap yet, the compounding is the whole story: $200 becomes $95,290 in eight months at the 30% entry depth.</p>
+      <div class="caveat"><b>2,579 trades in 8 months is a small sample relative to the 131,369-trade full-history backtest this rule is validated on</b> — treat this specific run as one draw from that same distribution, not a new, independent result. The trade-level edge (WR 50.91%, PF 2.489) is consistent with the historical average; the exact dollar path is not something to expect to repeat.</div>
+      <div class="caveat">Same modeling throughout: 1.6-pip round-trip spread, pre-v26 concurrency approximation, no slippage or live verification.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/c07608db-bcbd-4229-b2d4-5bd6b3463034" target="_blank" rel="noopener">The 2026 Scorecard<span>The same year, continuing the full 17-year simulation instead of resetting.</span></a>
+      <a href="https://claude.ai/code/artifact/cb53dc7a-f603-4536-84f6-cdb122b73b11" target="_blank" rel="noopener">The Entry Depth Sweep<span>Full backtest at every entry depth from 10% to 90%.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    2026-01-01 through 2026-09-03, EURUSD + GBPUSD + USDJPY + EURGBP, 1-minute bars, fresh $100/$100 two-account start (no connection to the pre-2026 history). Research-grade backtest — not investment advice, not a live track record.
+  </footer>
+
+</div>

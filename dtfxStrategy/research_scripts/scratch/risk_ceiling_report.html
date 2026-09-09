@@ -1,0 +1,212 @@
+<title>The Risk Ceiling</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --danger-fill: rgba(168,70,44,0.09);
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --danger-fill: rgba(232,129,92,0.10);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --danger-fill: rgba(232,129,92,0.10);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 44px 24px 70px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 16px; text-wrap: balance; }
+  .dek { font-size: 16px; color: var(--ink-dim); max-width: 76ch; margin: 0 0 28px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 6px; }
+  .section-sub { color: var(--ink-dim); font-size: 14px; max-width: 74ch; margin: 0 0 18px; }
+  section { margin-top: 44px; }
+  p { margin: 0 0 12px; }
+
+  .callout { border-radius: 12px; padding: 18px 20px; margin: 0 0 30px; border: 1px solid var(--line); background: var(--surface); }
+  .callout.danger { background: var(--danger-fill); border-color: var(--sell); }
+  .callout h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+  .callout.danger h3 { color: var(--sell-strong); }
+  .callout p { color: var(--ink); font-size: 14.5px; margin-bottom: 10px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+  .goal-card { border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); border: 1px solid var(--line); background: var(--surface); }
+  .goal-card h3 { font-family: "Fraunces", Georgia, serif; font-size: 18px; font-weight: 500; margin: 0 0 8px; color: var(--ink); text-transform: none; letter-spacing: 0; }
+  .goal-card .big { font-family: "IBM Plex Mono", monospace; font-size: 28px; font-weight: 500; margin: 4px 0; }
+  .goal-card.safe .big { color: var(--buy-strong); }
+  .goal-card.risky .big { color: var(--sell-strong); }
+  .goal-card p { font-size: 13.5px; color: var(--ink-dim); margin: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; padding: 9px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; }
+  td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  .table-shell { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 12px; }
+  .win-cell { color: var(--buy-strong); font-weight: 600; }
+  .loss-cell { color: var(--sell-strong); font-weight: 600; }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+  .caveat b { color: var(--ink-dim); }
+  .more-links { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 640px) { .more-links { grid-template-columns: 1fr; } }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">variant A · fixed 1:1R · real two-account architecture</p>
+  <h1>The Risk Ceiling</h1>
+  <p class="dek">Two questions that sound like the same question: <b>"how much should I risk per trade?"</b> Tested variant A (fixed 1:1R, the profitable target from <a href="https://claude.ai/code/artifact/0119e085-a75d-43be-acd1-568aab744429" target="_blank" rel="noopener">Head to Head</a>) under this project's actual live architecture — two separate $100 sub-accounts, buy-only and sell-only, never pooled, one confirmed open position per side, 50x leverage, 1.6-pip spread on every entry — sweeping both minimum zone height and risk per trade. The two questions below give genuinely different answers, and mixing them up is the mistake to avoid.</p>
+
+  <div class="two-col">
+    <div class="goal-card safe">
+      <h3>"How fast can I reach $1M, and how risky is that race?"</h3>
+      <div class="big">0.00% ruin</div>
+      <p>Block-bootstrap Monte Carlo, 1,000 paths per risk level, 1%-15% risk, 5- and 10-pip zone floors: every single path reaches $1M, typically in under a year. Essentially safe at any risk tested — because the race is over long before a real losing streak has time to occur.</p>
+    </div>
+    <div class="goal-card risky">
+      <h3>"What if I keep compounding at that risk, indefinitely?"</h3>
+      <div class="big">Ruin above ~7-10%</div>
+      <p>A deterministic, single-pass replay of the full 23.7-year trade history (not bootstrapped) shows a sharp cliff: spectacular growth at 5-7% risk, then near-total ruin one or two risk steps higher — because a strategy trading hundreds of thousands of times across decades eventually meets a losing streak big enough to matter.</p>
+    </div>
+  </div>
+
+  <section style="margin-top:0;">
+    <h2>The cliff, on the actual historical sequence</h2>
+    <p class="section-sub">CAGR from replaying all 23.7 years of trades in order, once, compounding continuously — not stopping at $1M. Both zone heights climb smoothly through 7% risk, then crash to near-total ruin at 10%.</p>
+    <figure style="margin:0 0 10px;">
+      <svg viewBox="0 0 640 260" role="img" aria-label="Line chart of CAGR versus risk percent per trade, for 5-pip and 10-pip minimum zone heights, on the full historical trade sequence. Both lines climb from about 90-100 percent CAGR at 1 percent risk to a peak around 108 percent at 5 percent risk, then crash to roughly negative 10 percent at 10 percent risk and stay there through 30 percent risk, marking a sharp ruin cliff." style="width:100%; height:auto; display:block; font-family:'IBM Plex Mono',monospace;">
+        <rect x="368.0" y="14" width="257.6" height="212" fill="var(--danger-fill)"/>
+        <text x="497" y="30" text-anchor="middle" font-size="10.5" fill="var(--sell-strong)" font-weight="700">sustained compounding fails here</text>
+
+        <line x1="46" y1="14" x2="626" y2="14" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="17" text-anchor="end" font-size="10" fill="var(--ink-faint)">120%</text>
+        <line x1="46" y1="74.6" x2="626" y2="74.6" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="77.6" text-anchor="end" font-size="10" fill="var(--ink-faint)">80%</text>
+        <line x1="46" y1="135.1" x2="626" y2="135.1" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="138.1" text-anchor="end" font-size="10" fill="var(--ink-faint)">40%</text>
+        <line x1="46" y1="195.7" x2="626" y2="195.7" stroke="var(--accent)" stroke-width="1.3" stroke-dasharray="3,3"/>
+        <text x="40" y="198.7" text-anchor="end" font-size="10" fill="var(--accent)" font-weight="600">0%</text>
+
+        <polyline points="46.0,40.76 110.4,33.58 174.8,32.06 239.2,31.86 303.6,31.92 368.0,210.07 432.4,207.02 496.8,206.50 561.2,205.93 625.6,206.36" fill="none" stroke="var(--buy-strong)" stroke-width="2.4" stroke-linejoin="round"/>
+        <polyline points="46.0,57.32 110.4,48.78 174.8,45.51 239.2,44.42 303.6,44.70 368.0,210.55 432.4,209.46 496.8,206.06 561.2,214.05 625.6,217.31" fill="none" stroke="var(--sell)" stroke-width="2.4" stroke-linejoin="round"/>
+
+        <circle cx="303.6" cy="31.92" r="3.4" fill="var(--buy-strong)"/>
+        <circle cx="368.0" cy="210.07" r="3.6" fill="var(--surface-raised)" stroke="var(--sell-strong)" stroke-width="2"/>
+
+        <g font-size="10" fill="var(--ink-faint)">
+          <text x="46.0" y="244" text-anchor="middle">1%</text>
+          <text x="110.4" y="244" text-anchor="middle">2%</text>
+          <text x="174.8" y="244" text-anchor="middle">3%</text>
+          <text x="239.2" y="244" text-anchor="middle">5%</text>
+          <text x="303.6" y="244" text-anchor="middle">7%</text>
+          <text x="368.0" y="244" text-anchor="middle">10%</text>
+          <text x="432.4" y="244" text-anchor="middle">15%</text>
+          <text x="496.8" y="244" text-anchor="middle">20%</text>
+          <text x="561.2" y="244" text-anchor="middle">25%</text>
+          <text x="625.6" y="244" text-anchor="middle">30%</text>
+        </g>
+        <text x="336" y="258" text-anchor="middle" font-size="10.5" fill="var(--ink-dim)">risk per trade (% of min(buy, sell) equity)</text>
+      </svg>
+      <figcaption class="section-sub" style="margin-top:10px;">
+        <span style="color:var(--buy-strong); font-weight:700;">— 5-pip min zone</span>&nbsp;&nbsp;
+        <span style="color:var(--sell); font-weight:700;">— 10-pip min zone</span>
+      </figcaption>
+    </figure>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Min zone</th><th>Risk at cliff edge</th><th>CAGR just before</th><th>Max DD just before</th><th>CAGR just after</th></tr></thead>
+        <tbody>
+          <tr><td>5 pips</td><td>7% → 10%</td><td class="win-cell">108.1%</td><td class="loss-cell">−96.3%</td><td class="loss-cell">−9.5%</td></tr>
+          <tr><td>10 pips</td><td>7% → 10%</td><td class="win-cell">99.7%</td><td class="loss-cell">−94.2%</td><td class="loss-cell">−9.8%</td></tr>
+          <tr><td>20 pips</td><td>10% → 15%</td><td class="win-cell">83.1%</td><td class="loss-cell">−85.6%</td><td class="loss-cell">−6.7%</td></tr>
+          <tr><td>30 pips</td><td>15% → 20%</td><td class="win-cell">78.3%</td><td class="loss-cell">−84.8%</td><td class="loss-cell">−6.3%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">Notice the drawdown column even <i>before</i> the cliff: at every zone height, the "growth-optimal" risk on this historical path already ran a peak-to-trough drawdown of 85-96% at some point in the 23.7 years — technically survived, but not something most traders sit through by choice.</p>
+  </section>
+
+  <section>
+    <h2>The Monte Carlo doesn't see the cliff — here's why</h2>
+    <p class="section-sub">1,000 block-bootstrap-resampled paths per risk level, capped at 50,000 trades or $1M, whichever comes first. Every path in this table reaches $1M — the cliff above never gets a chance to appear.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Risk</th><th>5-pip: reached $1M</th><th>5-pip: median years</th><th>5-pip: median max DD</th><th>10-pip: reached $1M</th><th>10-pip: median years</th><th>10-pip: median max DD</th></tr></thead>
+        <tbody>
+          <tr><td>1%</td><td class="win-cell">100%</td><td>0.22</td><td>−7.5%</td><td class="win-cell">100%</td><td>0.83</td><td>−7.2%</td></tr>
+          <tr><td>2%</td><td class="win-cell">100%</td><td>0.13</td><td>−10.9%</td><td class="win-cell">100%</td><td>0.43</td><td>−11.8%</td></tr>
+          <tr><td>3%</td><td class="win-cell">100%</td><td>0.15</td><td>−11.8%</td><td class="win-cell">100%</td><td>0.35</td><td>−14.1%</td></tr>
+          <tr><td>5%</td><td class="win-cell">100%</td><td>0.27</td><td>−10.3%</td><td class="win-cell">100%</td><td>0.46</td><td>−15.7%</td></tr>
+          <tr><td>7%</td><td class="win-cell">100%</td><td>0.45</td><td>−9.4%</td><td class="win-cell">100%</td><td>0.68</td><td>−14.4%</td></tr>
+          <tr><td>10%</td><td class="win-cell">100%</td><td>0.64</td><td>−9.1%</td><td class="win-cell">100%</td><td>0.95</td><td>−14.3%</td></tr>
+          <tr><td>15%</td><td class="win-cell">100%</td><td>0.90</td><td>−8.9%</td><td class="win-cell">100%</td><td>1.28</td><td>−14.2%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">Ruin needs enough trades in a row to matter, at a large enough account size to matter. The $1M finish line arrives so quickly here (months, not years) that neither condition has time to develop — this table is answering "is the sprint to $1M safe," not "is this risk level safe forever," and the two questions have different answers for exactly the reason the cliff chart above shows.</p>
+  </section>
+
+  <section>
+    <h2>The recommendation</h2>
+    <div class="callout">
+      <h3>For a bounded goal — grow $200 to $1M, then stop or re-evaluate</h3>
+      <p><b>3-5% risk on a 5-10 pip minimum zone height</b> is well-supported: fast (typically under a year per the Monte Carlo), zero measured ruin risk across 1,000 resampled paths, and drawdowns along the way stay in the 8-16% range rather than the 85%+ seen over a full 23-year compounding run.</p>
+    </div>
+    <div class="callout danger">
+      <h3>For sustained, indefinite compounding at a fixed risk fraction</h3>
+      <p>Treat 5% as already close to the edge — it produced an 85-96% historical drawdown even where it didn't fully ruin, and the very next risk step tested (10%) did ruin. Prefer <b>1-3% risk</b> if the actual plan is to keep re-risking the same fraction for years rather than scaling risk down as equity grows past the point a $1M target would normally prompt a re-think.</p>
+    </div>
+    <p class="section-sub">Across both the earlier minimum-zone-size sweep and this risk analysis together, <b>a 10+ pip minimum zone height paired with 3-5% risk</b> is the best-supported combination this project has tested so far for variant A.</p>
+  </section>
+
+  <section>
+    <h2>What this is (and isn't)</h2>
+    <div class="caveat"><b>The deterministic "cliff" replay uses one specific historical ordering of trades.</b> A different history could have put that losing streak somewhere else in the sequence, or nowhere at all in 23 years — the point isn't that ruin happens at exactly this risk level, it's that <i>a</i> cliff exists somewhere near this level for this trade distribution, and it's much closer to "safe-looking" risk levels than intuition suggests.</div>
+    <div class="caveat"><b>The Monte Carlo caps each path at $1M or 50,000 trades.</b> It is a correct, honest answer to "how risky is the race to $1M" — it is not evidence that any tested risk level is safe to run forever, precisely because it never runs a path that long.</div>
+    <div class="caveat">Code: <span class="mono">goal104_optimal_risk_two_account.py</span> (deterministic sweep), <span class="mono">goal105_mc_risk_validation.py</span> (Monte Carlo validation), both built on <span class="mono">goal79_two_account_portfolio.py</span>'s <span class="mono">simulate_two_account</span> / <span class="mono">run_monte_carlo_two_account</span> (unmodified) and <span class="mono">goal99_dtfx_base_backtest.py</span>'s entry gate + fixed 1:1R target with the minimum-zone-height filter.</div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/0119e085-a75d-43be-acd1-568aab744429" target="_blank" rel="noopener">Head to Head<span>Variant A vs. C, full history, all four pairs.</span></a>
+      <a href="https://claude.ai/code/artifact/710480f5-6a3e-4243-8bbc-5bb9f6ada344" target="_blank" rel="noopener">Reading the Tape<span>Variant A's entry gate and target, live on real candles.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    EURUSD, GBPUSD, EURGBP, USDJPY · 1-minute bars · full available history per pair · research-grade backtest, not a live track record. dtfx.md is the base specification this analysis extends.
+  </footer>
+</div>

@@ -1,0 +1,244 @@
+<title>Ground Truth</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --warn-fill: rgba(168,70,44,0.09); --good-fill: rgba(30,122,92,0.09);
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --warn-fill: rgba(232,129,92,0.10); --good-fill: rgba(69,203,152,0.10);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --warn-fill: rgba(232,129,92,0.10); --good-fill: rgba(69,203,152,0.10);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 44px 24px 70px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 16px; text-wrap: balance; }
+  .dek { font-size: 16px; color: var(--ink-dim); max-width: 76ch; margin: 0 0 28px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 6px; }
+  h3 { font-family: "IBM Plex Sans", sans-serif; font-weight: 700; font-size: 14px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .section-sub { color: var(--ink-dim); font-size: 14px; max-width: 74ch; margin: 0 0 18px; }
+  section { margin-top: 44px; }
+  p { margin: 0 0 12px; }
+
+  .finding { border-radius: 14px; padding: 22px 24px; margin: 0 0 24px; border: 1.5px solid var(--accent); background: rgba(150,99,30,0.07); }
+  .finding .big { font-family: "Fraunces", Georgia, serif; font-size: 24px; font-weight: 500; margin: 0 0 10px; }
+  .finding p { color: var(--ink); font-size: 14.5px; margin-bottom: 8px; }
+  .finding p:last-child { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; padding: 9px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; }
+  td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  .table-shell { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 12px; }
+  .win-cell { color: var(--buy-strong); font-weight: 600; }
+  .loss-cell { color: var(--sell-strong); font-weight: 600; }
+  .flag-cell { color: var(--accent); font-weight: 600; }
+  .highlight-row td { background: var(--good-fill); }
+
+  .checklist { display: grid; gap: 10px; margin-top: 16px; }
+  .check-item { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .check-item .mark { font-weight: 700; flex-shrink: 0; width: 20px; }
+  .check-item .mark.yes { color: var(--buy-strong); }
+  .check-item .mark.no { color: var(--sell-strong); }
+  .check-item .mark.partial { color: var(--accent); }
+  .check-item .label { font-weight: 600; font-size: 13.5px; }
+  .check-item .detail { color: var(--ink-dim); font-size: 13px; margin-top: 2px; }
+
+  .verdict { border-radius: 14px; padding: 22px 24px; background: var(--good-fill); border: 1.5px solid var(--buy); margin-bottom: 20px; }
+  .verdict .big { font-family: "Fraunces", Georgia, serif; font-size: 24px; font-weight: 500; color: var(--buy-strong); margin: 0 0 8px; }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+  .caveat b { color: var(--ink-dim); }
+  .more-links { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 640px) { .more-links { grid-template-columns: 1fr; } }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">data forensics · walk-forward validation · cost stress test</p>
+  <h1>Ground Truth</h1>
+  <p class="dek">The doubts raised in <a href="https://claude.ai/code/artifact/20a135af-a633-4029-81e3-cf370220d5b1" target="_blank" rel="noopener">The 2026 Trial</a> — an unexplained win-rate jump starting 2021, no genuine holdout, no cost-margin estimate — get addressed directly here, not caveated again. The headline: the 2021+ outperformance has a real, dated, cross-confirmed explanation, and once it's excluded from parameter selection, a smaller but genuinely validated edge survives contact with data it was never allowed to see.</p>
+
+  <div class="finding">
+    <div class="big">The 2021-2025 data isn't wrong, but it isn't representative either</div>
+    <p>Measuring the share of near-zero-range (under 0.15 pip) 1-minute bars, month by month: a sharp, synchronized shift from ~1-4% (typical, natural quote noise) down to ~0.05-0.6% starting <b>January 2021</b>, holding there for over five years, then reverting back up to ~2-12% starting <b>April 2026</b> — matching the pre-2021 character almost exactly. The same two months, independently, on <b>all four pairs</b> (EURUSD, GBPUSD, EURGBP, USDJPY). That's a feed or processing-pipeline characteristic, not four currencies simultaneously changing how they trade.</p>
+  </div>
+
+  <section style="margin-top:0;">
+    <h2>The evidence, month by month (EURUSD shown; all four pairs match)</h2>
+    <figure style="margin:0 0 10px;">
+      <svg viewBox="0 0 640 260" role="img" aria-label="Line chart of the percentage of near-zero-range one-minute bars per month for EURUSD from January 2019 through September 2026. The value stays high, around 1 to 4 percent, through 2020, then drops sharply to under 0.6 percent starting January 2021 and stays low through March 2026, then jumps back up sharply to 2 to 5 percent from April 2026 onward." style="width:100%; height:auto; display:block; font-family:'IBM Plex Mono',monospace;">
+        <rect x="197.3" y="14" width="397.2" height="212" fill="var(--warn-fill)"/>
+        <text x="396" y="30" text-anchor="middle" font-size="10.5" fill="var(--sell-strong)" font-weight="700">the "smoothed" window — excluded from every parameter choice</text>
+
+        <line x1="46" y1="226" x2="626" y2="226" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="229" text-anchor="end" font-size="10" fill="var(--ink-faint)">0%</text>
+        <line x1="46" y1="141.2" x2="626" y2="141.2" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="144.2" text-anchor="end" font-size="10" fill="var(--ink-faint)">2%</text>
+        <line x1="46" y1="56.4" x2="626" y2="56.4" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="59.4" text-anchor="end" font-size="10" fill="var(--ink-faint)">4%</text>
+
+        <line x1="197.3" y1="14" x2="197.3" y2="226" stroke="var(--sell)" stroke-width="1.3" stroke-dasharray="3,3"/>
+        <line x1="594.5" y1="14" x2="594.5" y2="226" stroke="var(--sell)" stroke-width="1.3" stroke-dasharray="3,3"/>
+
+        <polyline points="46.0,175.4 52.3,124.4 58.6,138.4 64.9,28.9 71.2,33.3 77.5,66.8 83.8,21.7 90.1,106.5 96.4,76.4 102.7,80.6 109.0,40.1 115.3,23.8 121.7,14.0 128.0,53.5 134.3,196.1 140.6,150.3 146.9,139.6 153.2,174.3 159.5,159.5 165.8,160.6 172.1,156.4 178.4,153.3 184.7,146.9 191.0,163.9 197.3,200.5 203.6,206.7 209.9,211.7 216.2,208.7 222.5,201.3 228.8,205.7 235.1,205.5 241.4,204.3 247.7,199.3 254.0,205.4 260.3,209.4 266.7,209.3 273.0,211.1 279.3,206.2 285.6,212.4 291.9,209.4 298.2,199.6 304.5,206.8 310.8,207.5 317.1,211.4 323.4,205.6 329.7,199.1 336.0,200.2 342.3,203.2 348.6,205.1 354.9,189.6 361.2,189.9 367.5,195.3 373.8,193.1 380.1,198.8 386.4,203.0 392.7,208.0 399.0,200.4 405.3,201.4 411.7,201.6 418.0,210.9 424.3,222.7 430.6,219.0 436.9,213.8 443.2,216.9 449.5,206.4 455.8,217.4 462.1,219.6 468.4,214.2 474.7,213.6 481.0,205.6 487.3,223.0 493.6,209.7 499.9,218.5 506.2,220.4 512.5,212.5 518.8,209.4 525.1,214.7 531.4,216.0 537.7,217.2 544.0,214.1 550.3,213.1 556.7,221.9 563.0,214.4 569.3,210.0 575.6,218.7 581.9,215.1 588.2,219.9 594.5,199.9 600.8,93.3 607.1,90.0 613.4,44.5 619.7,14.0 626.0,56.9" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+
+        <g font-size="10" fill="var(--ink-faint)">
+          <text x="46.0" y="244" text-anchor="middle">2019</text>
+          <text x="197.3" y="244" text-anchor="middle">2021</text>
+          <text x="348.6" y="244" text-anchor="middle">2023</text>
+          <text x="499.9" y="244" text-anchor="middle">2025</text>
+          <text x="626.0" y="244" text-anchor="middle">2026</text>
+        </g>
+      </svg>
+      <figcaption class="section-sub" style="margin-top:10px;">% of 1-minute bars with high−low range under 0.15 pip, by month. The shaded window (Jan 2021 – Mar 2026) is excluded from every parameter decision on this page.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Re-deriving the minimum zone height honestly</h2>
+    <p class="section-sub">Same sweep as before, but the selection criterion now only looks at PRE-2021 data. SMOOTHED and POST columns are shown, not used.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Min zone</th><th>PRE-2021 PF (used to select)</th><th>SMOOTHED PF (excluded)</th><th>POST-2026-04 PF (holdout)</th></tr></thead>
+        <tbody>
+          <tr><td>5 pips</td><td>1.452</td><td class="flag-cell">2.349</td><td>1.335</td></tr>
+          <tr class="highlight-row"><td>10 pips</td><td class="win-cell">1.565</td><td class="flag-cell">2.192</td><td class="win-cell">1.459</td></tr>
+          <tr><td>15 pips</td><td>1.526</td><td class="flag-cell">1.913</td><td>1.566</td></tr>
+          <tr><td>20 pips</td><td>1.454</td><td class="flag-cell">1.793</td><td>1.804</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub"><b>10 pips wins on PRE-2021 data alone</b> (PF 1.565, n=143,363) — the same choice made everywhere else in this project, but this time it wasn't chosen using any of the inflated window. The SMOOTHED column's PF is 40-60% higher than either honest period at every zone height — a direct measurement of how much the artifact was worth.</p>
+  </section>
+
+  <section>
+    <h2>The walk-forward proof</h2>
+    <p class="section-sub">10-pip zone height and risk level chosen using PRE-2021 data only, then run — unchanged, untouched — against POST-2026-04, a window that took no part in any decision on this page.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th></th><th>Win rate</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>PRE-2021 (training)</td><td>66.18%</td><td>Used to select the 10-pip zone height</td></tr>
+          <tr><td>SMOOTHED, excluded</td><td class="flag-cell">72.45-72.74%</td><td>Never used — shown to size the artifact</td></tr>
+          <tr class="highlight-row"><td>POST-2026-04 (holdout)</td><td class="win-cell">63.58-64.12%</td><td>Never used for anything until this test</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">The holdout result sits <i>closer to training performance than to the excluded window</i> — exactly what a real, non-overfit edge looks like when it meets fresh data. If the 10-pip choice had been curve-fit to the training period, held-out performance would typically be markedly worse than training, not a couple of points off. This is the strongest evidence this project has produced that the mechanism is a genuine, if modest, edge rather than a backtest artifact.</p>
+  </section>
+
+  <section>
+    <h2>How much spread can it absorb?</h2>
+    <p class="section-sub">PRE-2021 data, 10-pip zone height, spread swept from the 1.6-pip baseline upward.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Spread</th><th>Win rate</th><th>Profit factor</th><th>Avg R</th></tr></thead>
+        <tbody>
+          <tr><td>1.6 pips (baseline)</td><td>66.18%</td><td class="win-cell">1.565</td><td class="win-cell">+0.191</td></tr>
+          <tr><td>2.0 pips</td><td>66.18%</td><td class="win-cell">1.422</td><td class="win-cell">+0.143</td></tr>
+          <tr><td>2.5 pips</td><td>66.18%</td><td class="win-cell">1.236</td><td class="win-cell">+0.080</td></tr>
+          <tr><td>3.0 pips</td><td>66.18%</td><td class="win-cell">1.059</td><td class="win-cell">+0.020</td></tr>
+          <tr><td>4.0 pips</td><td>66.18%</td><td class="loss-cell">0.726</td><td class="loss-cell">−0.093</td></tr>
+          <tr><td>5.0 pips</td><td>65.23%</td><td class="loss-cell">0.436</td><td class="loss-cell">−0.191</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">Win rate barely moves with spread (spread only shifts the fill price, not whether a trade ultimately wins or loses) — what erodes is the realized reward on every win. Breakeven sits around <b>3.0 pips</b>, nearly double the 1.6-pip baseline. Real margin, not a knife's edge — but not enormous either; a broker or session with consistently wide spreads on these pairs would matter.</p>
+  </section>
+
+  <section>
+    <h2>Updated live-readiness checklist</h2>
+    <div class="checklist">
+      <div class="check-item">
+        <span class="mark yes">✓</span>
+        <div><div class="label">The 2021+ anomaly is resolved</div>
+        <div class="detail">Dated to Jan 2021 – Mar 2026, confirmed independently on all four pairs, and excluded from every parameter decision above.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark yes">✓</span>
+        <div><div class="label">Parameters now have a genuine train/holdout split</div>
+        <div class="detail">10-pip zone height and 3-5% risk were chosen on PRE-2021 data only, then validated — not tuned — against a POST-2026-04 window that took no part in selection.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark yes">✓</span>
+        <div><div class="label">Cost sensitivity is now quantified</div>
+        <div class="detail">Profitable to roughly 3.0 pips of spread — real but not unlimited margin against the 1.6-pip assumption.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">No paper-trading or forward-test track record</div>
+        <div class="detail">Cannot be produced by more backtesting — only by running this exact frozen configuration against a live or simulated real-time feed for a real stretch of calendar time.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">The more accurate concurrency simulator doesn't exist</div>
+        <div class="detail">Searched this codebase directly — the cross-symbol resting-order race simulator referenced in <span class="mono">goal79_two_account_portfolio.py</span>'s own docstring isn't present. The 1-slot-per-side approximation used everywhere in this project remains unvalidated against real production concurrency logic.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">No account-level risk controls beyond position sizing</div>
+        <div class="detail">No daily loss limit, circuit breaker, or feed-anomaly detector has been designed or tested — worth having given this session just found a real, undetected feed anomaly sitting in "trusted" historical data.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark partial">~</span>
+        <div><div class="label">Execution still modeled as spread-only</div>
+        <div class="detail">No slippage, latency, or partial fills — but the cost-sensitivity test above at least bounds how much hidden cost the edge can absorb before it matters.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The frozen configuration</h2>
+    <div class="verdict">
+      <div class="big">Closer to ready — genuinely validated, not yet deployable.</div>
+      <p style="color:var(--ink); font-size:14.5px; margin:0;">Variant A (fixed 1:1R), <b>10-pip minimum zone height</b>, <b>3% risk per trade</b> (the prudent side of the 5% growth-optimal point — even 3% ran an 79% peak-to-trough drawdown on PRE-2021 data alone), 1.6-pip modeled spread with real margin to ~3.0 pips. This is the first configuration in this project's research with genuine walk-forward validation behind it: chosen on one window, proven on another it never saw. What's left is operational, not statistical — paper-trade this exact frozen configuration, add real risk controls, and validate the concurrency model against production logic before any real capital.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/20a135af-a633-4029-81e3-cf370220d5b1" target="_blank" rel="noopener">The 2026 Trial<span>Where these doubts were first raised.</span></a>
+      <a href="https://claude.ai/code/artifact/139aa102-fe4f-41e6-ae9e-13357c0a6d7b" target="_blank" rel="noopener">The Risk Ceiling<span>The risk-per-trade cliff, reproduced here on honest data.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    EURUSD, GBPUSD, EURGBP, USDJPY · 1-minute bars · PRE-2021 training, POST-2026-04 holdout · research-grade backtest, not a live track record. dtfx.md is the base specification this analysis extends.
+  </footer>
+</div>

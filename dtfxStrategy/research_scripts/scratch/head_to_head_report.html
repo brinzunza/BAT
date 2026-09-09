@@ -1,0 +1,285 @@
+<title>Head to Head</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --warn: #A8462C; --warn-fill: rgba(168,70,44,0.10);
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --warn: #E8815C; --warn-fill: rgba(232,129,92,0.12);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --warn: #E8815C; --warn-fill: rgba(232,129,92,0.12);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 44px 24px 70px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 16px; text-wrap: balance; }
+  .dek { font-size: 16px; color: var(--ink-dim); max-width: 76ch; margin: 0 0 28px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 6px; }
+  h3 { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); margin: 0 0 12px; }
+  .section-sub { color: var(--ink-dim); font-size: 14px; max-width: 72ch; margin: 0 0 18px; }
+  section { margin-top: 44px; }
+  p { margin: 0 0 12px; }
+
+  .callout { background: var(--warn-fill); border: 1px solid var(--warn); border-radius: 12px; padding: 18px 20px; margin: 0 0 30px; }
+  .callout h3 { color: var(--sell-strong); margin-bottom: 8px; }
+  .callout p { color: var(--ink); font-size: 14.5px; margin-bottom: 10px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 10px; }
+  @media (max-width: 720px) { .vs-grid { grid-template-columns: 1fr; } }
+  .variant-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .variant-card.win { border-color: var(--buy); }
+  .variant-card .vtitle { font-family: "Fraunces", Georgia, serif; font-size: 19px; margin: 0 0 3px; }
+  .variant-card .vsub { font-size: 12.5px; color: var(--ink-faint); margin-bottom: 14px; }
+  .stat-mini-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px; }
+  .stat-mini { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; }
+  .stat-mini .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; }
+  .stat-mini .value { font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 500; margin-top: 2px; }
+  .badge { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; margin-left: 8px; vertical-align: middle; }
+  .badge.win { background: var(--buy-fill); color: var(--buy-strong); }
+  .badge.loss { background: var(--sell-fill); color: var(--sell-strong); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; padding: 9px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; }
+  td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  .table-shell { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); overflow-x: auto; box-shadow: var(--shadow); }
+  .win-cell { color: var(--buy-strong); font-weight: 600; }
+  .loss-cell { color: var(--sell-strong); font-weight: 600; }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+  .caveat b { color: var(--ink-dim); }
+  .more-links { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 640px) { .more-links { grid-template-columns: 1fr; } }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">dtfx.md base strategy · full history · 4 pairs · 50% entry both ways</p>
+  <h1>Head to Head</h1>
+  <p class="dek">Both variants share the exact same entry: every swing is a zone, price has to leave it behind and swing back to tag the exact 50% midpoint before an entry counts (<a href="https://claude.ai/code/artifact/710480f5-6a3e-4243-8bbc-5bb9f6ada344" target="_blank" rel="noopener">Reading the Tape</a>). They only differ on exit — <b>(A)</b> takes a fixed 1:1R at the zone's own far edge; <b>(C)</b> targets <a href="https://claude.ai/code/artifact/8a30de34-1ed6-4a52-b484-e75f7b8e7383" target="_blank" rel="noopener">the last confirmed higher-high / lower-low</a>, read once at entry. Full history, all four pairs, one shared cost model (1.6-pip spread, entry side only).</p>
+
+  <div class="callout">
+    <h3>Read this before the dollar figures below</h3>
+    <p>This mechanism trades <b>~386 times a day combined across four pairs</b> — 141,000+ times a year. The equity curve and Monte Carlo further down reuse this project's standard account model (risk 5% of equity per trade, capped at 5% of $2,000,000, trades risked one after another in exit-time order) because that's the established, requested methodology — <b>but that model assumes you can sequentially re-risk 5% of the account hundreds of times a day</b>, which no real account or broker allows, and ignores that many of these trades are open on multiple pairs at the same time, not one after another. At this frequency, the model isn't wrong about the trade stream — it's wrong about the sizing. Read the win rate, pips, and profit-factor numbers as the real signal; read the dollar and "years to $1M" numbers as a mechanical stress-test of the account model, not a forecast.</p>
+  </div>
+
+  <section style="margin-top:0;">
+    <h2>The two variants, side by side</h2>
+    <p class="section-sub">Same entry gate, same cost model, same 3,338,463-ish trade count — only the target differs.</p>
+    <div class="vs-grid">
+      <div class="variant-card win">
+        <div class="vtitle">(A) Fixed 1:1R <span class="badge win">PF 1.479</span></div>
+        <div class="vsub">Target = the zone's own far edge</div>
+        <div class="stat-mini-row">
+          <div class="stat-mini"><div class="label">Win rate</div><div class="value">87.27%</div></div>
+          <div class="stat-mini"><div class="label">Trades</div><div class="value">3,338,463</div></div>
+          <div class="stat-mini"><div class="label">Avg pips / TP</div><div class="value">1.08</div></div>
+          <div class="stat-mini"><div class="label">Avg pips / SL</div><div class="value">4.70</div></div>
+          <div class="stat-mini"><div class="label">Trades / year</div><div class="value">141,071</div></div>
+          <div class="stat-mini"><div class="label">Trades / day</div><div class="value">386.5</div></div>
+        </div>
+      </div>
+      <div class="variant-card">
+        <div class="vtitle">(C) Last confirmed HH/LL <span class="badge loss">PF 0.828</span></div>
+        <div class="vsub">Target = read once at entry, held fixed</div>
+        <div class="stat-mini-row">
+          <div class="stat-mini"><div class="label">Win rate</div><div class="value">60.27%</div></div>
+          <div class="stat-mini"><div class="label">Trades</div><div class="value">3,337,729</div></div>
+          <div class="stat-mini"><div class="label">Avg pips / TP</div><div class="value">2.46</div></div>
+          <div class="stat-mini"><div class="label">Avg pips / SL</div><div class="value">4.18</div></div>
+          <div class="stat-mini"><div class="label">Trades / year</div><div class="value">141,040</div></div>
+          <div class="stat-mini"><div class="label">Trades / day</div><div class="value">386.4</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="section-sub">(C) really does book a bigger average winner (2.46 pips vs 1.08) at a smaller average loss (4.18 vs 4.70 pips) — but its win rate falls further than that improvement can carry, exactly the finding written up in <span class="mono">dtfx.md §7</span>.</p>
+  </section>
+
+  <section>
+    <h2>Per-instrument breakdown</h2>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Instrument</th><th>History</th><th>Variant A trades</th><th>A win rate</th><th>A avg pips tp/sl</th><th>Variant C trades</th><th>C win rate</th><th>C avg pips tp/sl</th></tr></thead>
+        <tbody>
+          <tr><td>EURUSD</td><td>2009 → 2026</td><td>846,913</td><td class="win-cell">88.4%</td><td>0.83 / 4.42</td><td>846,746</td><td class="loss-cell">61.1%</td><td>2.07 / 3.99</td></tr>
+          <tr><td>GBPUSD</td><td>2003 → 2026</td><td>1,224,930</td><td class="win-cell">85.3%</td><td>1.43 / 5.03</td><td>1,224,694</td><td class="loss-cell">57.9%</td><td>3.24 / 4.48</td></tr>
+          <tr><td>EURGBP</td><td>2003 → 2026</td><td>897,777</td><td class="win-cell">90.0%</td><td>0.79 / 4.41</td><td>897,521</td><td class="loss-cell">64.1%</td><td>1.68 / 3.88</td></tr>
+          <tr><td>USDJPY</td><td>2018 → 2026</td><td>368,843</td><td class="win-cell">84.5%</td><td>1.23 / 4.58</td><td>368,768</td><td class="loss-cell">56.7%</td><td>2.89 / 4.23</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">USDJPY's history only goes back to 2018 in this dataset (the other three go back to 2003 or 2009) — it contributes proportionally fewer trades to the combined portfolio for that reason alone, not because the pair behaves differently.</p>
+  </section>
+
+  <section>
+    <h2>Does a minimum zone size fix (C)?</h2>
+    <p class="section-sub">Direct follow-up test: sweep a raw zone-height floor (checked <i>before</i> the 1.6-pip spread adjustment) from 0 to 150 pips, all four pairs, full history, both variants. If (C)'s better reward:risk is real but getting eaten by spread on tiny zones — the theory from the discussion that led here — excluding those tiny zones should show it.</p>
+    <figure style="margin:0 0 18px;">
+      <svg viewBox="0 0 640 260" role="img" aria-label="Line chart of profit factor versus minimum zone height in pips, for variant A and variant C. Variant A stays above the breakeven line of 1.0 at every threshold from 0 to 150 pips. Variant C starts below breakeven at 0.83, crosses above 1.0 between the 3 and 5 pip thresholds, and continues improving through 100 pips before both lines get noisy at 150 pips on a small sample." style="width:100%; height:auto; display:block; font-family:'IBM Plex Mono',monospace;">
+        <line x1="46" y1="185.2" x2="626" y2="185.2" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="188.2" text-anchor="end" font-size="10" fill="var(--ink-faint)">0.5</text>
+        <line x1="46" y1="144.5" x2="626" y2="144.5" stroke="var(--accent)" stroke-width="1.3" stroke-dasharray="3,3"/>
+        <text x="40" y="147.5" text-anchor="end" font-size="10" fill="var(--accent)" font-weight="600">1.0</text>
+        <line x1="46" y1="103.7" x2="626" y2="103.7" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="106.7" text-anchor="end" font-size="10" fill="var(--ink-faint)">1.5</text>
+        <line x1="46" y1="62.9" x2="626" y2="62.9" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="65.9" text-anchor="end" font-size="10" fill="var(--ink-faint)">2.0</text>
+        <line x1="46" y1="22.2" x2="626" y2="22.2" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="25.2" text-anchor="end" font-size="10" fill="var(--ink-faint)">2.5</text>
+
+        <polyline points="46.0,105.4 98.7,100.4 151.4,85.2 204.1,84.8 256.8,82.8 309.5,91.6 362.2,98.1 414.9,99.5 467.6,73.0 520.3,41.6 573.0,21.8 625.7,96.4" fill="none" stroke="var(--buy-strong)" stroke-width="2.4" stroke-linejoin="round"/>
+        <polyline points="46.0,158.5 98.7,154.8 151.4,139.2 204.1,134.3 256.8,129.4 309.5,127.7 362.2,127.2 414.9,126.2 467.6,121.1 520.3,117.8 573.0,112.9 625.7,149.4" fill="none" stroke="var(--sell-strong)" stroke-width="2.4" stroke-linejoin="round"/>
+
+        <circle cx="151.4" cy="85.2" r="3.2" fill="var(--buy-strong)"/>
+        <circle cx="151.4" cy="139.2" r="3.6" fill="var(--surface-raised)" stroke="var(--sell-strong)" stroke-width="2"/>
+        <text x="151.4" y="128" text-anchor="middle" font-size="10" fill="var(--sell-strong)" font-weight="700">C crosses 1.0</text>
+
+        <g font-size="10" fill="var(--ink-faint)">
+          <text x="46.0" y="244" text-anchor="middle">0</text>
+          <text x="98.7" y="244" text-anchor="middle">3</text>
+          <text x="151.4" y="244" text-anchor="middle">5</text>
+          <text x="204.1" y="244" text-anchor="middle">7</text>
+          <text x="256.8" y="244" text-anchor="middle">10</text>
+          <text x="309.5" y="244" text-anchor="middle">15</text>
+          <text x="362.2" y="244" text-anchor="middle">20</text>
+          <text x="414.9" y="244" text-anchor="middle">30</text>
+          <text x="467.6" y="244" text-anchor="middle">50</text>
+          <text x="520.3" y="244" text-anchor="middle">75</text>
+          <text x="573.0" y="244" text-anchor="middle">100</text>
+          <text x="625.7" y="244" text-anchor="middle">150</text>
+        </g>
+        <text x="336" y="258" text-anchor="middle" font-size="10.5" fill="var(--ink-dim)">minimum raw zone height (pips, before spread)</text>
+      </svg>
+      <figcaption class="section-sub" style="margin-top:10px;">
+        <span style="color:var(--buy-strong); font-weight:700;">— (A) fixed 1:1R</span>&nbsp;&nbsp;
+        <span style="color:var(--sell-strong); font-weight:700;">— (C) last confirmed HH/LL</span>&nbsp;&nbsp;
+        <span style="color:var(--accent); font-weight:700;">┄ breakeven (PF 1.0)</span>
+      </figcaption>
+    </figure>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Min zone height</th><th>A trades</th><th>A PF</th><th>C trades</th><th>C PF</th></tr></thead>
+        <tbody>
+          <tr><td>0 pips (no floor)</td><td>3,338,463</td><td class="win-cell">1.479</td><td>3,337,729</td><td class="loss-cell">0.828</td></tr>
+          <tr><td>3 pips</td><td>2,895,638</td><td class="win-cell">1.540</td><td>2,894,927</td><td class="loss-cell">0.873</td></tr>
+          <tr><td>5 pips</td><td>1,166,328</td><td class="win-cell">1.727</td><td>1,165,784</td><td class="win-cell">1.064</td></tr>
+          <tr><td>7 pips</td><td>595,427</td><td class="win-cell">1.732</td><td>595,042</td><td class="win-cell">1.125</td></tr>
+          <tr><td>10 pips</td><td>223,188</td><td class="win-cell">1.756</td><td>222,951</td><td class="win-cell">1.184</td></tr>
+          <tr><td>15 pips</td><td>60,340</td><td class="win-cell">1.648</td><td>60,206</td><td class="win-cell">1.205</td></tr>
+          <tr><td>20 pips</td><td>22,343</td><td class="win-cell">1.568</td><td>22,262</td><td class="win-cell">1.211</td></tr>
+          <tr><td>30 pips</td><td>5,927</td><td class="win-cell">1.551</td><td>5,880</td><td class="win-cell">1.223</td></tr>
+          <tr><td>50 pips</td><td>1,667</td><td class="win-cell">1.877</td><td>1,646</td><td class="win-cell">1.286</td></tr>
+          <tr><td>75 pips</td><td>895</td><td class="win-cell">2.261</td><td>882</td><td class="win-cell">1.327</td></tr>
+          <tr><td>100 pips</td><td>603</td><td class="win-cell">2.504</td><td>596</td><td class="win-cell">1.387</td></tr>
+          <tr><td>150 pips <span style="color:var(--ink-faint); font-weight:400;">(thin sample)</span></td><td>215</td><td class="win-cell">1.590</td><td>210</td><td class="loss-cell">0.940</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub"><b>(A) stays profitable at every threshold</b> and generally gets stronger as tiny zones are excluded — the 150-pip dip is just 215 trades, too few to read as a real reversal. <b>(C) crosses into profitability right around a 5-pip floor</b> (0.828 → 1.064) and keeps climbing to 1.387 at 100 pips, before the same small-sample noise hits at 150. This confirms the reward:risk story from the discussion that led here — it just needed the cost-dominated tiny zones excluded to show up net of spread. <b>5-10 pips</b> looks like the best-supported floor for either variant: past the small-zone cost trap, while 10 pips alone still leaves 223k+ trades per variant — a real sample, not a curiosity.</p>
+  </section>
+
+  <section>
+    <h2>Percent of periods profitable</h2>
+    <p class="section-sub">Both variants' equity curves, resampled and compared period-over-period — a flat period with zero trades counts as not profitable.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Period</th><th>A profitable</th><th>A %</th><th>C profitable</th><th>C %</th></tr></thead>
+        <tbody>
+          <tr><td>Daily</td><td>3,837 / 8,634</td><td class="win-cell">44.4%</td><td>3,072 / 8,634</td><td class="loss-cell">35.6%</td></tr>
+          <tr><td>Weekly</td><td>678 / 1,233</td><td class="win-cell">55.0%</td><td>535 / 1,233</td><td class="loss-cell">43.4%</td></tr>
+          <tr><td>Monthly</td><td>154 / 284</td><td class="win-cell">54.2%</td><td>124 / 284</td><td class="loss-cell">43.7%</td></tr>
+          <tr><td>Yearly</td><td>15 / 23</td><td class="win-cell">65.2%</td><td>10 / 23</td><td class="loss-cell">43.5%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">Worth sitting with: even (A), the profitable variant overall, is only profitable on <b>44.4% of individual days</b>. A positive profit factor doesn't mean most days win — it means the wins outweigh the losses in total.</p>
+  </section>
+
+  <section>
+    <h2>Return distribution &amp; risk</h2>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Metric</th><th>Variant A</th><th>Variant C</th></tr></thead>
+        <tbody>
+          <tr><td>Sharpe (annualized, daily returns)</td><td class="win-cell">0.855</td><td class="loss-cell">0.176</td></tr>
+          <tr><td>Excess kurtosis (daily returns)</td><td>751.4</td><td>8,632.5</td></tr>
+          <tr><td>Median max drawdown (MC paths)</td><td class="win-cell">−58.7%</td><td class="loss-cell">−99.6%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">Both kurtosis figures are extreme — thousands of times normal — which is itself a symptom of the trade-frequency issue above: a handful of enormous-equity days at this compounding speed dominate the whole daily-return distribution. Treat these two numbers as "confirms the distribution is not remotely normal," not as a precise risk figure to compare to a conventional strategy's Sharpe.</p>
+  </section>
+
+  <section>
+    <h2>Monte Carlo: race to $1M</h2>
+    <p class="section-sub">25,000 block-bootstrap simulations (block=20), $200 start, 5% risk of equity capped at $2,000,000 — this project's standard MC engine, applied here exactly as requested. See the callout above before reading these as a forecast.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Metric</th><th>Variant A</th><th>Variant C</th></tr></thead>
+        <tbody>
+          <tr><td>Sims reaching $1M</td><td class="win-cell">100.00%</td><td class="loss-cell">0.00%</td></tr>
+          <tr><td>Median time to $1M</td><td class="win-cell">0.02 years (~1 week)</td><td>never</td></tr>
+          <tr><td>% simulated paths ruined</td><td class="win-cell">0.000%</td><td class="loss-cell">100.000%</td></tr>
+          <tr><td>Deterministic equity, $200 start</td><td class="win-cell">$20,888,394,574</td><td class="loss-cell">$1 (ruin floor)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">(A)'s "1 week to $1M" and "$20.9 billion" are the account model breaking, not the strategy performing — no real account compounds 141,000 trades/year at 5% risk each without the trades being highly correlated (many are the same few minutes across four pairs). (C)'s 100% ruin rate is a real, meaningful result: it confirms this target choice is not survivable under 5%-risk sizing at any horizon, consistent with its profit factor of 0.828.</p>
+  </section>
+
+  <section>
+    <h2>What this is (and isn't)</h2>
+    <div class="caveat"><b>The trade list is the trustworthy layer.</b> 3.3M+ trades per variant, full history (2003/2009/2018 → 2026 depending on the pair), the exact overshoot-then-tag entry gate and cost model from <span class="mono">dtfx.md</span>. Win rate, avg pips, and profit factor above are computed directly from that trade list and don't depend on any position-sizing assumption.</div>
+    <div class="caveat"><b>The dollar figures depend entirely on the account model</b>, and that model (5% sequential risk, no concurrency limit) was not built for a strategy trading 386 times a day — it was inherited from this project's lower-frequency strategies, reused here on request rather than redesigned. A meaningful $ backtest at this frequency would need real concurrency limits (this project's own two-account, margin-checked simulator, e.g. <span class="mono">goal79_two_account_portfolio.py</span>) and almost certainly a much smaller per-trade risk fraction.</div>
+    <div class="caveat">Code: <span class="mono">goal95_every_swing_zones.py</span> (zones), <span class="mono">goal99_dtfx_base_backtest.py</span> (entry gate + both targets), <span class="mono">goal101_dtfx_portfolio_full_report.py</span> (this report, reusing <span class="mono">goal78_portfolio_report.py</span>'s equity-curve/Sharpe/MC methodology and <span class="mono">goal10_cana_nt_mc_capped.py</span>'s MC engine unmodified), <span class="mono">goal103_min_zone_size_sweep.py</span> (the minimum-zone-height sweep above).</div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/710480f5-6a3e-4243-8bbc-5bb9f6ada344" target="_blank" rel="noopener">Reading the Tape<span>Variant (A)'s entry gate and fixed target, live on real candles.</span></a>
+      <a href="https://claude.ai/code/artifact/8a30de34-1ed6-4a52-b484-e75f7b8e7383" target="_blank" rel="noopener">The Longer Reach<span>Variant (C)'s target, live on real candles.</span></a>
+      <a href="https://claude.ai/code/artifact/d7186286-26b2-475d-8c14-0bbeaa506508" target="_blank" rel="noopener">Reading the Swing<span>The zone-lifetime rule, hand-traced on a drawn chart.</span></a>
+      <a href="https://claude.ai/code/artifact/db622b6f-4f2a-4807-b7c1-abb995d3c5c6" target="_blank" rel="noopener">The Past Week<span>This project's other, lower-frequency zone rule, for contrast.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    EURUSD, GBPUSD, EURGBP, USDJPY · 1-minute bars · full available history per pair · research-grade backtest, not a live track record. dtfx.md is the base specification this report tests against.
+  </footer>
+</div>

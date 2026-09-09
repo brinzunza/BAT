@@ -1,0 +1,260 @@
+<title>The Portfolio Ledger</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --candle-up: #2F7A57; --candle-down: #A8462C; --wick: #566254;
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 52px 24px 80px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(34px, 5vw, 50px); line-height: 1.06; letter-spacing: -0.01em; margin: 0 0 18px; text-wrap: balance; }
+  .dek { font-size: 17px; color: var(--ink-dim); max-width: 70ch; margin: 0 0 4px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 26px; letter-spacing: -0.005em; margin: 0 0 6px; text-wrap: balance; }
+  h3 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 17px; margin: 0 0 10px; }
+  .section-sub { color: var(--ink-dim); font-size: 15px; max-width: 68ch; margin: 0 0 24px; }
+  section { margin-top: 60px; }
+  section:first-of-type { margin-top: 40px; }
+  p { margin: 0 0 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px 26px; box-shadow: var(--shadow); }
+  figcaption { margin-top: 12px; font-size: 12.5px; color: var(--ink-faint); }
+
+  /* headline stat grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  @media (max-width: 780px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 14px; box-shadow: var(--shadow); }
+  .stat .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; }
+  .stat .value { font-family: "IBM Plex Mono", monospace; font-size: 22px; font-weight: 500; margin-top: 6px; color: var(--ink); }
+  .stat .sub { font-size: 11.5px; color: var(--ink-faint); margin-top: 3px; }
+
+  /* symbol table */
+  table.symbols { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.symbols th { text-align: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; padding: 0 10px 10px; border-bottom: 1px solid var(--line); }
+  table.symbols th:first-child, table.symbols td:first-child { text-align: left; }
+  table.symbols td { text-align: right; padding: 10px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  table.symbols tr:last-child td { border-bottom: none; font-weight: 600; background: var(--surface-raised); }
+  table.symbols td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  .overflow-x { overflow-x: auto; }
+
+  /* profitable periods */
+  .period-rows { display: grid; gap: 14px; }
+  .period-row { display: grid; grid-template-columns: 90px 1fr 90px; align-items: center; gap: 14px; }
+  .period-row .plabel { font-size: 13.5px; font-weight: 600; }
+  .period-row .track { height: 12px; border-radius: 6px; background: var(--grid); overflow: hidden; }
+  .period-row .fill { height: 100%; background: var(--buy); border-radius: 6px 0 0 6px; }
+  .period-row .pval { font-family: "IBM Plex Mono", monospace; font-size: 13px; text-align: right; }
+  .period-row .pfrac { font-size: 11px; color: var(--ink-faint); }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+  .caveat b { color: var(--ink-dim); }
+
+  /* mc percentile table */
+  table.mc { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  table.mc th { text-align: center; font-size: 10.5px; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; padding: 0 6px 8px; }
+  table.mc td { text-align: center; padding: 8px 6px; font-family: "IBM Plex Mono", monospace; border-top: 1px solid var(--line); }
+  table.mc td:first-child, table.mc th:first-child { text-align: left; font-family: "IBM Plex Sans", sans-serif; font-weight: 600; color: var(--ink-dim); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  .more-links { display: grid; gap: 10px; }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+
+  footer { margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">EURUSD · GBPUSD · USDJPY · EURGBP · 2009–2026 · fade the pullback, inverted</p>
+  <h1>The Portfolio Ledger</h1>
+  <p class="dek">All four pairs, one combined trade stream, full history: <b>730,282 trades</b> over <b>17.0 years</b> of 1-minute data. Same rule throughout this research — dynamic-zigzag zones, 50% entry, symmetric stop/target, trade the opposite side of the zone. This page is the account-level read: win rate, R:R, trade frequency, how often days/weeks/months/years closed green, the shape of the return distribution, and a Monte Carlo race to $1M.</p>
+
+  <section>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Win rate</div><div class="value">50.96%</div></div>
+      <div class="stat"><div class="label">R:R</div><div class="value">1.25</div><div class="sub">avg win 1.246R / loss −1R</div></div>
+      <div class="stat"><div class="label">Profit factor</div><div class="value">1.295</div></div>
+      <div class="stat"><div class="label">Trades / year</div><div class="value">43,078</div></div>
+      <div class="stat"><div class="label">Trades / day</div><div class="value">118.0</div></div>
+      <div class="stat"><div class="label">Sharpe (daily)</div><div class="value">0.49</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Per symbol</h2>
+    <p class="section-sub">Same rule, same window, run independently on each pair before merging into the portfolio stream below.</p>
+    <div class="card overflow-x">
+      <table class="symbols">
+        <thead><tr><th>Symbol</th><th>Trades</th><th>Win rate</th><th>Avg win (R)</th><th>Profit factor</th><th>Trades / yr</th></tr></thead>
+        <tbody>
+          <tr><td>EURUSD</td><td>183,747</td><td>52.68%</td><td>1.274</td><td>1.418</td><td>10,839</td></tr>
+          <tr><td>GBPUSD</td><td>308,432</td><td>50.81%</td><td>1.237</td><td>1.277</td><td>18,194</td></tr>
+          <tr><td>USDJPY</td><td>119,363</td><td>50.61%</td><td>1.252</td><td>1.283</td><td>13,758</td></tr>
+          <tr><td>EURGBP</td><td>118,740</td><td>49.03%</td><td>1.219</td><td>1.172</td><td>7,008</td></tr>
+          <tr><td>Portfolio</td><td>730,282</td><td>50.96%</td><td>1.246</td><td>1.295</td><td>43,078</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>How often it closed green</h2>
+    <p class="section-sub">Measured on the combined portfolio's equity curve (methodology below) — a period with no trades counts as flat, not profitable.</p>
+    <div class="card">
+      <div class="period-rows">
+        <div class="period-row">
+          <div class="plabel">Days</div>
+          <div class="track"><div class="fill" style="width:78.1%"></div></div>
+          <div class="pval">78.1% <span class="pfrac mono">4830/6187</span></div>
+        </div>
+        <div class="period-row">
+          <div class="plabel">Weeks</div>
+          <div class="track"><div class="fill" style="width:96.5%"></div></div>
+          <div class="pval">96.5% <span class="pfrac mono">853/884</span></div>
+        </div>
+        <div class="period-row">
+          <div class="plabel">Months</div>
+          <div class="track"><div class="fill" style="width:97.1%"></div></div>
+          <div class="pval">97.1% <span class="pfrac mono">198/204</span></div>
+        </div>
+        <div class="period-row">
+          <div class="plabel">Years</div>
+          <div class="track"><div class="fill" style="width:100%"></div></div>
+          <div class="pval">100.0% <span class="pfrac mono">17/17</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The equity curve</h2>
+    <p class="section-sub">$200 start, 5% of equity risked per trade, capped at 5% of $2,000,000 once equity passes that mark — the same account model this project uses for every growth projection. Log scale: each gridline is 10× the one below it.</p>
+    <div class="card">
+      <svg viewBox="0 0 900 300" role="img" aria-label="Log-scale equity curve from $200 in September 2009 to about $10.5 billion in September 2026, crossing the $2 million position-sizing cap within its first two weeks." style="width:100%; height:auto; display:block;">
+        <line x1="46" y1="242.5" x2="880" y2="242.5" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="246" text-anchor="end" font-size="10.5" fill="var(--ink-faint)" class="mono">$1K</text>
+        <line x1="46" y1="148.1" x2="880" y2="148.1" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="151.5" text-anchor="end" font-size="10.5" fill="var(--ink-faint)" class="mono">$1M</text>
+        <line x1="46" y1="138.7" x2="880" y2="138.7" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="152" y="134.5" text-anchor="start" font-size="10.5" fill="var(--accent)" font-weight="600">$2M cap</text>
+        <line x1="46" y1="53.8" x2="880" y2="53.8" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="57.3" text-anchor="end" font-size="10.5" fill="var(--ink-faint)" class="mono">$1B</text>
+        <line x1="46" y1="22.3" x2="880" y2="22.3" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="25.8" text-anchor="end" font-size="10.5" fill="var(--ink-faint)" class="mono">$10B</text>
+        <polyline points="46.0,264.5 92.3,70.7 138.7,49.6 185.0,42.0 231.3,38.7 277.7,36.0 324.0,34.6 370.3,32.0 416.7,29.8 463.0,28.5 509.3,27.0 555.7,26.0 602.0,24.6 648.3,24.0 694.7,23.7 741.0,23.0 787.3,22.3 833.7,21.9 880.0,21.6" fill="none" stroke="var(--buy)" stroke-width="2.2" stroke-linejoin="round"/>
+        <circle cx="46.0" cy="264.5" r="3.4" fill="var(--ink)"/>
+        <text x="46" y="280" font-size="10.5" fill="var(--ink-dim)" class="mono">2009 · $200</text>
+        <circle cx="880.0" cy="21.6" r="3.6" fill="var(--buy-strong)"/>
+        <text x="833" y="14" text-anchor="end" font-size="11" fill="var(--buy-strong)" font-weight="700" class="mono">2026 · $10.5B</text>
+      </svg>
+      <figcaption>The near-vertical first segment is the two weeks before equity crosses $2,000,000 (~1,500 trades in); everything after is the capped, roughly-linear growth phase.</figcaption>
+      <div class="caveat">This is a mechanical extrapolation of the position-sizing convention, not a claim that $10B is achievable — no real account can risk 5% on ~118 sequential trades a day across four pairs without slippage, execution capacity, correlation, or liquidity limits ever binding. Treat the shape (fast ramp, then sustained linear climb) as the finding, not the dollar figure.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Return distribution</h2>
+    <div class="two-col">
+      <div class="card">
+        <h3>Daily equity-curve basis</h3>
+        <div class="stat-grid" style="grid-template-columns: repeat(3,1fr);">
+          <div class="stat"><div class="label">Sharpe (ann.)</div><div class="value">0.49</div></div>
+          <div class="stat"><div class="label">Excess kurtosis</div><div class="value">3254.6</div></div>
+          <div class="stat"><div class="label">Skew</div><div class="value">54.2</div></div>
+        </div>
+        <p class="caveat" style="margin-top:16px;">Extreme by construction, not by risk: the $2M cap means a trade's fixed dollar P&L is a several-percent daily swing in 2009 (equity near the cap) and a rounding error by 2026 (equity in the billions). Mixing both regimes in one 6,187-day series produces this kurtosis and skew — it describes the account-growth model, not the underlying edge.</p>
+      </div>
+      <div class="card">
+        <h3>Per-trade R-multiple basis</h3>
+        <div class="stat-grid" style="grid-template-columns: repeat(3,1fr);">
+          <div class="stat"><div class="label">Mean R</div><div class="value">0.145</div></div>
+          <div class="stat"><div class="label">Std dev R</div><div class="value">1.198</div></div>
+          <div class="stat"><div class="label">Excess kurtosis</div><div class="value">−0.95</div></div>
+        </div>
+        <p class="caveat" style="margin-top:16px;">The cleaner read of the edge itself: losses land exactly at −1R and wins cluster near +1.2–1.3R, so the distribution is thinner-tailed than normal (negative excess kurtosis) — no blow-up risk from any single trade. Annualizing this by raw trade count would suggest a Sharpe near 25, which overstates things badly: it assumes 43,078 trades/year are independent, when many fire from the same market move across correlated pairs. The daily figure to the left is the more honest one.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Monte Carlo: race to $1M</h2>
+    <p class="section-sub">25,000 block-bootstrap simulations (block = 20 trades) over the portfolio's actual 730,282-trade sequence, same $200 start / 5% risk / $2M cap account model as the equity curve above.</p>
+    <div class="card">
+      <div class="stat-grid" style="grid-template-columns: repeat(3,1fr); margin-bottom:22px;">
+        <div class="stat"><div class="label">Reached $1M</div><div class="value">100.0%</div><div class="sub">of 25,000 sims</div></div>
+        <div class="stat"><div class="label">Median time</div><div class="value">12.8 days</div><div class="sub">≈1,508 trades</div></div>
+        <div class="stat"><div class="label">Ruined</div><div class="value">0.000%</div><div class="sub">equity hit $1 floor</div></div>
+      </div>
+      <table class="mc">
+        <thead><tr><th></th><th>P5</th><th>P25</th><th>Median</th><th>P75</th><th>P95</th></tr></thead>
+        <tbody>
+          <tr><td>Days to $1M</td><td>7.9</td><td>10.5</td><td>12.8</td><td>15.7</td><td>20.7</td></tr>
+          <tr><td>Max drawdown</td><td>−52.2%</td><td>−63.3%</td><td>−71.2%</td><td>−78.9%</td><td>−88.8%</td></tr>
+        </tbody>
+      </table>
+      <div class="caveat"><b>The "days" figure is a direct consequence of pooling four pairs' full trade frequency into one sequential 5%-risk stream — not a realistic timetable.</b> The more durable finding is the shape of the risk: even in paths that reach $1M almost immediately, the typical peak-to-trough drawdown along the way is 60–90%. Any real implementation of this sizing would need to survive that drawdown, not just the destination.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Methodology &amp; caveats</h2>
+    <div class="card">
+      <ul style="margin:0; padding-left:20px; color:var(--ink-dim); font-size:14px; display:grid; gap:10px;">
+        <li>Same dynamic-zigzag zone rule as the rest of this research (no fixed lookback, no retracement threshold), pullback + flip zones, 50% entry, symmetric stop/target — traded <b style="color:var(--ink)">inverted</b> (fade the pullback), full price history per symbol, 1-minute bars, modeled 1.6-pip spread.</li>
+        <li>The four symbols' resolved trades are merged into <b style="color:var(--ink)">one chronological stream</b>, ordered by exit time (when a trade's R is realized), and risked sequentially — this is a combined track record, not a margin-aware simulation of four positions open at once.</li>
+        <li>"Profitable days/weeks/months/years" and the return-distribution stats use the capped-compounding equity curve; a period with zero trades is flat, not profitable.</li>
+        <li>Backtest only: modeled spread cost, no slippage, execution latency, broker-specific fills, or live verification.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/d77164c1-825f-465c-8af8-681a807da739" target="_blank" rel="noopener">The Pullback Playbook<span>The rule itself, step by step, plus real trade-level examples.</span></a>
+      <a href="https://claude.ai/code/artifact/0bc96435-289e-4e5b-bab0-164350fe1407" target="_blank" rel="noopener">Fade the Pullback<span>Live replay of the inverted rule on real GBPUSD candles.</span></a>
+      <a href="https://claude.ai/code/artifact/1f435441-e4a6-41ae-b720-c312a37951f8" target="_blank" rel="noopener">The Inversion Zone<span>How pullback and flip zones form across full trend cycles.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    All figures computed from 1-minute price history, 2009-09-25 through 2026-09-03, across EURUSD, GBPUSD, USDJPY and EURGBP. Research-grade backtest — not investment advice, not a live track record.
+  </footer>
+
+</div>

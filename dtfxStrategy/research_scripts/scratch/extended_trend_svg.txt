@@ -1,0 +1,75 @@
+<svg class="diagram diagram-wide" viewBox="0 0 1435 372" role="img" aria-label="A synthetic price sequence of thirty confirmed swings organized into five trend runs, with the pullback and flip zone rule fired at four trend reversals.">
+  <rect x="155" y="164.6" width="45" height="21.7" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <rect x="200" y="128.3" width="45" height="58.0" fill="var(--surface-raised)" stroke="var(--ink)" stroke-width="2.2"/>
+  <rect x="290" y="175.4" width="45" height="36.3" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.4"/>
+  <rect x="380" y="200.8" width="45" height="36.3" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.4"/>
+  <rect x="425" y="200.8" width="45" height="65.3" fill="var(--surface-raised)" stroke="var(--ink)" stroke-width="2.2"/>
+  <rect x="515" y="186.3" width="45" height="29.0" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <rect x="605" y="157.3" width="45" height="29.0" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <rect x="695" y="106.5" width="45" height="50.8" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <rect x="740" y="55.8" width="45" height="101.5" fill="var(--surface-raised)" stroke="var(--ink)" stroke-width="2.2"/>
+  <rect x="830" y="121.0" width="45" height="43.6" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.4"/>
+  <rect x="920" y="150.1" width="45" height="61.6" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.4"/>
+  <rect x="1010" y="186.3" width="45" height="61.7" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.4"/>
+  <rect x="1055" y="186.3" width="45" height="97.9" fill="var(--surface-raised)" stroke="var(--ink)" stroke-width="2.2"/>
+  <rect x="1145" y="175.4" width="45" height="39.9" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <rect x="1235" y="135.5" width="45" height="50.8" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <rect x="1325" y="92.0" width="45" height="36.3" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.4"/>
+  <polyline points="20,226.2 65,193.6 110,215.3 155,164.6 200,186.3 245,128.3 290,211.7 335,175.4 380,237.1 425,200.8 470,266.1 515,186.3 560,215.3 605,157.3 650,186.3 695,106.5 740,157.3 785,55.8 830,164.6 875,121.0 920,211.7 965,150.1 1010,248.0 1055,186.3 1100,284.2 1145,175.4 1190,215.3 1235,135.5 1280,186.3 1325,92.0 1370,128.3" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="20" cy="226.2" r="2.6" fill="var(--ink-faint)"/>
+  <circle cx="65" cy="193.6" r="3.2" fill="var(--ink)"/>
+  <circle cx="110" cy="215.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="155" cy="164.6" r="3.2" fill="var(--ink)"/>
+  <circle cx="200" cy="186.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="245" cy="128.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="290" cy="211.7" r="3.2" fill="var(--ink)"/>
+  <circle cx="335" cy="175.4" r="3.2" fill="var(--ink)"/>
+  <circle cx="380" cy="237.1" r="3.2" fill="var(--ink)"/>
+  <circle cx="425" cy="200.8" r="3.2" fill="var(--ink)"/>
+  <circle cx="470" cy="266.1" r="3.2" fill="var(--ink)"/>
+  <circle cx="515" cy="186.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="560" cy="215.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="605" cy="157.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="650" cy="186.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="695" cy="106.5" r="3.2" fill="var(--ink)"/>
+  <circle cx="740" cy="157.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="785" cy="55.8" r="3.2" fill="var(--ink)"/>
+  <circle cx="830" cy="164.6" r="3.2" fill="var(--ink)"/>
+  <circle cx="875" cy="121.0" r="3.2" fill="var(--ink)"/>
+  <circle cx="920" cy="211.7" r="3.2" fill="var(--ink)"/>
+  <circle cx="965" cy="150.1" r="3.2" fill="var(--ink)"/>
+  <circle cx="1010" cy="248.0" r="3.2" fill="var(--ink)"/>
+  <circle cx="1055" cy="186.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="1100" cy="284.2" r="3.2" fill="var(--ink)"/>
+  <circle cx="1145" cy="175.4" r="3.2" fill="var(--ink)"/>
+  <circle cx="1190" cy="215.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="1235" cy="135.5" r="3.2" fill="var(--ink)"/>
+  <circle cx="1280" cy="186.3" r="3.2" fill="var(--ink)"/>
+  <circle cx="1325" cy="92.0" r="3.2" fill="var(--ink)"/>
+  <circle cx="1370" cy="128.3" r="3.2" fill="var(--ink)"/>
+  <line x1="1370" y1="128.3" x2="1415" y2="66.6" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="3,3"/>
+  <circle cx="1415" cy="66.6" r="7" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="2,2"/>
+  <text x="1409" y="54.599999999999994" text-anchor="end" font-size="10" fill="var(--accent)" font-weight="600">still extending…</text>
+  <circle cx="245" cy="112.30000000000001" r="9.5" fill="var(--accent)"/>
+  <text x="245" y="115.80000000000001" text-anchor="middle" font-size="10.5" fill="var(--accent-ink)" font-weight="700">1</text>
+  <text x="245" y="99.30000000000001" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">flips down</text>
+  <circle cx="470" cy="184.8" r="9.5" fill="var(--accent)"/>
+  <text x="470" y="188.3" text-anchor="middle" font-size="10.5" fill="var(--accent-ink)" font-weight="700">2</text>
+  <text x="470" y="171.8" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">flips up</text>
+  <circle cx="785" cy="39.8" r="9.5" fill="var(--accent)"/>
+  <text x="785" y="43.3" text-anchor="middle" font-size="10.5" fill="var(--accent-ink)" font-weight="700">3</text>
+  <text x="785" y="26.799999999999997" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">flips down</text>
+  <circle cx="1100" cy="170.3" r="9.5" fill="var(--accent)"/>
+  <text x="1100" y="173.8" text-anchor="middle" font-size="10.5" fill="var(--accent-ink)" font-weight="700">4</text>
+  <text x="1100" y="157.3" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">flips up</text>
+  <rect x="20" y="336" width="225" height="14" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.2"/>
+  <text x="132.5" y="330" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">trend 1 · up · 5 swings</text>
+  <rect x="245" y="336" width="225" height="14" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.2"/>
+  <text x="357.5" y="330" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">trend 2 · down · 5 swings</text>
+  <rect x="470" y="336" width="315" height="14" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.2"/>
+  <text x="627.5" y="330" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">trend 3 · up · 7 swings</text>
+  <rect x="785" y="336" width="315" height="14" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.2"/>
+  <text x="942.5" y="330" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">trend 4 · down · 7 swings</text>
+  <rect x="1100" y="336" width="315" height="14" fill="var(--buy-fill)" stroke="var(--buy)" stroke-width="1.2"/>
+  <text x="1257.5" y="330" text-anchor="middle" font-size="10" fill="var(--ink-dim)" font-weight="600">trend 5 · up · 6 swings</text>
+</svg>
