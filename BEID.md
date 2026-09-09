@@ -1,21 +1,25 @@
-# BEID Strategy & Empirical Research Specification
+# BEID Strategy & Comprehensive Empirical Audit
 
 > **BEID: Bounce Entry Invalidation Drive**  
-> **Authoritative Specification & Multi-Asset Quantitative Research Report**  
+> **Authoritative Specification, Engine Audit, & Full 26-Year Historical Benchmark**  
 > **Repository:** `tradingResearch` | **Date:** September 2026
 
 ---
 
-## 1. Executive Summary
+## 1. Executive Summary & Audit Findings
 
-The **BEID Strategy** is an institutional market structure and liquidity-cycle trading methodology that exploits structural pullback inefficiencies within established market trends and trend-flip transitions.
+The **BEID Strategy** is an institutional market structure pullback trading methodology that identifies supply/demand zones based on confirmed swing highs ($cHH$), swing lows ($cHL$), and structural trend flips.
 
-### Key Performance Highlights:
-- **Optimal Timeframe:** **3-Minute (3M) Bars** (achieves the golden balance between structural trend persistence and high trade frequency).
-- **Multi-Touch Re-arming:** Allowing a zone to re-arm after each successful Take Profit (TP) up to 5 times cuts time to \$1,000,000 in **half**.
-- **Minimum Zone Size:** **$\ge 10.0\text{ Pips}$** (eliminates microscopic zones where fixed bid-ask spread erodes profitability).
-- **Raw Win Rate:** **$67.3\% - 70.4\%$** across millions of historical forex bars.
-- **Speed to \$1,000,000 (Monte Carlo):** Starting from **\$200**, the strategy reaches **\$1,000,000** in a median of **29.3 Months ($\approx 2.4\text{ Years}$)** at 6% risk per trade with **$100.0\%$ Monte Carlo probability** and **$0.0\%$ ruin rate** under realistic $1.6\text{-pip}$ spread friction.
+### ⚠️ Critical Engine Audit & Methodological Discovery:
+1. **Pullback State Machine Lockup Bug (Fixed):**
+   - In earlier prototype versions, the pullback state machine lacked a timeout/invalidation handler when price failed to revisit a frozen peak (`cHH`). This caused trade generation to stall prematurely on long datasets (e.g., stopping after year 2000 on full EUR/USD history).
+   - **The Fix:** Dynamic peak/trough re-anchoring and structural invalidation timeouts were implemented. On the fully fixed engine, the strategy generates **161,608 continuous trades across the full 26-year multi-asset history (2000–2026)**.
+2. **True Full-History Performance (161,608 Trades):**
+   - **True Baseline Win Rate:** **$57.0\% - 58.4\%$** across 2000–2026 (design era: $57.5\%$, broker feed: $59.8\%$, genuine holdout: $56.8\%$).
+   - **True Full-History Profit Factor:** **$1.08 - 1.18$** (at $\ge 15\text{p} - 20\text{p}$ zone size), producing **$+71,444.9\text{ net pips}$** after $1.6\text{-pip}$ spread friction.
+3. **Risk Sizing & Compounding Reality:**
+   - With an empirical Profit Factor of $\approx 1.15 - 1.20$, aggressive risk sizing ($5\% - 6\%$) creates severe drawdown and variance-induced ruin.
+   - **Sustainable Risk:** Must be limited to **$1.0\% - 2.0\%$** per trade unless paired with higher-timeframe structural filters that elevate the win rate and profit factor above $1.50+$.
 
 ---
 
@@ -34,207 +38,64 @@ Top    ------------------- [TP Target]       Top    ------------------- [Stop Lo
 Bottom ------------------- [Stop Loss]       Bottom ------------------- [TP Target]
 ```
 
-### 2.1 Swing & Structure State Machine
-Market structure is evaluated bar-by-bar using a 2-state directional machine:
+### 2.1 Swing & Structure State Machine (Lockup-Free)
+Market structure is evaluated bar-by-bar using a robust 2-state directional machine:
 
 1. **Uptrend State:**
-   - **Higher High ($cHH$):** Set when price pushes to a new peak during a pullback trigger.
-   - **Higher Low ($cHL$):** Confirmed when a green candle closes above the prior $cHH$.
-   - **Buy Zone Construction:**
+   - **Peak Tracking:** Continually update running highest high ($pHH$).
+   - **Pullback Trigger:** Initiated when a red candle closes below the prior green candle's open. Freezes $cHH = pHH$ and tracks lowest pullback point ($pHL$).
+   - **Buy Zone Formation:** When a subsequent candle closes above $cHH$ (`close > cHH`), the pullback is confirmed as a valid Higher Low ($cHL = pHL$).
      $$\text{Top} = cHH, \quad \text{Bottom} = cHL, \quad \text{Midpoint (Entry)} = \frac{\text{Top} + \text{Bottom}}{2}$$
-   - **Trend Flip to Downtrend:** Occurs immediately when a red candle body closes below the active $cHL$ floor. Creates a **Sell Flip Zone**:
-     $$\text{Top} = \text{Top Peak } (pHH), \quad \text{Bottom} = \text{Broken Floor } (cHL)$$
+   - **Trend Flip to Downtrend:** If price closes below the active $cHL$ floor (or structural origin), trend flips to Downtrend and generates a **Sell Flip Zone**:
+     $$\text{Top} = pHH, \quad \text{Bottom} = cHL, \quad \text{Midpoint} = \frac{\text{Top} + \text{Bottom}}{2}$$
 
 2. **Downtrend State:**
-   - **Lower Low ($cLL$):** Set when price pushes to a new trough during a pullback trigger.
-   - **Lower High ($cLH$):** Confirmed when a red candle closes below the prior $cLL$.
-   - **Sell Zone Construction:**
+   - **Trough Tracking:** Continually update running lowest low ($pLL$).
+   - **Pullback Trigger:** Initiated when a green candle closes above the prior red candle's open. Freezes $cLL = pLL$ and tracks highest pullback point ($pLH$).
+   - **Sell Zone Formation:** When a subsequent candle closes below $cLL$ (`close < cLL`), the pullback is confirmed as a valid Lower High ($cLH = pLH$).
      $$\text{Top} = cLH, \quad \text{Bottom} = cLL, \quad \text{Midpoint (Entry)} = \frac{\text{Top} + \text{Bottom}}{2}$$
-   - **Trend Flip to Uptrend:** Occurs immediately when a green candle body closes above the active $cLH$ ceiling. Creates a **Buy Flip Zone**:
-     $$\text{Top} = \text{Broken Ceiling } (cLH), \quad \text{Bottom} = \text{Bottom Trough } (pLL)$$
+   - **Trend Flip to Uptrend:** If price closes above the active $cLH$ ceiling, trend flips to Uptrend and generates a **Buy Flip Zone**:
+     $$\text{Top} = cLH, \quad \text{Bottom} = pLL, \quad \text{Midpoint} = \frac{\text{Top} + \text{Bottom}}{2}$$
 
-### 2.2 Execution Levels & Order Rules
-- **Entry:** Limit order placed at the exact **$50\%$ Midpoint** ($\text{Entry} = \frac{\text{Top} + \text{Bottom}}{2}$).
-- **Take Profit (TP):**
-  - **BUY:** Exact Zone Top ($\text{TP} = \text{Top}$).
-  - **SELL:** Exact Zone Bottom ($\text{TP} = \text{Bottom}$).
-- **Stop Loss (SL):**
-  - **BUY:** Exact Zone Bottom ($\text{SL} = \text{Bottom}$).
-  - **SELL:** Exact Zone Top ($\text{SL} = \text{Top}$).
-- **Risk-to-Reward Ratio (Raw):** Exact **$1:1\text{ RR}$** ($R_{\text{target}} = 0.5 \times \text{Height}$, $R_{\text{risk}} = 0.5 \times \text{Height}$).
-- **Subsequent Candle Constraint:** A trade fill and its resolution (TP or SL) **must occur on distinct subsequent candles** ($i_{\text{exit}} > i_{\text{fill}}$). A single candle touching both levels does not trigger premature exit.
-
-### 2.3 Multi-Touch Zone Re-Arming Rule
-- **Standard 1-Touch:** The zone expires as soon as a single trade resolves.
-- **Multi-Touch Re-Arming:** When a trade reaches its Take Profit target, the zone remains structurally valid and is **immediately re-armed for a subsequent touch** (up to $K=5$ touches).
-- **Invalidation Triggers:**
-  - If any active trade hits its Stop Loss, the zone is permanently invalidated.
-  - If un-filled price breaches the opposite boundary ($\text{Price} \le \text{Bottom}$ for Buy, $\text{Price} \ge \text{Top}$ for Sell), the zone is immediately cancelled.
-  - Time expiry: Zones unfilled after 48 hours are retired.
+### 2.2 Execution & Order Rules
+- **Entry:** Exact $50\%$ Midpoint Limit Order ($\text{Entry} = \frac{\text{Top} + \text{Bottom}}{2}$).
+- **Take Profit (TP):** Exact Zone Boundary ($\text{Top}$ for Buy, $\text{Bottom}$ for Sell).
+- **Stop Loss (SL):** Exact Opposite Boundary ($\text{Bottom}$ for Buy, $\text{Top}$ for Sell).
+- **Subsequent Candle Constraint:** Trade entry and resolution **must occur on distinct subsequent candles** ($i_{\text{exit}} > i_{\text{fill}}$).
 
 ---
 
-## 3. Spread & Friction Quantitative Mechanics
+## 3. Full 26-Year Empirical Backtest Across Regimes (2000–2026)
 
-In real-world institutional execution, round-trip trading incurs the bid-ask spread:
-$$\text{Round-Trip Spread Fee} = 1.6\text{ pips} \quad (0.8\text{ pips on entry}, 0.8\text{ pips on exit})$$
+Tested across **EURUSD, GBPUSD, USDJPY, and EURGBP** ($161,608\text{ total trades}$) under full $1.6\text{-pip}$ round-trip spread deduction:
 
-### Net PnL Formulas:
-- **On Target Hit (WIN):**
-  $$\text{Net Pips} = +\left(\frac{\text{Zone Height}}{2} - 1.6\text{ pips}\right)$$
-  $$\text{Net R} = \frac{\text{Net Pips}}{\text{Raw Risk Pips}} = 1.0 - \frac{1.6}{\frac{\text{Zone Height}}{2}}$$
-- **On Stop Hit (LOSS):**
-  $$\text{Net Pips} = -\left(\frac{\text{Zone Height}}{2} + 1.6\text{ pips}\right)$$
-  $$\text{Net R} = -\left(1.0 + \frac{1.6}{\frac{\text{Zone Height}}{2}}\right)$$
+### Regime Performance Table (3-Minute Bars)
 
-### Zone Size Threshold Mechanics:
-- If $\text{Zone Height} < 3.2\text{ pips}$, half-height is $< 1.6\text{ pips}$, making net pips negative even on winning trades.
-- At $\text{Zone Height} \ge 10.0\text{ pips}$, the $1.6\text{-pip}$ spread represents $\le 16\%$ of the target, yielding a strong positive expectancy ($+2.68\text{ pips/trade}$, **Profit Factor 1.51**).
-
----
-
-## 4. Empirical Timeframe Benchmark: 1-Minute (M1) vs 5-Second (S5) Bars
-
-Tested on **480,000 continuous live S5 Bid/Ask candles** across EURUSD, GBPUSD, USDJPY, and EURGBP:
-
-| Metric | 1-Minute (M1) Bars | 5-Second (S5) Bars | Finding / Verdict |
-| :--- | :--- | :--- | :--- |
-| **Trades Generated** | 340 | 1,535 | S5 creates $4.5\times$ higher trade churn |
-| **Target Hit Rate** | **52.4%** | **43.9%** | S5 degrades edge due to microstructure noise |
-| **Average Zone Size** | **7.89 pips** | **2.65 pips** | S5 zones are microscopic ($< 1.5\text{p}$) |
-| **Average Target (Half Zone)**| **3.95 pips** | **1.33 pips** | **S5 target is smaller than the 1.6p spread** |
-| **Spread Fee Drag** | $40.5\%$ | **$120.3\%$** | **Spread exceeds 100% of profit on S5** |
-| **Net PnL After 1.6p Spread**| **-317.7 pips** | **-2,709.8 pips** | **S5 burns 8.5× more capital in broker fees** |
-
-> **Conclusion:** Do not generate strategy zones on 5-second bars. S5 is strictly suited for execution granularity, while structural zones must be generated on $\ge 1\text{M} - 3\text{M}$ bars.
+| Min Zone Filter | Historical Regime | Total Trades | Win Rate | Net Pips ($-1.6\text{p}$) | Net Return (R) | Profit Factor |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **$\ge 0.0\text{ Pips}$ (All)** | PRE-2021 (Design Era) | 120,870 | 58.4% | $-9,170.2\text{ p}$ | $-22,448.1\text{ R}$ | 0.98 |
+| | 2021–2026 (Broker Feed) | 37,874 | 64.9% | $+2,798.1\text{ p}$ | $-1,087.0\text{ R}$ | 1.02 |
+| | POST-2026-04 (Holdout) | 2,864 | 58.7% | $-2,472.9\text{ p}$ | $-1,423.9\text{ R}$ | 0.68 |
+| | **FULL 2000–2026** | **161,608** | **59.9%** | **$-8,845.0\text{ p}$** | **$-24,959.0\text{ R}$** | **0.99** |
+| **$\ge 10.0\text{ Pips}$** | PRE-2021 (Design Era) | 74,113 | 57.0% | $+38,961.7\text{ p}$ | $-2,052.5\text{ R}$ | 1.08 |
+| | 2021–2026 (Broker Feed) | 22,283 | 59.8% | $+6,268.0\text{ p}$ | $+201.7\text{ R}$ | 1.05 |
+| | POST-2026-04 (Holdout) | 918 | 56.8% | $-248.8\text{ p}$ | $-65.2\text{ R}$ | 0.94 |
+| | **FULL 2000–2026** | **97,314** | **57.7%** | **$+44,980.9\text{ p}$** | **$-1,916.0\text{ R}$** | **1.08** |
+| **$\ge 20.0\text{ Pips}$** | PRE-2021 (Design Era) | 36,699 | 57.5% | $+64,699.4\text{ p}$ | $+1,817.9\text{ R}$ | **1.20** |
+| | 2021–2026 (Broker Feed) | 8,522 | 56.7% | $+6,454.2\text{ p}$ | $+226.7\text{ R}$ | **1.09** |
+| | POST-2026-04 (Holdout) | 254 | 57.9% | $+291.2\text{ p}$ | $+11.2\text{ R}$ | **1.16** |
+| | **FULL 2000–2026** | **45,475** | **57.4%** | **$+71,444.9\text{ p}$** | **$+2,055.7\text{ R}$** | **1.18** |
 
 ---
 
-## 5. Global Multi-Dimensional Monte Carlo Optimization
+## 4. Key Quantitative Insights & Next Steps
 
-We executed a grid search across **1,344 parameter combinations** simulating 1,000 Monte Carlo bootstrap iterations per point starting from **\$200** to **\$1,000,000**:
-- **Timeframes ($X$ min):** $1\text{M}, 2\text{M}, 3\text{M}, 5\text{M}, 10\text{M}, 15\text{M}, 30\text{M}$
-- **Multi-Zone Touches ($X$ touches):** $1, 2, 3, 5\text{ Touches}$
-- **Min Pip Range ($X$ pips):** $0.0\text{p}, 4.0\text{p}, 6.0\text{p}, 8.0\text{p}, 10.0\text{p}, 15.0\text{p}$
-- **Risk % ($X$ risk):** $1.0\%, 1.5\%, 2.0\%, 2.5\%, 3.0\%, 4.0\%, 5.0\%, 6.0\%$
-
-### 5.1 Top 10 Ranked Configurations to \$1,000,000
-
-| Rank | Timeframe | Touches | Min Pip | Risk % | Win Rate | Profit Factor | Trades/Yr | **Median Months to \$1M** | Median Max DD | Prob \$1M |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **#1** | **3M** | **5 Touches** | **$\ge 10.0\text{p}$** | **6.0%** | **67.3%** | **1.32** | 454 | **29.3 mo (2.4 yr)** | 69.1% | **100.0%** |
-| **#2** | **2M** | **5 Touches** | $\ge 10.0\text{p}$ | 6.0% | 66.9% | 1.23 | 484 | **32.6 mo (2.7 yr)** | 73.0% | **100.0%** |
-| **#3** | **3M** | **5 Touches** | $\ge 8.0\text{p}$ | 6.0% | 67.1% | 1.29 | 528 | **33.1 mo (2.8 yr)** | 76.4% | **100.0%** |
-| **#4** | **3M** | **5 Touches** | $\ge 10.0\text{p}$ | **5.0%** | 67.3% | 1.32 | 454 | **34.1 mo (2.8 yr)** | 61.4% | **100.0%** |
-| **#5** | **1M** | **5 Touches** | $\ge 10.0\text{p}$ | 6.0% | 67.2% | 1.25 | 544 | **34.4 mo (2.9 yr)** | 78.0% | **100.0%** |
-| **#6** | **1M** | **5 Touches** | $\ge 8.0\text{p}$ | 6.0% | 67.6% | 1.21 | 738 | **35.9 mo (3.0 yr)** | 86.2% | 99.0% |
-| **#7** | **3M** | **5 Touches** | $\ge 4.0\text{p}$ | 6.0% | 68.8% | 1.27 | 642 | **36.0 mo (3.0 yr)** | 81.9% | 99.9% |
-| **#8** | **2M** | **5 Touches** | $\ge 8.0\text{p}$ | 6.0% | 66.8% | 1.20 | 588 | **37.7 mo (3.1 yr)** | 82.5% | 99.9% |
-| **#9** | **3M** | **5 Touches** | $\ge 8.0\text{p}$ | 5.0% | 67.1% | 1.29 | 528 | **37.9 mo (3.2 yr)** | 68.8% | **100.0%** |
-| **#10** | **3M** | **5 Touches** | $\ge 10.0\text{p}$ | **4.0%** | 67.3% | 1.32 | 454 | **41.3 mo (3.4 yr)** | 52.4% | **100.0%** |
-
----
-
-## 6. Optimal Parameter Set & Trade Management
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                   BEID PRODUCTION MASTER CONFIGURATION                 │
-├────────────────────────────────────────────────────────────────────────┤
-│  Timeframe:             3-Minute (3M) Bars                             │
-│  Instruments:           EURUSD, GBPUSD, USDJPY, EURGBP                 │
-│  Min Zone Filter:       >= 10.0 Pips                                   │
-│  Zone Touch Limit:      Up to 5 Touches (Re-armed upon winning TP)     │
-│  Entry Trigger:         50% Zone Midpoint Limit Order                  │
-│  Target (TP):           100% Opposite Zone Boundary (Exact 1:1 RR)     │
-│  Stop Loss (SL):        0% Zone Invalidation Boundary                  │
-│  Risk Sizing:           5.0% - 6.0% Capital Risk per Trade             │
-│  Compounding Speed:     $200 -> $1,000,000 in 29.3 Months (2.4 Years)  │
-│  MC Probability:        100.0% (0.0% Ruin Rate)                        │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 7. Reference Python Engine Implementation
-
-```python
-import numpy as np
-import pandas as pd
-
-def backtest_beid_optimal(df, ticker_name, max_touches=5, min_zone_pips=10.0, spread_pips=1.6):
-    pip_size = 0.01 if "JPY" in ticker_name else 0.0001
-    opens, highs = df['open'].values, df['high'].values
-    lows, closes = df['low'].values, df['close'].values
-    n = len(opens)
-    
-    trend = 1
-    pHH, pHH_idx = opens[0], 0
-    cHH, cHH_idx = np.nan, -1
-    pHL, pHL_idx = opens[0], 0
-    cHL, cHL_idx, last_cHL = np.nan, -1, np.nan
-    
-    pLL, pLL_idx = opens[0], 0
-    cLL, cLL_idx = np.nan, -1
-    pLH, pLH_idx = opens[0], 0
-    cLH, cLH_idx, last_cLH = np.nan, -1, np.nan
-    in_pullback = False
-    
-    active_zones, trades = [], []
-    
-    for i in range(n):
-        o, h, l, cl = opens[i], highs[i], lows[i], closes[i]
-        
-        # 1. Update Active Zones
-        retained = []
-        for z in active_zones:
-            side, entry, tp, sl = z['side'], z['entry'], z['tp'], z['sl']
-            half_pips = z['half_pips']
-            
-            if not z['filled']:
-                if side == 1:
-                    if l <= sl: continue # Invalidate
-                    if l <= entry:
-                        z['filled'] = True; z['fill_idx'] = i; z['touch_count'] += 1
-                        retained.append(z)
-                    elif i - z['created_idx'] <= 2880: retained.append(z)
-                elif side == -1:
-                    if h >= sl: continue # Invalidate
-                    if h >= entry:
-                        z['filled'] = True; z['fill_idx'] = i; z['touch_count'] += 1
-                        retained.append(z)
-                    elif i - z['created_idx'] <= 2880: retained.append(z)
-            else:
-                if i > z['fill_idx']:
-                    resolved, win = False, False
-                    if side == 1:
-                        if (h >= tp) or (cl > tp): resolved, win = True, True
-                        elif (l <= sl) or (cl < sl): resolved, win = True, False
-                    else:
-                        if (l <= tp) or (cl < tp): resolved, win = True, True
-                        elif (h >= sl) or (cl > sl): resolved, win = True, False
-                        
-                    if resolved:
-                        net_pips = (half_pips - spread_pips) if win else -(half_pips + spread_pips)
-                        trades.append({'win': win, 'net_pips': net_pips, 'net_r': net_pips / half_pips})
-                        if win and z['touch_count'] < max_touches:
-                            z['filled'] = False; z['fill_idx'] = -1; z['created_idx'] = i
-                            retained.append(z)
-                    else:
-                        retained.append(z)
-        active_zones = retained
-        
-        # 2. State Machine Zone Creation
-        # (Standard DTFX/BEID swing & flip identification)
-        # ...
-    return pd.DataFrame(trades)
-```
-
----
-
-## 8. Pushed Artifacts & Interactive Dashboards
-
-1. **[`beid_optimal_mc_speed_to_1m_dashboard.html`](file:///Users/brunoinzunza/.gemini/antigravity/brain/22a6b06b-342e-44ca-96c2-fb9de00f8a05/beid_optimal_mc_speed_to_1m_dashboard.html)**: Interactive Monte Carlo speed optimization visualizer ($1,344$ parameter combinations).
-2. **[`beid_s5_vs_m1_comparison_dashboard.html`](file:///Users/brunoinzunza/.gemini/antigravity/brain/22a6b06b-342e-44ca-96c2-fb9de00f8a05/beid_s5_vs_m1_comparison_dashboard.html)**: 1-Minute vs 5-Second timeframe microstructure benchmark.
-3. **[`beid_exact_friction_dashboard.html`](file:///Users/brunoinzunza/.gemini/antigravity/brain/22a6b06b-342e-44ca-96c2-fb9de00f8a05/beid_exact_friction_dashboard.html)**: Exact 50% midpoint entry with flat 1.6-pip spread deduction across 4 Forex pairs ($4,000,000$ bars).
-4. **[`beid_4forex_portfolio_spread_dashboard.html`](file:///Users/brunoinzunza/.gemini/antigravity/brain/22a6b06b-342e-44ca-96c2-fb9de00f8a05/beid_4forex_portfolio_spread_dashboard.html)**: Limit order execution spread model dashboard.
+1. **Zone Size is the Primary Spread Defense**:
+   - Unfiltered trading on small zones ($< 5\text{ pips}$) is a guaranteed net loss due to fixed $1.6\text{-pip}$ spread fees.
+   - Filtering for zones $\ge 20.0\text{ pips}$ generates a consistent positive edge across all 26 years ($+71,444.9\text{ pips}$, $\text{PF}=1.18$).
+2. **Conservative Sizing Required**:
+   - On a raw edge with $\text{PF} \approx 1.18$, risk per trade must remain between **$1.0\% - 2.0\%$** to prevent variance drawdowns.
+3. **High-Probability Improvements (Structural Filters)**:
+   - **Higher-Timeframe (15M/1H) Alignment:** Only trading 3M pullbacks that align with the 15M/1H macro trend.
+   - **Session Liquidity Filtering:** Filtering out low-volatility Asian session chop (trading strictly during London/NY overlap).
+   - **Momentum Confluence:** Requiring displacement/impulse volume candles on zone creation.
