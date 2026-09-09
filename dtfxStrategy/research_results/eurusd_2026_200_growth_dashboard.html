@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEID Strategy: $200 Account Growth (2026 EUR/USD 1M)</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  :root {
+    --bg-main: #080B10;
+    --bg-card: #111622;
+    --border-color: #20293A;
+    --text-primary: #F0F4F8;
+    --text-secondary: #7E8C9F;
+    --accent-blue: #388BFD;
+    --accent-green: #238636;
+    --accent-red: #DA3633;
+    --accent-gold: #F1E05A;
+    --accent-purple: #A371F7;
+    --accent-cyan: #39C5BB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background-color: var(--bg-main); color: var(--text-primary); padding: 20px; line-height: 1.5; }
+  
+  .header { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
+  .title { font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+  
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 15px; margin-bottom: 25px; }
+  .metric-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; }
+  .metric-label { font-size: 11.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+  .metric-val { font-size: 24px; font-weight: 700; }
+
+  .chart-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
+  .chart-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #fff; }
+  
+  .table-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+  th { background: #0E131E; color: var(--text-secondary); padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
+  td { padding: 10px 14px; border-bottom: 1px solid #1A2234; }
+  tr:hover { background: #151C2C; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+  
+  #growthDiv { width: 100%; height: 480px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">💰 $200 Account Growth Simulation: 2026 EUR/USD BEID Strategy</div>
+  <div style="font-size: 13.5px; color: var(--text-secondary); margin-top: 6px;">
+    Compounding progression of a <b>$200 starting account</b> trading <b>EUR/USD 1-Minute BEID strategy</b> (Entry @ 50% Mid, TP @ Zone Top/Bottom, SL @ Zone Bottom/Top, 1:1 RR) throughout the entire year of 2026.
+  </div>
+</div>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-label">Starting Capital</div>
+    <div class="metric-val" style="color: #60A5FA;">$200.00</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Initial Account Size</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">2026 Trades & Win Rate</div>
+    <div class="metric-val" style="color: #fff;">709 Trades (63.8%)</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">452 Wins / 257 Losses</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Net R Generated</div>
+    <div class="metric-val" style="color: #4ADE80;">+195.0 R</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Profit Factor: 1.76</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Final Equity (2% Risk)</div>
+    <div class="metric-val" style="color: #4ADE80;">$8,578.46</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">+4189.2% Return</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Final Equity (5% Risk)</div>
+    <div class="metric-val" style="color: #FDE047;">$1,424,163.12</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">+711981.6% Return</div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-title">📈 $200 Account Equity Compounding Curves in 2026 (1%, 2%, 3%, and 5% Risk per Trade)</div>
+  <div id="growthDiv"></div>
+</div>
+
+<div class="table-card">
+  <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #fff;">📅 Month-by-Month Compounding Ledger (2% Risk Baseline)</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Month</th>
+        <th>Trades</th>
+        <th>Wins</th>
+        <th>Losses</th>
+        <th>Win Rate</th>
+        <th>Net Return (R)</th>
+        <th>Monthly Gain (%)</th>
+        <th>Account Balance ($)</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">2026-01</td>
+        <td>114</td>
+        <td style="color: #4ADE80; font-weight: 600;">84</td>
+        <td style="color: #F87171; font-weight: 600;">30</td>
+        <td style="font-weight: 700; color: #4ADE80;">73.7%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+54.0 R</td>
+        <td style="font-weight: 700; color: #4ADE80;">+187.9%</td>
+        <td style="font-weight: 700; color: #60A5FA;">$575.74</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">2026-02</td>
+        <td>184</td>
+        <td style="color: #4ADE80; font-weight: 600;">139</td>
+        <td style="color: #F87171; font-weight: 600;">45</td>
+        <td style="font-weight: 700; color: #4ADE80;">75.5%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+94.0 R</td>
+        <td style="font-weight: 700; color: #4ADE80;">+531.8%</td>
+        <td style="font-weight: 700; color: #60A5FA;">$3,637.68</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">2026-03</td>
+        <td>69</td>
+        <td style="color: #4ADE80; font-weight: 600;">37</td>
+        <td style="color: #F87171; font-weight: 600;">32</td>
+        <td style="font-weight: 700; color: #FDE047;">53.6%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+5.0 R</td>
+        <td style="font-weight: 700; color: #4ADE80;">+9.0%</td>
+        <td style="font-weight: 700; color: #60A5FA;">$3,965.20</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">2026-04</td>
+        <td>120</td>
+        <td style="color: #4ADE80; font-weight: 600;">74</td>
+        <td style="color: #F87171; font-weight: 600;">46</td>
+        <td style="font-weight: 700; color: #4ADE80;">61.7%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+28.0 R</td>
+        <td style="font-weight: 700; color: #4ADE80;">+70.9%</td>
+        <td style="font-weight: 700; color: #60A5FA;">$6,777.62</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">2026-05</td>
+        <td>197</td>
+        <td style="color: #4ADE80; font-weight: 600;">105</td>
+        <td style="color: #F87171; font-weight: 600;">92</td>
+        <td style="font-weight: 700; color: #FDE047;">53.3%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+13.0 R</td>
+        <td style="font-weight: 700; color: #4ADE80;">+24.7%</td>
+        <td style="font-weight: 700; color: #60A5FA;">$8,450.72</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">2026-08</td>
+        <td>25</td>
+        <td style="color: #4ADE80; font-weight: 600;">13</td>
+        <td style="color: #F87171; font-weight: 600;">12</td>
+        <td style="font-weight: 700; color: #FDE047;">52.0%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.5%</td>
+        <td style="font-weight: 700; color: #60A5FA;">$8,578.46</td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+<script>
+const dates = ["2026-01-01 21:41", "2026-01-02 10:36:00", "2026-01-02 15:17:00", "2026-01-05 06:15:00", "2026-01-05 10:47:00", "2026-01-05 13:45:00", "2026-01-05 15:25:00", "2026-01-05 16:31:00", "2026-01-05 19:08:00", "2026-01-06 00:47:00", "2026-01-06 09:17:00", "2026-01-06 09:37:00", "2026-01-20 08:59:00", "2026-01-20 12:17:00", "2026-01-20 13:35:00", "2026-01-21 11:42:00", "2026-01-21 13:15:00", "2026-01-21 14:12:00", "2026-01-21 16:42:00", "2026-01-22 16:30:00", "2026-01-22 17:42:00", "2026-01-23 08:13:00", "2026-01-23 15:52:00", "2026-02-06 00:18:00", "2026-02-09 08:43:00", "2026-02-17 08:07:00", "2026-02-17 11:56:00", "2026-02-17 16:21:00", "2026-02-17 17:40:00", "2026-02-18 09:09:00", "2026-02-18 12:17:00", "2026-02-18 13:31:00", "2026-02-19 12:55:00", "2026-02-18 22:09:00", "2026-02-19 01:04:00", "2026-02-19 06:55:00", "2026-02-19 11:16:00", "2026-02-19 15:03:00", "2026-02-19 16:52:00", "2026-02-19 21:31:00", "2026-02-19 22:10:00", "2026-02-20 15:02:00", "2026-02-20 16:16:00", "2026-02-20 19:10:00", "2026-02-22 23:58:00", "2026-02-24 12:20:00", "2026-02-24 16:18:00", "2026-02-24 19:41:00", "2026-02-24 20:19:00", "2026-02-24 22:16:00", "2026-02-25 01:52:00", "2026-02-25 10:02:00", "2026-02-25 12:30:00", "2026-02-25 13:44:00", "2026-02-25 15:26:00", "2026-02-25 22:03:00", "2026-02-26 02:29:00", "2026-02-26 11:00:00", "2026-02-27 16:56:00", "2026-02-27 19:47:00", "2026-03-01 22:33:00", "2026-03-01 23:25:00", "2026-03-02 06:03:00", "2026-03-02 07:27:00", "2026-03-02 08:24:00", "2026-03-02 10:06:00", "2026-03-02 13:14:00", "2026-03-02 14:37:00", "2026-03-02 19:34:00", "2026-03-02 16:50:00", "2026-03-02 17:33:00", "2026-03-02 19:07:00", "2026-03-02 19:55:00", "2026-03-03 06:11:00", "2026-04-08 00:05:00", "2026-04-08 01:36:00", "2026-04-08 05:09:00", "2026-04-08 13:07:00", "2026-04-08 15:59:00", "2026-04-08 20:50:00", "2026-04-09 03:03:00", "2026-04-09 06:48:00", "2026-04-09 09:20:00", "2026-04-09 13:51:00", "2026-04-13 18:48:00", "2026-04-14 03:51:00", "2026-04-14 05:40:00", "2026-04-14 07:00:00", "2026-04-17 13:04:00", "2026-04-19 23:50:00", "2026-04-20 01:33:00", "2026-04-20 10:24:00", "2026-04-20 13:35:00", "2026-04-21 08:21:00", "2026-04-21 15:41:00", "2026-04-21 17:04:00", "2026-04-21 17:43:00", "2026-04-22 15:01:00", "2026-05-01 12:53:00", "2026-05-01 14:35:00", "2026-05-01 17:02:00", "2026-05-03 21:13:00", "2026-05-03 22:13:00", "2026-05-03 23:00:00", "2026-05-04 01:17:00", "2026-05-04 07:58:00", "2026-05-04 10:03:00", "2026-05-06 04:49:00", "2026-05-06 08:41:00", "2026-05-06 09:35:00", "2026-05-06 11:26:00", "2026-05-06 12:21:00", "2026-05-06 13:09:00", "2026-05-07 09:44:00", "2026-05-07 11:23:00", "2026-05-07 12:19:00", "2026-05-07 16:31:00", "2026-05-07 17:33:00", "2026-05-08 08:47:00", "2026-05-08 12:33:00", "2026-05-08 15:12:00", "2026-05-08 15:44:00", "2026-05-08 18:00:00", "2026-05-11 09:00:00", "2026-05-12 15:31:00", "2026-05-12 16:35:00", "2026-05-12 18:03:00", "2026-05-12 18:40:00", "2026-05-12 20:54:00", "2026-05-13 00:02:00", "2026-05-13 06:02:00", "2026-05-13 07:41:00", "2026-05-13 09:31:00", "2026-05-13 11:14:00", "2026-05-13 22:47:00", "2026-05-14 12:00:00", "2026-05-14 12:45:00", "2026-08-20 09:16:00", "2026-08-20 11:20:00", "2026-08-21 10:52:00", "2026-08-21 14:36:00", "2026-08-21 16:21:00"];
+const curve1 = [200.0, 206.04, 212.26, 223.09, 225.27, 227.48, 229.71, 236.65, 243.79, 256.23, 269.3, 277.43, 280.15, 282.9, 280.01, 294.29, 297.18, 300.09, 309.15, 306.0, 315.24, 331.32, 341.32, 337.84, 334.4, 344.5, 354.9, 365.62, 369.2, 365.43, 384.08, 395.67, 391.64, 403.47, 415.65, 436.85, 441.13, 454.45, 468.18, 463.4, 487.04, 501.75, 516.9, 511.63, 506.41, 532.24, 537.46, 553.69, 570.41, 599.5, 617.61, 649.11, 668.71, 702.83, 709.71, 731.14, 753.22, 760.6, 799.4, 840.18, 848.41, 823.13, 798.6, 790.46, 782.4, 822.31, 813.92, 789.67, 813.51, 855.01, 898.63, 925.76, 934.83, 925.3, 915.86, 943.52, 952.77, 943.05, 952.29, 981.05, 1010.67, 1041.19, 1072.63, 1083.14, 1072.1, 1082.6, 1115.3, 1103.92, 1114.74, 1103.37, 1114.18, 1125.1, 1136.12, 1170.43, 1158.49, 1193.48, 1157.91, 1169.26, 1204.57, 1168.67, 1180.13, 1122.29, 1110.84, 1144.39, 1155.6, 1166.92, 1155.02, 1143.24, 1109.18, 1097.87, 1086.67, 1097.32, 1108.07, 1118.93, 1129.89, 1164.01, 1223.39, 1210.91, 1198.56, 1234.75, 1222.16, 1209.7, 1246.23, 1209.09, 1220.94, 1257.81, 1220.33, 1232.29, 1244.36, 1281.94, 1268.87, 1281.3, 1243.12, 1230.44, 1293.21, 1305.88, 1345.31, 1331.59, 1344.64, 1357.81, 1343.97, 1330.26];
+const curve2 = [200.0, 212.16, 225.05, 248.48, 253.24, 258.1, 263.05, 279.04, 296.0, 326.81, 360.83, 382.76, 390.1, 397.58, 389.32, 429.84, 438.09, 446.49, 473.63, 463.79, 491.98, 543.18, 576.2, 564.23, 552.5, 586.08, 621.71, 659.5, 672.15, 658.18, 726.68, 770.85, 754.83, 800.71, 849.38, 937.79, 955.78, 1013.87, 1075.5, 1053.15, 1162.76, 1233.43, 1308.41, 1281.21, 1254.58, 1385.16, 1411.74, 1497.55, 1588.57, 1753.91, 1860.52, 2054.16, 2179.02, 2405.82, 2451.97, 2601.01, 2759.11, 2812.04, 3104.72, 3427.86, 3493.62, 3286.86, 3092.32, 3028.05, 2965.12, 3273.73, 3205.69, 3015.96, 3199.28, 3532.27, 3899.91, 4136.96, 4216.32, 4128.69, 4042.88, 4288.62, 4370.9, 4280.05, 4362.16, 4627.31, 4908.57, 5206.93, 5523.43, 5629.39, 5512.39, 5618.14, 5959.63, 5835.77, 5947.72, 5824.11, 5935.84, 6049.71, 6165.77, 6540.55, 6404.61, 6793.9, 6391.81, 6514.43, 6910.4, 6501.41, 6626.14, 5989.5, 5865.02, 6221.52, 6340.87, 6462.51, 6328.2, 6196.67, 5829.93, 5708.76, 5590.11, 5697.35, 5806.65, 5918.05, 6031.58, 6398.2, 7064.13, 6917.31, 6773.54, 7185.26, 7035.92, 6889.69, 7308.47, 6875.92, 7007.83, 7433.79, 6993.83, 7128.0, 7264.74, 7706.32, 7546.15, 7690.92, 7235.73, 7085.35, 7822.8, 7972.87, 8457.49, 8281.71, 8440.59, 8602.51, 8423.72, 8248.64];
+const curve3 = [200.0, 218.35, 238.38, 276.35, 284.13, 292.12, 300.35, 327.9, 357.98, 415.0, 481.1, 525.24, 540.02, 555.22, 537.6, 623.22, 640.76, 658.8, 719.24, 696.41, 760.3, 881.39, 962.26, 931.71, 902.13, 984.9, 1075.26, 1173.9, 1206.94, 1168.63, 1354.76, 1479.05, 1432.1, 1563.49, 1706.93, 1978.79, 2034.49, 2221.14, 2424.92, 2347.94, 2721.9, 2971.62, 3244.25, 3141.26, 3041.54, 3525.98, 3625.22, 3957.81, 4320.92, 5009.13, 5468.68, 6339.7, 6921.33, 8023.72, 8249.56, 9006.41, 9832.68, 10109.44, 11719.62, 13586.25, 13968.66, 12737.34, 11614.57, 11245.86, 10888.86, 12623.17, 12222.44, 11145.05, 12167.54, 14105.52, 16352.16, 17852.36, 18354.85, 17772.17, 17207.99, 18786.71, 19315.5, 18702.32, 19228.74, 20992.85, 22918.81, 25021.46, 27317.02, 28085.9, 27194.31, 27959.75, 30524.87, 29555.85, 30387.76, 29423.09, 30251.26, 31102.73, 31978.18, 34911.97, 33803.68, 36904.95, 33651.84, 34599.03, 37773.27, 34443.62, 35413.09, 30410.43, 29445.04, 32146.44, 33051.26, 33981.54, 32902.79, 31858.29, 29050.03, 28127.83, 27234.91, 28001.48, 28789.64, 29599.97, 30433.12, 33225.16, 38517.07, 37294.34, 36110.42, 39423.32, 38171.81, 36960.04, 40350.89, 36794.02, 37829.66, 41300.28, 37659.73, 38719.73, 39809.57, 43461.84, 42082.13, 43266.61, 39452.73, 38200.3, 44284.61, 45531.08, 49708.27, 48130.27, 49484.98, 50877.83, 49262.7, 47698.84];
+const curve5 = [200.0, 230.95, 266.68, 340.36, 355.59, 371.51, 388.14, 448.19, 517.54, 660.53, 843.02, 973.46, 1017.03, 1062.55, 1004.38, 1281.87, 1339.25, 1399.19, 1615.68, 1527.23, 1763.54, 2250.78, 2599.04, 2456.76, 2322.27, 2681.59, 3096.52, 3575.65, 3735.68, 3531.17, 4506.77, 5204.11, 4919.22, 5680.37, 6559.3, 8371.51, 8746.19, 10099.5, 11662.21, 11023.77, 14069.43, 16246.41, 18760.23, 17733.22, 16762.43, 21393.59, 22351.09, 25809.49, 29803.02, 38037.05, 43922.55, 56057.55, 64731.38, 82615.47, 86313.05, 99668.35, 115090.13, 120241.17, 153461.59, 195860.2, 204626.23, 175002.81, 149667.92, 141474.49, 133729.61, 170676.63, 161333.1, 137977.16, 159326.49, 203345.46, 259526.07, 299682.78, 313095.55, 295955.43, 279753.63, 323040.17, 337498.33, 319022.3, 333300.65, 384872.57, 444424.26, 513190.44, 592596.88, 619119.48, 585226.36, 611419.08, 706024.53, 667373.88, 697243.24, 659073.31, 688571.17, 719389.25, 751586.64, 867880.34, 820369.05, 947305.52, 810165.58, 846425.81, 977394.07, 835898.25, 873310.19, 675750.77, 638757.43, 737592.97, 770605.09, 805094.73, 761020.57, 719359.21, 615218.71, 581539.13, 549703.32, 574306.15, 600010.12, 626864.51, 654920.81, 756257.32, 965197.28, 912358.46, 862412.25, 995854.1, 941337.0, 889804.39, 1027484.66, 878737.31, 918066.57, 1060119.87, 906647.98, 947226.42, 989621.02, 1142746.01, 1080187.45, 1128532.93, 965156.98, 912320.37, 1164377.66, 1216491.2, 1404720.03, 1327819.95, 1387248.6, 1449337.08, 1369994.48, 1294995.42];
+
+const t1 = {
+  x: dates, y: curve1,
+  type: 'scatter', mode: 'lines',
+  name: '1% Risk (Conservative)',
+  line: { color: '#388BFD', width: 2 }
+};
+
+const t2 = {
+  x: dates, y: curve2,
+  type: 'scatter', mode: 'lines',
+  name: '2% Risk (Recommended)',
+  line: { color: '#4ADE80', width: 3 }
+};
+
+const t3 = {
+  x: dates, y: curve3,
+  type: 'scatter', mode: 'lines',
+  name: '3% Risk (Growth)',
+  line: { color: '#F1E05A', width: 2.5 }
+};
+
+const t5 = {
+  x: dates, y: curve5,
+  type: 'scatter', mode: 'lines',
+  name: '5% Risk (Aggressive)',
+  line: { color: '#FF7B72', width: 2.5 }
+};
+
+const layout = {
+  paper_bgcolor: '#111622', plot_bgcolor: '#080B10',
+  xaxis: { gridcolor: '#1A2234', color: '#7E8C9F' },
+  yaxis: { title: 'Account Balance ($)', gridcolor: '#1A2234', color: '#7E8C9F' },
+  margin: { l: 70, r: 40, t: 20, b: 40 },
+  legend: { orientation: 'h', y: 1.1, x: 0.05 }
+};
+
+Plotly.newPlot('growthDiv', [t1, t2, t3, t5], layout, { responsive: true });
+</script>
+</body>
+</html>
