@@ -12,7 +12,7 @@ import sys
 import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-RESEARCH_DIR = os.path.join(SCRIPT_DIR, "..", "research_scripts")
+RESEARCH_DIR = os.path.join(SCRIPT_DIR, "..", "dtfxStrategy", "research_scripts")
 sys.path.insert(0, RESEARCH_DIR)
 
 import dtfx_engine

@@ -5,7 +5,7 @@ import sysconfig
 import pybind11
 
 HERE = Path(__file__).resolve().parent
-SOURCE = HERE.parents[1] / 'cpp_engine' / 'src'
+SOURCE = HERE.parents[2] / 'cpp_engine' / 'src'
 CORE = HERE / 'core'
 CORE.mkdir(exist_ok=True)
 for name in ['pivots.hpp', 'pivots.cpp', 'structure_fsm.hpp', 'structure_fsm.cpp',

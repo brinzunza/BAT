@@ -26,6 +26,8 @@ pybind11_add_module(dtfx_engine
   src/backtest.cpp
   src/monte_carlo.cpp
   src/features.cpp
+  src/two_account.cpp
+  src/portfolio_mc.cpp
   src/bindings.cpp
 )
 
@@ -40,5 +42,5 @@ else()
   endif()
 endif()
 
-target_compile_options(dtfx_engine PRIVATE -O3 -Wall -Wextra)
+target_compile_options(dtfx_engine PRIVATE -O3 -Wall -Wextra -ffp-contract=off)
 target_link_libraries(dtfx_engine PRIVATE Threads::Threads)

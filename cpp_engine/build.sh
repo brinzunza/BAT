@@ -16,6 +16,6 @@ if [ -z "$SO_FILE" ]; then
   exit 1
 fi
 
-cp "$SO_FILE" ../research_scripts/
-echo "Built and copied: $(basename "$SO_FILE") -> ../research_scripts/"
-echo "Any script in research_scripts/ can now: import dtfx_engine"
+cp "$SO_FILE" ../dtfxStrategy/research_scripts/
+echo "Built and copied: $(basename "$SO_FILE") -> ../dtfxStrategy/research_scripts/"
+echo "Any script in dtfxStrategy/research_scripts/ can now: import dtfx_engine"

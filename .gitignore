@@ -4,5 +4,6 @@ __pycache__/
 dtfxStrategy/data
 data
 *.csv
-dtfxStrategy/cpp_engine/build/
+cpp_engine/build/
 dtfxStrategy/research_scripts/dtfx_engine*.so
+quant_engine/data/catalog_cache.json
