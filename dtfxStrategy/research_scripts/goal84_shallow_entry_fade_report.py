@@ -1,18 +1,25 @@
 """Full backtest report for the corrected Shallow-Entry Fade strategy (30% retracement,
-inverted, goal82's entry-price bug fix applied) -- direct user request (2026-09-22):
-"write down this strategy, return backtest results ... with plots on account growth".
+inverted, goal82's entry-price bug fix + goal85's flat-cost spread convention applied) --
+direct user request (2026-09-22): "write down this strategy, return backtest results ...
+with plots on account growth".
 
-Reuses, unchanged, every already-audited piece of this session's pipeline:
-  - goal82.build_frac_trades_fixed()      -- corrected zone detection + entry/exit resolution
+CORRECTION (2026-09-23): the first version of this report built trades from goal82's
+build_frac_trades_fixed(), which reprices entry_price by up to one spread depending on
+whether the touch bar was "deep" enough, then defines "1R" off that shifted entry -- an
+asymmetric cost model where losing trades never actually pay any spread cost (a stop-out
+is tautologically -1.0*eff_risk regardless of entry repricing). Per direct user
+specification, this now builds trades from goal85_shallow_entry_fade_flatcost.py instead:
+entry/stop/target held at the exact raw zone levels (no repricing at all), with exactly
+one spread's worth of R-cost subtracted from every trade's raw result, win or loss alike.
+This changes the headline numbers (PF 1.366 -> 1.188; 100% of months profitable no longer
+holds, 201/204 does) -- see goal85's own docstring for the full comparison.
+
+Reuses, unchanged, every other already-audited piece of this session's pipeline:
+  - goal85.build_frac_trades_flatcost()    -- corrected zone detection + entry/exit resolution
   - goal79.simulate_two_account()          -- two-sub-account event-driven $ walk
   - goal79.run_monte_carlo_two_account()   -- block-bootstrap MC, race to $1M
   - goal81.thirds_robustness() logic       -- reimplemented locally to capture numbers as data
   - goal83's per-year, fresh-$200 methodology -- reimplemented locally (per_year_backtest)
-
-Nothing here changes the strategy, the resolver, or the sizing model -- this script only
-computes/reports statistics and renders plots from the same already-verified trade stream
-(see this session's audit: live re-run reproduced PF=1.366, WR=46.64%, 100% of months/years
-profitable, all three independent thirds of 17y history profitable).
 """
 import os
 import sys
@@ -31,7 +38,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
 import goal79_two_account_portfolio as g79
-from goal82_audit_inversion_entry_bug import build_frac_trades_fixed
+from goal85_shallow_entry_fade_flatcost import build_frac_trades_flatcost as build_frac_trades_fixed
 
 simulate_two_account = g79.simulate_two_account
 run_monte_carlo_two_account = g79.run_monte_carlo_two_account
