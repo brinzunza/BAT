@@ -217,8 +217,14 @@ def simulate_two_account(trades, risk_pct=RISK_PCT, start_per_side=START_PER_SID
         _, risk_dollars, margin = position_size_and_margin(
             instrument[i], sizing_base, entry_price[i], stop_risk[i], risk_pct, max_leverage, cap)
         avail = min(equity[side], cap) - margin_used[side]
+        # A position sized to use ALL available margin computes `margin` via a
+        # divide-then-multiply-then-divide round trip through max_leverage that lands it
+        # within ~1e-14 of `avail`, sometimes a hair above due to float rounding alone --
+        # an unguarded `<=` here spuriously rejects a fully affordable trade about half
+        # the time this (common, since sizing is often leverage-capped) case occurs.
+        tolerance = 1e-9 * max(1.0, abs(avail))
 
-        if margin <= avail and open_count[side] < 1:
+        if margin <= avail + tolerance and open_count[side] < 1:
             accepted[i] = True
             heapq.heappush(heap, (exit_time[i], risk_dollars, margin, net_r[i], side))
             margin_used[side] += margin
@@ -310,8 +316,9 @@ def run_monte_carlo_two_account(trades, n_sims, target, max_trades=100_000, seed
                     instrument[idx], sizing_base, entry_price[idx], stop_risk[idx], RISK_PCT,
                     MAX_LEVERAGE, ACCOUNT_CAP)
                 avail = min(equity[side], ACCOUNT_CAP) - margin_used[side]
+                tolerance = 1e-9 * max(1.0, abs(avail))  # see simulate_two_account's comment
 
-                if margin <= avail and open_count[side] < 1:
+                if margin <= avail + tolerance and open_count[side] < 1:
                     heapq.heappush(heap, (xt, risk_dollars, margin, net_r[idx], side))
                     margin_used[side] += margin
                     open_count[side] += 1
