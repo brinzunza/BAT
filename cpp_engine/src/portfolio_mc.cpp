@@ -102,14 +102,34 @@ void worker(
             }
         };
 
-        while (processed < max_trades && target_years < 0.0 && !ruined) {
+        // `clock`/`et`/`xt` are int64_t nanoseconds anchored to real epoch-0 entry timestamps
+        // (already ~1.5e18 ns for 2018-2024 dates) and re-based every block via
+        // `offset = clock - entry_ns[start]`, which grows without bound as the simulated clock
+        // advances -- a strategy needing longer than int64_t's ~292-year range to reach its
+        // target (confirmed to actually happen: a real 241-trade small-sample config needed
+        // ~572 simulated years) silently wraps to a garbage value. `settle_through` then reads
+        // that wrapped `event.time_ns` and can spuriously satisfy `total >= target` at a
+        // nonsense "years" result -- this produced impossible sub-1-year years-to-$1M outputs
+        // that a from-scratch Python reimplementation and a hard lower bound on elapsed time
+        // both proved could not be real (see cpp_engine/README.md's "Fixed incident" note).
+        // Detecting
+        // the actual signed-overflow condition on every addition (rather than an arbitrary
+        // year-count cutoff, which would risk silently truncating a genuinely slow but valid
+        // multi-century result) and treating it as "not reached" is the correct fix: it can
+        // only ever make an already-overflowing path report -1.0 instead of a fabricated value,
+        // never change the outcome of a path that never approaches the boundary.
+        bool overflowed = false;
+        while (processed < max_trades && target_years < 0.0 && !ruined && !overflowed) {
             const int64_t start = draw(rng);
             const int64_t end = start + effective_block;
-            const int64_t offset = clock - entry_ns[start];
+            int64_t offset;
+            if (__builtin_sub_overflow(clock, entry_ns[start], &offset)) { overflowed = true; break; }
             int64_t last_entry = clock;
             for (int64_t idx = start; idx < end && processed < max_trades; ++idx) {
-                const int64_t et = entry_ns[idx] + offset;
-                const int64_t xt = et + std::max<int64_t>(exit_ns[idx] - entry_ns[idx], 1);
+                int64_t et, xt, dur;
+                if (__builtin_add_overflow(entry_ns[idx], offset, &et)) { overflowed = true; break; }
+                dur = std::max<int64_t>(exit_ns[idx] - entry_ns[idx], 1);
+                if (__builtin_add_overflow(et, dur, &xt)) { overflowed = true; break; }
                 last_entry = et;
                 settle_through(et);
                 if (ruined || target_years >= 0.0) break;
@@ -138,7 +158,11 @@ void worker(
                 }
                 events.push({xt, 1, ++sequence, parent_id, -1});
             }
-            clock = last_entry + std::max<int64_t>(boundary_gap_ns, 1);
+            if (overflowed) break;
+            if (__builtin_add_overflow(last_entry, std::max<int64_t>(boundary_gap_ns, 1), &clock)) {
+                overflowed = true;
+                break;
+            }
         }
         settle_through(INT64_MAX);
         out_target[sim] = target_years;

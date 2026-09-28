@@ -119,6 +119,21 @@ definitional difference in what each side's skip-counter counts rather than a fu
 Documented here rather than silently tightened or hidden; worth a closer look before leaning on
 this specific number.
 
+**Fixed incident (2026-09-28): int64 nanosecond overflow in the simulated clock.** The worker's
+`clock`/`et`/`xt` are `int64_t` nanoseconds anchored to real epoch-0 entry timestamps and grow
+without bound as the simulated clock advances block by block — a strategy needing longer than
+`int64_t`'s ~292-year range to reach its target silently wrapped `clock` to a garbage value,
+which `settle_through` could then read as spuriously satisfying `total >= target` at a
+fabricated (sometimes sub-1-year, sometimes negative) "years" result. Confirmed on a real
+241-trade small-sample FX config that needed ~572 simulated years: a from-scratch Python
+reimplementation and a hard lower bound on elapsed time (inter-block gaps alone) both proved the
+reported <1-year result was impossible; a debug trace of the actual event sequence showed
+`event.time_ns` going negative and wrapping through zero at the point of failure. Fixed by
+detecting the real signed-overflow condition on every timestamp addition (`__builtin_add_overflow`
+/`__builtin_sub_overflow`) and treating overflow as "target not reached" rather than an arbitrary
+year-count cutoff — this can only ever correct an already-broken path to `-1.0`, never change a
+path that stays within the safe range. Re-validated all-PASS via `validate_portfolio_mc.py`.
+
 ## Build
 
 ```bash
