@@ -1,0 +1,428 @@
+<title>Reading the Tape</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --candle-up: #2F7A57; --candle-down: #A8462C; --wick: #566254;
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 44px 24px 70px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(30px, 4.6vw, 44px); line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 16px; text-wrap: balance; }
+  .dek { font-size: 16px; color: var(--ink-dim); max-width: 74ch; margin: 0 0 4px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 22px; margin: 0 0 6px; }
+  .section-sub { color: var(--ink-dim); font-size: 14px; max-width: 68ch; margin: 0 0 18px; }
+  section { margin-top: 40px; }
+  section:first-of-type { margin-top: 34px; }
+  p { margin: 0 0 12px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+  @media (max-width: 640px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .stat .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; }
+  .stat .value { font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 500; margin-top: 3px; }
+  .stat .value.win { color: var(--buy-strong); }
+  .stat .value.loss { color: var(--sell-strong); }
+
+  .chart-shell { position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); overflow: hidden; box-shadow: var(--shadow); }
+  #chart { display: block; width: 100%; height: 460px; cursor: grab; touch-action: none; }
+  #chart.grabbing { cursor: grabbing; }
+  .chart-toolbar { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; }
+  .chart-toolbar button { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-dim); font-family: "IBM Plex Mono", monospace; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .chart-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .tooltip2 { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-family: "IBM Plex Mono", monospace; font-size: 11.5px; padding: 7px 10px; border-radius: 6px; line-height: 1.5; white-space: nowrap; transform: translate(-50%, -110%); opacity: 0; transition: opacity 0.1s; z-index: 3; }
+  .empty-note { padding: 60px 24px; text-align: center; color: var(--ink-faint); font-size: 14px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px 22px; font-size: 12px; color: var(--ink-dim); margin-top: 12px; }
+  .legend .item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .legend .box { display: inline-block; width: 13px; height: 10px; border-radius: 2px; }
+  .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+  .caveat b { color: var(--ink-dim); }
+
+  .more-links { display: grid; gap: 10px; }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">USDJPY · real 1-minute candles · every swing a zone</p>
+  <h1>Reading the Tape</h1>
+  <p class="dek">The same rule from <a href="https://claude.ai/code/artifact/d7186286-26b2-475d-8c14-0bbeaa506508" target="_blank" rel="noopener">Reading the Swing</a>, run on real market data instead of a drawing: every confirmed swing is a zone, entry sits at the exact 50% midpoint, and <b>a zone's box now runs until it's invalidated</b> — price has to leave the zone behind (trade past its far edge), swing back and tag 50%, then trade out through either edge. Scroll to zoom, drag to pan; zoom out to see how dense real 1-minute swings get, zoom into any one box to see the mechanism play out tick by tick.</p>
+
+  <section id="tabs-section">
+    <div class="stat-row" id="statRow"></div>
+    <div class="chart-shell">
+      <div class="chart-toolbar">
+        <button id="zoomInBtn" title="Zoom in">+</button>
+        <button id="zoomOutBtn" title="Zoom out">−</button>
+        <button id="fitBtn" title="Fit all">⤢</button>
+      </div>
+      <canvas id="chart"></canvas>
+      <div class="tooltip2" id="tooltip"></div>
+      <div class="empty-note" id="emptyNote" hidden></div>
+    </div>
+    <div class="legend">
+      <span class="item"><span class="box" style="background:var(--buy-fill); border:1.4px solid var(--buy);"></span>buy zone</span>
+      <span class="item"><span class="box" style="background:var(--sell-fill); border:1.4px solid var(--sell);"></span>sell zone</span>
+      <span class="item"><span class="box" style="background:var(--surface-raised); border:2.2px solid var(--ink);"></span>flip zone</span>
+      <span class="item" style="color:var(--accent);">▲ tags 50% here</span>
+      <span class="item"><span class="dot" style="background:var(--buy);"></span>win — exits through the far edge</span>
+      <span class="item"><span class="dot" style="background:var(--sell);"></span>loss — exits back through its own edge</span>
+      <span class="item"><span class="dot" style="background:var(--ink); width:7px; height:7px;"></span>swing pivot (sets top/bottom)</span>
+      <span class="item">dashed box = the swing still forming · solid box = zone confirmed, open until it resolves</span>
+    </div>
+    <p class="section-sub" style="margin-top:10px;">Each box spans from its actual defining swing (dashed while the pivots are still forming) through confirmation to wherever it actually got resolved — most zones on 1-minute data resolve within minutes, since price constantly revisits nearby levels, but some sit open for hours. A box with no triangle never made it back to tag 50% at all; those just fade out at the right edge of whatever's currently in view.</p>
+  </section>
+
+  <section id="tradelog">
+    <h2>Trade log — the most recent 150</h2>
+    <p class="section-sub" id="logSub"></p>
+    <div class="chart-shell" style="max-height:520px; overflow-y:auto; padding:4px 0;">
+      <table style="width:100%; border-collapse:collapse; font-size:12.5px;" id="logTable"></table>
+    </div>
+  </section>
+
+  <section>
+    <h2>What this is (and isn't)</h2>
+    <div class="caveat"><b>This is a mechanism illustration, not a validated strategy result.</b> The fill rule here is deliberately stricter than this project's usual entry logic elsewhere (which fills on the very first touch of the 50% level, no matter how it got there): here a zone only counts as "live" once price has actually left it behind and come back, matching the corrected reading of the zone rule from the synthetic diagram. That's a genuinely different, more selective mechanism — it is not the rule behind any of this session's earlier performance numbers, and the ~72% win rate below should not be read as a new profitable variant. No spread, slippage, or position sizing is modeled; the sample is one instrument over one very short, very recent 4,000-bar (≈2.8 day) window with no walk-forward or robustness testing.</div>
+    <div class="caveat">Because entry sits at the exact midpoint, the stop and target are always equidistant from entry (a fixed 1:1 reward:risk) — so unlike the 30%-entry research elsewhere in this project, the win rate alone tells the entire expectancy story for this specific illustration, with no separate R:R to weigh against it.</div>
+    <div class="caveat">A handful of zones (see the stat row) never even leave their own zone behind, or leave but never get retested, within this short window — those stay open indefinitely and are shown fading out at whatever's currently in view, the same "stays open" treatment used on the synthetic chart. One zone this window is tiny enough (well under a pip) that it overshoots, tags 50%, and exits all inside a single 1-minute bar — a real artifact of checking price once a minute rather than every tick, not a bug.</div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/d7186286-26b2-475d-8c14-0bbeaa506508" target="_blank" rel="noopener">Reading the Swing<span>The same zone-lifetime rule, hand-traced on a drawn chart.</span></a>
+      <a href="https://claude.ai/code/artifact/db622b6f-4f2a-4807-b7c1-abb995d3c5c6" target="_blank" rel="noopener">The Past Week<span>The project's real production zone rule and account simulation, across all four pairs.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    USDJPY · 1-minute bars · 2026-09-01 17:07 through 2026-09-03 15:58 (the most recent ~2 days in this dataset) · illustrative, not a live track record.
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA_JSON__;
+const SYMBOL = "USDJPY";
+
+function fmtTime(t){
+  const [d,hm] = t.split("T");
+  const [y,m,day] = d.split("-");
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return months[parseInt(m,10)-1] + " " + parseInt(day,10) + " " + hm;
+}
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+let state = { viewStart: 0, viewCount: 70 };
+
+const canvas = document.getElementById("chart");
+const ctx = canvas.getContext("2d");
+const tooltip = document.getElementById("tooltip");
+const emptyNote = document.getElementById("emptyNote");
+const d = DATA[SYMBOL];
+const N_BARS = d.bars.length;
+
+function buildStats(){
+  const zones = d.zones;
+  const win = zones.filter(z => z.state === "win").length;
+  const loss = zones.filter(z => z.state === "loss").length;
+  const resolved = win + loss;
+  const open = zones.length - resolved;
+  const wr = resolved ? 100*win/resolved : null;
+  const row = document.getElementById("statRow");
+  row.innerHTML = `
+    <div class="stat"><div class="label">Zones (every swing)</div><div class="value">${zones.length.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Resolved</div><div class="value">${resolved.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Win rate</div><div class="value">${wr!==null ? wr.toFixed(1)+"%" : "—"}</div></div>
+    <div class="stat"><div class="label">Wins / Losses</div><div class="value"><span class="win">${win}W</span> / <span class="loss">${loss}L</span></div></div>
+    <div class="stat"><div class="label">Still open</div><div class="value">${open.toLocaleString()}</div></div>
+  `;
+}
+
+function buildLog(){
+  const tagged = d.zones.filter(z => z.tag_idx !== null).slice().sort((a,b) => b.tag_idx - a.tag_idx);
+  const shown = tagged.slice(0, 150);
+  document.getElementById("logSub").textContent =
+    `Showing the most recent ${shown.length} of ${tagged.length.toLocaleString()} zones that made it back to tag 50%, newest first. "Formed" is the swing that defines the zone's edges; "tags 50%" is when price swung back into it; "result" is how it resolved.`;
+  const table = document.getElementById("logTable");
+  const barTime = (idx) => fmtTime(d.bars[idx].t);
+  const rows = shown.map((z) => {
+    const dir = z.is_buy ? "BUY" : "SELL";
+    const dirColor = z.is_buy ? "var(--buy-strong)" : "var(--sell-strong)";
+    const kindLabel = z.kind === "flip" ? "flip zone" : "pullback zone";
+    const formed = z.top_idx === z.bottom_idx
+      ? `top &amp; bottom both set ${barTime(z.top_idx)}`
+      : (z.top_idx < z.bottom_idx
+          ? `high at ${barTime(z.top_idx)}, then low at ${barTime(z.bottom_idx)}`
+          : `low at ${barTime(z.bottom_idx)}, then high at ${barTime(z.top_idx)}`);
+    const outcomeLabel = z.state === "win" ? "WIN" : (z.state === "loss" ? "LOSS" : "still open");
+    const outcomeColor = z.state === "win" ? "var(--buy-strong)" : (z.state === "loss" ? "var(--sell-strong)" : "var(--ink-faint)");
+    const resultNote = z.exit_idx !== null
+      ? `${z.state === "win" ? "target" : "stop"} hit ${barTime(z.exit_idx)}`
+      : "no exit yet in this window";
+    return `
+      <tr style="border-bottom:1px solid var(--line);">
+        <td style="padding:10px 12px; vertical-align:top;">
+          <div><span style="font-weight:700; color:${dirColor};">${dir}</span> <span style="color:var(--ink-dim);">${kindLabel}</span> <span style="color:var(--ink-faint); font-size:11px;">(${z.pips_wide} pips)</span></div>
+          <div style="color:var(--ink-faint); font-size:11.5px; margin-top:2px;">top ${z.top.toFixed(3)} / bottom ${z.bottom.toFixed(3)} — formed: ${formed}</div>
+          <div style="color:var(--ink-faint); font-size:11.5px; margin-top:2px;">tags 50% (${z.mid.toFixed(3)}) at ${barTime(z.tag_idx)}</div>
+        </td>
+        <td style="padding:10px 12px; vertical-align:top; text-align:right; white-space:nowrap;">
+          <div style="font-weight:700; color:${outcomeColor};">${outcomeLabel}</div>
+          <div style="color:var(--ink-faint); font-size:11.5px; margin-top:2px;">${resultNote}</div>
+        </td>
+      </tr>`;
+  }).join("");
+  table.innerHTML = rows;
+}
+
+function resetView(){
+  state.viewCount = Math.min(70, N_BARS);
+  state.viewStart = Math.max(0, N_BARS - state.viewCount);
+}
+
+function xFor(i, plotW, padL){
+  const slot = plotW / state.viewCount;
+  return padL + slot * (i - state.viewStart + 0.5);
+}
+function xToBar(x, plotW, padL){
+  const slot = plotW / state.viewCount;
+  return Math.round(state.viewStart + (x - padL) / slot - 0.5);
+}
+
+function visiblePriceRange(){
+  const lo = Math.max(0, state.viewStart);
+  const hi = Math.min(N_BARS, state.viewStart + state.viewCount);
+  let mn = Infinity, mx = -Infinity;
+  for (let i = lo; i < hi; i++){
+    const b = d.bars[i];
+    if (b.l < mn) mn = b.l;
+    if (b.h > mx) mx = b.h;
+  }
+  if (!isFinite(mn)) { mn = 0; mx = 1; }
+  const pad = (mx-mn) * 0.08 || 0.001;
+  return [mn-pad, mx+pad];
+}
+
+function zoomBy(factor, centerX, plotW, padL){
+  const centerBar = xToBar(centerX, plotW, padL);
+  let newCount = Math.round(state.viewCount * factor);
+  newCount = Math.max(15, Math.min(N_BARS, newCount));
+  const frac = (centerBar - state.viewStart) / state.viewCount;
+  state.viewStart = Math.round(centerBar - frac * newCount);
+  state.viewCount = newCount;
+  clampView();
+}
+function clampView(){
+  state.viewCount = Math.max(15, Math.min(N_BARS, state.viewCount));
+  state.viewStart = Math.max(0, Math.min(N_BARS - state.viewCount, state.viewStart));
+}
+
+function render(){
+  emptyNote.hidden = N_BARS > 0;
+  if (N_BARS === 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  const padL = 8, padR = 62, padT = 14, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const [lo, hi] = visiblePriceRange();
+  const yFor = p => padT + (hi-p)/(hi-lo)*plotH;
+
+  ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+  ctx.font = "11px 'IBM Plex Mono', monospace";
+  const nTicks = 6;
+  for (let t=0; t<=nTicks; t++){
+    const p = lo + (hi-lo)*t/nTicks;
+    const y = yFor(p);
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillStyle = css("--ink-faint");
+    ctx.fillText(p.toFixed(3), W-padR+6, y+4);
+  }
+
+  const viewLo = Math.max(0, Math.floor(state.viewStart));
+  const viewHi = Math.min(N_BARS, Math.ceil(state.viewStart + state.viewCount));
+  const slot = plotW / state.viewCount;
+
+  d.zones.forEach(z => {
+    const zStartIdx = Math.min(z.top_idx, z.bottom_idx);
+    if (zStartIdx > viewHi) return;
+    const zEndIdx = (z.exit_idx !== null) ? z.exit_idx : (N_BARS - 1);
+    if (zEndIdx < viewLo) return;
+    const x0 = xFor(Math.max(zStartIdx, viewLo), plotW, padL);
+    const x1 = xFor(Math.min(zEndIdx, viewHi), plotW, padL) + slot*0.5;
+    const xCreated = xFor(Math.max(Math.min(z.created_idx, viewHi), viewLo), plotW, padL);
+    const y0 = yFor(z.top), y1 = yFor(z.bottom);
+    const isFlip = z.kind === "flip";
+    const color = z.is_buy ? css("--buy") : css("--sell");
+    const fill = z.is_buy ? css("--buy-fill") : css("--sell-fill");
+    ctx.strokeStyle = isFlip ? css("--ink") : color;
+    ctx.lineWidth = isFlip ? 2 : 1.2;
+    ctx.setLineDash([4,3]);
+    ctx.strokeRect(x0, y0, Math.max(xCreated-x0,1), y1-y0);
+    ctx.setLineDash([]);
+    ctx.fillStyle = isFlip ? css("--surface-raised") : fill;
+    ctx.fillRect(xCreated, y0, Math.max(x1-xCreated,1), y1-y0);
+    ctx.strokeStyle = isFlip ? css("--ink") : color;
+    ctx.lineWidth = isFlip ? 2 : 1.2;
+    ctx.strokeRect(xCreated, y0, Math.max(x1-xCreated,1), y1-y0);
+
+    if (z.top_idx >= viewLo && z.top_idx < viewHi){
+      const px = xFor(z.top_idx, plotW, padL);
+      ctx.fillStyle = css("--ink");
+      ctx.beginPath(); ctx.arc(px, y0, 3, 0, Math.PI*2); ctx.fill();
+    }
+    if (z.bottom_idx >= viewLo && z.bottom_idx < viewHi){
+      const px = xFor(z.bottom_idx, plotW, padL);
+      ctx.fillStyle = css("--ink");
+      ctx.beginPath(); ctx.arc(px, y1, 3, 0, Math.PI*2); ctx.fill();
+    }
+  });
+
+  for (let i=viewLo; i<viewHi; i++){
+    const b = d.bars[i];
+    const x = xFor(i, plotW, padL);
+    const up = b.c >= b.o;
+    ctx.strokeStyle = css("--wick"); ctx.lineWidth = Math.max(1, slot*0.06);
+    ctx.beginPath(); ctx.moveTo(x, yFor(b.h)); ctx.lineTo(x, yFor(b.l)); ctx.stroke();
+    const bw = Math.max(1.2, slot*0.62);
+    const yO = yFor(b.o), yC = yFor(b.c);
+    ctx.fillStyle = up ? css("--candle-up") : css("--candle-down");
+    ctx.fillRect(x-bw/2, Math.min(yO,yC), bw, Math.max(1, Math.abs(yC-yO)));
+  }
+
+  d.zones.forEach(z => {
+    if (z.tag_idx !== null && z.tag_idx >= viewLo && z.tag_idx < viewHi){
+      const x = xFor(z.tag_idx, plotW, padL);
+      const y = yFor(z.mid);
+      ctx.fillStyle = css("--accent");
+      ctx.beginPath();
+      ctx.moveTo(x, y-8); ctx.lineTo(x-5, y-1); ctx.lineTo(x+5, y-1); ctx.closePath();
+      ctx.fill();
+    }
+    if (z.exit_idx !== null && z.exit_idx >= viewLo && z.exit_idx < viewHi){
+      const x = xFor(z.exit_idx, plotW, padL);
+      const price = z.state === "win" ? (z.is_buy ? z.top : z.bottom) : (z.is_buy ? z.bottom : z.top);
+      const y = yFor(price);
+      ctx.fillStyle = z.state === "win" ? css("--buy") : css("--sell");
+      ctx.strokeStyle = css("--surface-raised"); ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(x, y, 4.4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+  });
+
+  ctx.fillStyle = css("--ink-faint");
+  ctx.font = "10.5px 'IBM Plex Mono', monospace";
+  const nLabels = Math.min(6, viewHi-viewLo);
+  for (let k=0; k<nLabels; k++){
+    const i = viewLo + Math.floor((viewHi-viewLo-1) * k/(nLabels-1||1));
+    const x = xFor(i, plotW, padL);
+    ctx.fillText(fmtTime(d.bars[i].t), Math.max(padL, x-30), H-8);
+  }
+}
+
+function attachInteraction(){
+  let dragging = false, dragStartX = 0, dragStartView = 0;
+
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const factor = e.deltaY > 0 ? 1.15 : 0.87;
+    zoomBy(factor, x, rect.width-8-62, 8);
+    render();
+  }, {passive:false});
+
+  canvas.addEventListener("mousedown", e => {
+    dragging = true; canvas.classList.add("grabbing");
+    dragStartX = e.clientX; dragStartView = state.viewStart;
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      if (x<0||x>rect.width||y<0||y>rect.height){ tooltip.style.opacity=0; return; }
+      const plotW = rect.width-8-62;
+      const bar = xToBar(x, plotW, 8);
+      if (bar>=0 && bar<N_BARS){
+        const b = d.bars[bar];
+        tooltip.style.opacity = 1;
+        tooltip.style.left = x+"px"; tooltip.style.top = y+"px";
+        tooltip.innerHTML = `${fmtTime(b.t)}<br>O ${b.o.toFixed(3)} H ${b.h.toFixed(3)}<br>L ${b.l.toFixed(3)} C ${b.c.toFixed(3)}`;
+      }
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const plotW = rect.width-8-62;
+    const slot = plotW/state.viewCount;
+    const dx = e.clientX - dragStartX;
+    state.viewStart = Math.round(dragStartView - dx/slot);
+    clampView();
+    render();
+  });
+  window.addEventListener("mouseup", () => { dragging = false; canvas.classList.remove("grabbing"); });
+
+  document.getElementById("zoomInBtn").addEventListener("click", () => {
+    const rect = canvas.getBoundingClientRect();
+    zoomBy(0.7, (rect.width-62)/2, rect.width-8-62, 8); render();
+  });
+  document.getElementById("zoomOutBtn").addEventListener("click", () => {
+    const rect = canvas.getBoundingClientRect();
+    zoomBy(1.4, (rect.width-62)/2, rect.width-8-62, 8); render();
+  });
+  document.getElementById("fitBtn").addEventListener("click", () => {
+    state.viewStart = 0; state.viewCount = N_BARS;
+    render();
+  });
+
+  window.addEventListener("resize", () => render());
+}
+
+buildStats();
+buildLog();
+resetView();
+attachInteraction();
+render();
+</script>

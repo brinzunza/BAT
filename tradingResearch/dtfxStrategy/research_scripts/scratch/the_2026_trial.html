@@ -1,0 +1,506 @@
+<title>The 2026 Trial</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --warn-fill: rgba(168,70,44,0.09);
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --warn-fill: rgba(232,129,92,0.10);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --warn-fill: rgba(232,129,92,0.10);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 44px 24px 70px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 16px; text-wrap: balance; }
+  .dek { font-size: 16px; color: var(--ink-dim); max-width: 76ch; margin: 0 0 28px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 6px; }
+  h3 { font-family: "IBM Plex Sans", sans-serif; font-weight: 700; font-size: 15px; margin: 0 0 4px; }
+  .section-sub { color: var(--ink-dim); font-size: 14px; max-width: 74ch; margin: 0 0 18px; }
+  section { margin-top: 44px; }
+  p { margin: 0 0 12px; }
+
+  .callout { border-radius: 12px; padding: 18px 20px; margin: 0 0 24px; border: 1px solid var(--line); background: var(--surface); }
+  .callout.warn { background: var(--warn-fill); border-color: var(--sell); }
+  .callout h3 { text-transform: uppercase; letter-spacing: 0.05em; font-size: 12.5px; }
+  .callout.warn h3 { color: var(--sell-strong); }
+  .callout p { color: var(--ink); font-size: 14.5px; margin-bottom: 8px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; padding: 9px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; }
+  td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  .table-shell { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 12px; }
+  .win-cell { color: var(--buy-strong); font-weight: 600; }
+  .loss-cell { color: var(--sell-strong); font-weight: 600; }
+  .flag-cell { color: var(--accent); font-weight: 600; }
+
+  .verdict { border-radius: 14px; padding: 22px 24px; background: var(--sell-fill); border: 1.5px solid var(--sell); margin-bottom: 20px; }
+  .verdict .big { font-family: "Fraunces", Georgia, serif; font-size: 26px; font-weight: 500; color: var(--sell-strong); margin: 0 0 8px; }
+  .checklist { display: grid; gap: 10px; margin-top: 16px; }
+  .check-item { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .check-item .mark { font-weight: 700; flex-shrink: 0; width: 20px; }
+  .check-item .mark.no { color: var(--sell-strong); }
+  .check-item .mark.partial { color: var(--accent); }
+  .check-item .label { font-weight: 600; font-size: 13.5px; }
+  .check-item .detail { color: var(--ink-dim); font-size: 13px; margin-top: 2px; }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+  .caveat b { color: var(--ink-dim); }
+  .more-links { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 640px) { .more-links { grid-template-columns: 1fr; } }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">variant A · fixed 1:1R · fresh $200 start · 3% risk · Jan 1 – Sep 3, 2026</p>
+  <h1>The 2026 Trial</h1>
+  <p class="dek">The two-account setup from <a href="https://claude.ai/code/artifact/139aa102-fe4f-41e6-ae9e-13357c0a6d7b" target="_blank" rel="noopener">The Risk Ceiling</a> — $100 buy-only + $100 sell-only, one confirmed open position per account, 1.6-pip spread on every entry — started completely fresh on 2026-01-01 instead of carrying 23 years of prior compounding, at 3% risk, compared across minimum zone heights.</p>
+
+  <div class="callout warn">
+    <h3>Read the dollar figures for 5 and 10 pips with real skepticism</h3>
+    <p>At 5 and 10 pips, this system still trades often enough (16-101 times/day) and wins often enough to run into the same $2M-position-sizing-cap compounding effect flagged in <a href="https://claude.ai/code/artifact/0119e085-a75d-43be-acd1-568aab744429" target="_blank" rel="noopener">Head to Head</a> — the "$166 million" and "$18.6 million" final balances below are the sizing model compounding unrealistically fast, not a credible 8-month forecast. Read win rate, trades/day, and the robustness section as the real signal; read 20 and 30 pips' final balances (still small enough that the cap barely matters) as the more believable dollar figures.</p>
+  </div>
+
+  <section style="margin-top:0;">
+    <h2>Minimum zone height, compared</h2>
+    <p class="section-sub">Same $200 start, same 3% risk, same entry gate and cost model — only the minimum raw zone height changes.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Min zone</th><th>Trades</th><th>Win rate</th><th>Trades/day</th><th>Final balance</th><th>Max DD</th><th>Days profitable</th><th>Weeks profitable</th><th>Months profitable</th></tr></thead>
+        <tbody>
+          <tr><td>5 pips</td><td>24,794</td><td class="win-cell">79.95%</td><td>100.93</td><td class="flag-cell">$166,252,385</td><td>−7.52%</td><td>54.9%</td><td>57.1%</td><td>77.8%</td></tr>
+          <tr><td>10 pips</td><td>3,957</td><td class="win-cell">71.59%</td><td>16.11</td><td class="flag-cell">$18,664,597</td><td>−12.44%</td><td>56.1%</td><td>82.9%</td><td>88.9%</td></tr>
+          <tr><td>20 pips</td><td>421</td><td class="win-cell">65.80%</td><td>1.71</td><td class="win-cell">$838.31</td><td>−17.15%</td><td>22.0%</td><td>60.0%</td><td>100.0%</td></tr>
+          <tr><td>30 pips</td><td>132</td><td class="win-cell">63.64%</td><td>0.54</td><td class="win-cell">$317.98</td><td>−10.09%</td><td>7.3%</td><td>37.1%</td><td>77.8%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">The pattern holds from every earlier sweep this project has run: win rate falls and trade frequency falls sharply as the minimum zone size rises, while the (believable, un-inflated) results at 20-30 pips still come out ahead — 20 pips turned $200 into $838 in 8 months with every one of its 9 months profitable, on 421 trades.</p>
+  </section>
+
+  <section>
+    <h2>Day by day, all four zone heights</h2>
+    <p class="section-sub">The full 2026 combined-balance curve, log scale (each gridline is 10× the one below it) so the 5- and 10-pip curves' unrealistic scale and the 20- and 30-pip curves' realistic one can share one chart honestly.</p>
+    <figure style="margin:0 0 18px;">
+      <svg viewBox="0 0 640 260" role="img" aria-label="Log-scale line chart of combined account balance from January through September 2026 for four minimum zone heights. The 5-pip and 10-pip curves rise from 200 dollars into the tens and hundreds of millions within the first two months and then flatten. The 20-pip and 30-pip curves stay close to 200 dollars throughout, ending near 838 and 318 dollars respectively." style="width:100%; height:auto; display:block; font-family:'IBM Plex Mono',monospace;">
+        <line x1="46" y1="226" x2="626" y2="226" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="229" text-anchor="end" font-size="10" fill="var(--ink-faint)">$100</text>
+        <line x1="46" y1="193.4" x2="626" y2="193.4" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="196.4" text-anchor="end" font-size="10" fill="var(--ink-faint)">$1K</text>
+        <line x1="46" y1="160.8" x2="626" y2="160.8" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="163.8" text-anchor="end" font-size="10" fill="var(--ink-faint)">$10K</text>
+        <line x1="46" y1="128.2" x2="626" y2="128.2" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="131.2" text-anchor="end" font-size="10" fill="var(--ink-faint)">$100K</text>
+        <line x1="46" y1="95.5" x2="626" y2="95.5" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <text x="40" y="98.5" text-anchor="end" font-size="10" fill="var(--accent)" font-weight="600">$1M</text>
+        <line x1="46" y1="62.9" x2="626" y2="62.9" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="65.9" text-anchor="end" font-size="10" fill="var(--ink-faint)">$10M</text>
+        <line x1="46" y1="30.3" x2="626" y2="30.3" stroke="var(--grid)" stroke-width="1"/>
+        <text x="40" y="33.3" text-anchor="end" font-size="10" fill="var(--ink-faint)">$100M</text>
+
+        <polyline points="46.0,210.8 48.4,209.9 50.7,209.9 53.1,209.8 55.5,205.8 57.8,202.1 60.2,196.4 62.6,193.1 64.9,191.9 67.3,191.9 69.7,192.0 72.0,190.3 74.4,185.7 76.8,183.7 79.1,178.3 81.5,174.1 83.9,174.1 86.2,173.9 88.6,172.0 91.0,161.1 93.3,153.8 95.7,150.7 98.1,143.8 100.4,143.8 102.8,143.4 105.2,131.9 107.6,119.9 109.9,107.6 112.3,93.6 114.7,79.2 117.0,79.2 119.4,78.9 121.8,68.5 124.1,63.1 126.5,58.7 128.9,54.0 131.2,53.0 133.6,53.0 136.0,53.0 138.3,49.7 140.7,48.3 143.1,46.4 145.4,44.9 147.8,44.3 150.2,44.3 152.5,44.3 154.9,43.8 157.3,42.7 159.6,42.1 162.0,41.6 164.4,41.4 166.7,41.4 169.1,41.4 171.5,40.8 173.8,40.4 176.2,40.0 178.6,39.6 180.9,39.2 183.3,39.2 185.7,39.1 188.0,37.7 190.4,36.4 192.8,35.6 195.1,34.8 197.5,33.7 199.9,33.7 202.2,33.6 204.6,32.3 207.0,31.8 209.3,31.3 211.7,31.0 214.1,30.6 216.4,30.6 218.8,30.6 221.2,30.4 223.6,30.0 225.9,29.5 228.3,28.5 230.7,28.2 233.0,28.2 235.4,28.2 237.8,27.5 240.1,27.0 242.5,26.7 244.9,26.5 247.2,26.4 249.6,26.4 252.0,26.4 254.3,26.2 256.7,25.9 259.1,25.6 261.4,25.3 263.8,25.0 266.2,25.0 268.5,25.0 270.9,24.9 273.3,24.6 275.6,24.4 278.0,24.3 280.4,24.3 282.7,24.3 285.1,24.2 287.5,24.2 289.8,24.0 292.2,23.9 294.6,23.8 296.9,23.6 299.3,23.6 301.7,23.6 304.0,23.5 306.4,23.4 308.8,23.3 311.1,23.1 313.5,23.1 315.9,23.1 318.2,23.1 320.6,23.1 323.0,23.1 325.3,23.1 327.7,23.1 330.1,23.1 332.4,23.1 334.8,23.1 337.2,23.1 339.6,23.1 341.9,23.1 344.3,23.1 346.7,23.1 349.0,23.1 351.4,23.1 353.8,23.1 356.1,23.1 358.5,23.1 360.9,23.1 363.2,23.1 365.6,23.1 368.0,23.1 370.3,23.1 372.7,23.1 375.1,23.1 377.4,23.1 379.8,23.1 382.2,23.1 384.5,23.1 386.9,23.1 389.3,22.9 391.6,22.9 394.0,22.9 396.4,23.0 398.7,23.0 401.1,23.0 403.5,23.0 405.8,23.0 408.2,23.0 410.6,23.0 412.9,23.0 415.3,23.0 417.7,23.0 420.0,23.0 422.4,23.0 424.8,23.0 427.1,23.0 429.5,23.0 431.9,23.0 434.2,23.0 436.6,23.0 439.0,23.0 441.3,23.0 443.7,23.0 446.1,23.0 448.4,23.0 450.8,23.0 453.2,23.0 455.6,23.0 457.9,23.1 460.3,23.1 462.7,23.1 465.0,23.1 467.4,23.1 469.8,23.1 472.1,23.1 474.5,23.1 476.9,23.1 479.2,23.1 481.6,23.1 484.0,23.1 486.3,23.1 488.7,23.1 491.1,23.1 493.4,23.1 495.8,23.1 498.2,23.1 500.5,23.1 502.9,23.1 505.3,23.1 507.6,23.1 510.0,23.1 512.4,23.2 514.7,23.2 517.1,23.2 519.5,23.2 521.8,23.2 524.2,23.2 526.6,23.2 528.9,23.2 531.3,23.2 533.7,23.2 536.0,23.2 538.4,23.2 540.8,23.2 543.1,23.1 545.5,23.0 547.9,23.0 550.2,23.1 552.6,23.0 555.0,23.0 557.3,23.0 559.7,23.0 562.1,23.0 564.4,23.0 566.8,23.0 569.2,23.0 571.6,23.0 573.9,23.1 576.3,23.1 578.7,23.1 581.0,23.1 583.4,23.1 585.8,23.1 588.1,23.1 590.5,23.1 592.9,23.1 595.2,23.1 597.6,23.1 600.0,23.1 602.3,23.1 604.7,23.1 607.1,23.1 609.4,23.1 611.8,23.2 614.2,23.2 616.5,23.2 618.9,23.2 621.3,23.2 623.6,23.1 626.0,23.1" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
+        <polyline points="46.0,212.6 48.4,212.9 50.7,212.9 53.1,213.0 55.5,213.9 57.8,213.5 60.2,212.6 62.6,211.0 64.9,210.0 67.3,210.0 69.7,209.9 72.0,209.7 74.4,208.3 76.8,206.1 79.1,204.8 81.5,203.4 83.9,203.4 86.2,204.0 88.6,202.6 91.0,199.4 93.3,197.7 95.7,197.0 98.1,194.0 100.4,194.0 102.8,193.4 105.2,190.9 107.6,185.2 109.9,180.0 112.3,173.9 114.7,167.4 117.0,167.4 119.4,167.2 121.8,164.5 124.1,161.4 126.5,159.1 128.9,151.9 131.2,152.2 133.6,152.2 136.0,151.8 138.3,145.8 140.7,144.6 143.1,138.4 145.4,133.7 147.8,131.9 150.2,131.9 152.5,131.8 154.9,131.3 157.3,128.1 159.6,127.0 162.0,126.1 164.4,127.0 166.7,127.0 169.1,127.6 171.5,126.9 173.8,126.6 176.2,126.1 178.6,125.4 180.9,124.6 183.3,124.6 185.7,124.7 188.0,121.3 190.4,117.7 192.8,116.4 195.1,114.7 197.5,111.4 199.9,111.4 202.2,111.2 204.6,107.6 207.0,106.4 209.3,104.9 211.7,102.9 214.1,101.7 216.4,101.7 218.8,101.7 221.2,100.8 223.6,98.0 225.9,94.9 228.3,88.0 230.7,87.3 233.0,87.3 235.4,87.4 237.8,77.7 240.1,74.1 242.5,73.5 244.9,71.0 247.2,70.5 249.6,70.5 252.0,70.4 254.3,69.8 256.7,67.9 259.1,67.8 261.4,66.0 263.8,64.2 266.2,64.2 268.5,64.0 270.9,63.9 273.3,63.2 275.6,62.5 278.0,62.4 280.4,62.3 282.7,62.3 285.1,62.2 287.5,62.2 289.8,61.6 292.2,61.0 294.6,60.3 296.9,60.0 299.3,60.0 301.7,59.9 304.0,59.6 306.4,59.0 308.8,58.2 311.1,57.8 313.5,57.6 315.9,57.6 318.2,57.4 320.6,57.4 323.0,57.4 325.3,57.2 327.7,57.1 330.1,57.0 332.4,57.0 334.8,57.0 337.2,57.1 339.6,57.0 341.9,56.7 344.3,56.8 346.7,56.7 349.0,56.7 351.4,56.8 353.8,56.8 356.1,56.7 358.5,56.6 360.9,56.6 363.2,56.6 365.6,56.6 368.0,56.6 370.3,56.6 372.7,56.5 375.1,56.5 377.4,56.5 379.8,56.5 382.2,56.5 384.5,56.4 386.9,56.0 389.3,55.6 391.6,55.7 394.0,55.6 396.4,55.6 398.7,55.6 401.1,55.6 403.5,55.6 405.8,55.6 408.2,55.7 410.6,55.7 412.9,55.6 415.3,55.6 417.7,55.6 420.0,55.7 422.4,55.7 424.8,55.8 427.1,55.9 429.5,55.8 431.9,55.8 434.2,55.8 436.6,55.9 439.0,55.9 441.3,55.8 443.7,55.8 446.1,55.8 448.4,55.8 450.8,55.8 453.2,55.8 455.6,55.8 457.9,55.9 460.3,55.9 462.7,56.0 465.0,56.0 467.4,56.0 469.8,56.0 472.1,56.1 474.5,56.1 476.9,56.0 479.2,56.0 481.6,56.0 484.0,56.0 486.3,56.0 488.7,56.0 491.1,56.0 493.4,56.0 495.8,55.9 498.2,55.9 500.5,55.9 502.9,56.0 505.3,55.9 507.6,55.9 510.0,55.9 512.4,55.9 514.7,55.9 517.1,55.9 519.5,55.9 521.8,55.9 524.2,55.9 526.6,55.9 528.9,55.9 531.3,55.9 533.7,55.9 536.0,55.9 538.4,55.9 540.8,56.0 543.1,55.3 545.5,54.5 547.9,54.5 550.2,54.6 552.6,54.1 555.0,54.2 557.3,54.2 559.7,54.2 562.1,54.1 564.4,54.1 566.8,54.0 569.2,54.0 571.6,54.0 573.9,54.0 576.3,54.1 578.7,54.2 581.0,54.2 583.4,54.2 585.8,54.2 588.1,54.2 590.5,54.2 592.9,54.1 595.2,54.2 597.6,54.2 600.0,54.2 602.3,54.2 604.7,54.2 607.1,54.2 609.4,54.2 611.8,54.3 614.2,54.3 616.5,54.3 618.9,54.3 621.3,54.3 623.6,54.1 626.0,54.1" fill="none" stroke="var(--sell)" stroke-width="1.8" stroke-linejoin="round"/>
+        <polyline points="46.0,216.2 48.4,216.5 50.7,216.5 53.1,216.5 55.5,216.9 57.8,216.9 60.2,216.9 62.6,216.9 64.9,217.3 67.3,217.3 69.7,217.3 72.0,217.5 74.4,217.5 76.8,217.6 79.1,217.8 81.5,217.6 83.9,217.6 86.2,217.6 88.6,217.6 91.0,217.4 93.3,217.2 95.7,217.4 98.1,216.8 100.4,216.8 102.8,216.8 105.2,216.9 107.6,215.7 109.9,214.6 112.3,213.5 114.7,213.7 117.0,213.7 119.4,213.9 121.8,213.5 124.1,213.4 126.5,213.4 128.9,213.7 131.2,213.4 133.6,213.4 136.0,213.4 138.3,213.4 140.7,213.6 143.1,212.8 145.4,211.7 147.8,212.1 150.2,212.1 152.5,212.1 154.9,212.1 157.3,212.1 159.6,211.8 162.0,211.8 164.4,211.8 166.7,211.8 169.1,212.2 171.5,212.2 173.8,212.2 176.2,212.0 178.6,212.0 180.9,212.0 183.3,212.0 185.7,212.0 188.0,212.0 190.4,211.9 192.8,211.9 195.1,212.2 197.5,211.5 199.9,211.5 202.2,211.5 204.6,211.4 207.0,211.3 209.3,211.5 211.7,211.7 214.1,211.5 216.4,211.5 218.8,211.5 221.2,211.0 223.6,210.8 225.9,210.8 228.3,210.1 230.7,210.2 233.0,210.2 235.4,210.0 237.8,207.9 240.1,208.1 242.5,208.3 244.9,208.3 247.2,208.3 249.6,208.3 252.0,208.1 254.3,208.1 256.7,207.9 259.1,207.7 261.4,208.2 263.8,208.2 266.2,208.2 268.5,208.0 270.9,208.0 273.3,208.4 275.6,208.2 278.0,208.2 280.4,208.2 282.7,208.2 285.1,208.2 287.5,208.2 289.8,208.2 292.2,208.2 294.6,208.0 296.9,208.0 299.3,208.0 301.7,207.8 304.0,207.8 306.4,207.6 308.8,207.6 311.1,207.6 313.5,207.4 315.9,207.4 318.2,207.4 320.6,207.4 323.0,207.4 325.3,207.3 327.7,206.6 330.1,206.2 332.4,206.2 334.8,206.2 337.2,206.4 339.6,206.4 341.9,205.6 344.3,205.6 346.7,205.6 349.0,205.6 351.4,205.6 353.8,205.6 356.1,205.4 358.5,205.4 360.9,205.2 363.2,205.2 365.6,205.2 368.0,205.0 370.3,204.9 372.7,204.9 375.1,204.9 377.4,204.9 379.8,204.9 382.2,204.9 384.5,204.9 386.9,203.1 389.3,202.6 391.6,202.6 394.0,202.6 396.4,202.6 398.7,202.6 401.1,202.6 403.5,202.6 405.8,202.6 408.2,202.8 410.6,202.8 412.9,202.8 415.3,202.8 417.7,202.8 420.0,202.8 422.4,202.8 424.8,202.8 427.1,202.8 429.5,202.8 431.9,202.8 434.2,202.8 436.6,202.8 439.0,202.8 441.3,202.4 443.7,202.4 446.1,202.4 448.4,202.4 450.8,202.4 453.2,202.1 455.6,202.3 457.9,202.3 460.3,202.3 462.7,202.3 465.0,202.3 467.4,202.3 469.8,202.3 472.1,202.5 474.5,202.5 476.9,202.4 479.2,202.4 481.6,202.4 484.0,202.4 486.3,202.4 488.7,202.6 491.1,202.4 493.4,202.4 495.8,202.4 498.2,202.4 500.5,202.4 502.9,202.4 505.3,202.4 507.6,202.4 510.0,202.4 512.4,202.4 514.7,202.4 517.1,202.4 519.5,202.4 521.8,202.4 524.2,202.4 526.6,202.4 528.9,202.4 531.3,202.4 533.7,202.4 536.0,202.4 538.4,202.4 540.8,202.4 543.1,200.5 545.5,197.9 547.9,197.9 550.2,197.9 552.6,196.2 555.0,196.2 557.3,196.2 559.7,196.2 562.1,195.9 564.4,195.9 566.8,195.9 569.2,195.9 571.6,195.9 573.9,195.9 576.3,195.9 578.7,196.2 581.0,196.2 583.4,196.2 585.8,196.2 588.1,196.2 590.5,196.1 592.9,196.1 595.2,196.3 597.6,196.3 600.0,196.3 602.3,196.4 604.7,196.4 607.1,196.4 609.4,196.4 611.8,196.4 614.2,196.4 616.5,196.4 618.9,196.4 621.3,196.4 623.6,196.0 626.0,195.9" fill="none" stroke="var(--buy)" stroke-width="1.8" stroke-linejoin="round"/>
+        <polyline points="46.0,216.4 48.4,216.6 50.7,216.6 53.1,216.6 55.5,216.6 57.8,216.6 60.2,216.6 62.6,216.6 64.9,216.6 67.3,216.6 69.7,216.6 72.0,217.0 74.4,217.0 76.8,217.2 79.1,217.2 81.5,217.2 83.9,217.2 86.2,217.2 88.6,217.2 91.0,217.2 93.3,217.2 95.7,217.2 98.1,217.4 100.4,217.4 102.8,217.4 105.2,217.4 107.6,217.6 109.9,217.6 112.3,217.5 114.7,217.5 117.0,217.5 119.4,217.5 121.8,217.5 124.1,217.5 126.5,217.5 128.9,217.5 131.2,217.5 133.6,217.5 136.0,217.7 138.3,217.5 140.7,217.5 143.1,217.5 145.4,217.3 147.8,217.3 150.2,217.3 152.5,217.3 154.9,217.3 157.3,217.3 159.6,217.3 162.0,217.3 164.4,217.3 166.7,217.3 169.1,217.3 171.5,217.3 173.8,217.3 176.2,217.3 178.6,217.3 180.9,217.3 183.3,217.3 185.7,217.3 188.0,217.3 190.4,217.3 192.8,217.1 195.1,217.1 197.5,217.1 199.9,217.1 202.2,217.1 204.6,217.1 207.0,217.1 209.3,217.1 211.7,217.1 214.1,217.1 216.4,217.1 218.8,217.1 221.2,217.1 223.6,217.1 225.9,217.1 228.3,217.1 230.7,217.1 233.0,217.1 235.4,217.1 237.8,216.5 240.1,216.5 242.5,216.5 244.9,216.5 247.2,216.5 249.6,216.5 252.0,216.5 254.3,216.5 256.7,216.3 259.1,216.3 261.4,216.3 263.8,216.3 266.2,216.3 268.5,216.3 270.9,216.3 273.3,216.3 275.6,216.3 278.0,216.3 280.4,216.3 282.7,216.3 285.1,216.3 287.5,216.3 289.8,216.3 292.2,216.3 294.6,216.3 296.9,216.3 299.3,216.3 301.7,216.3 304.0,216.3 306.4,216.3 308.8,216.3 311.1,216.3 313.5,216.3 315.9,216.3 318.2,216.3 320.6,216.3 323.0,216.3 325.3,216.3 327.7,216.2 330.1,215.8 332.4,215.8 334.8,215.8 337.2,215.8 339.6,215.8 341.9,215.6 344.3,215.6 346.7,215.6 349.0,215.6 351.4,215.6 353.8,215.6 356.1,215.6 358.5,215.6 360.9,215.4 363.2,215.4 365.6,215.4 368.0,215.2 370.3,215.2 372.7,215.2 375.1,215.2 377.4,215.2 379.8,215.2 382.2,215.2 384.5,215.2 386.9,213.9 389.3,213.1 391.6,213.1 394.0,213.1 396.4,213.1 398.7,213.1 401.1,213.1 403.5,213.1 405.8,213.1 408.2,213.1 410.6,213.1 412.9,213.1 415.3,213.1 417.7,213.1 420.0,213.1 422.4,213.1 424.8,213.1 427.1,213.1 429.5,213.1 431.9,213.1 434.2,213.1 436.6,213.1 439.0,213.1 441.3,213.1 443.7,213.1 446.1,213.1 448.4,213.1 450.8,213.1 453.2,213.1 455.6,213.3 457.9,213.3 460.3,213.3 462.7,213.3 465.0,213.3 467.4,213.3 469.8,213.3 472.1,213.3 474.5,213.3 476.9,213.2 479.2,213.2 481.6,213.2 484.0,213.2 486.3,213.2 488.7,213.2 491.1,213.2 493.4,213.2 495.8,213.2 498.2,213.2 500.5,213.2 502.9,213.2 505.3,213.2 507.6,213.2 510.0,213.2 512.4,213.2 514.7,213.2 517.1,213.2 519.5,213.2 521.8,213.2 524.2,213.2 526.6,213.2 528.9,213.2 531.3,213.2 533.7,213.2 536.0,213.2 538.4,213.2 540.8,213.2 543.1,212.8 545.5,211.0 547.9,211.0 550.2,211.0 552.6,209.6 555.0,209.6 557.3,209.6 559.7,209.6 562.1,209.6 564.4,209.6 566.8,209.6 569.2,209.6 571.6,209.6 573.9,209.8 576.3,209.8 578.7,209.8 581.0,209.8 583.4,209.8 585.8,209.8 588.1,209.8 590.5,209.8 592.9,209.8 595.2,209.8 597.6,209.8 600.0,209.8 602.3,209.8 604.7,209.8 607.1,209.8 609.4,209.8 611.8,209.8 614.2,209.8 616.5,209.8 618.9,209.8 621.3,209.8 623.6,209.8 626.0,209.6" fill="none" stroke="var(--ink-faint)" stroke-width="1.8" stroke-linejoin="round"/>
+
+        <g font-size="10" fill="var(--ink-faint)">
+          <text x="46.0" y="244" text-anchor="middle">Jan</text>
+          <text x="132.0" y="244" text-anchor="middle">Feb</text>
+          <text x="205.0" y="244" text-anchor="middle">Mar</text>
+          <text x="290.0" y="244" text-anchor="middle">Apr</text>
+          <text x="374.0" y="244" text-anchor="middle">May</text>
+          <text x="459.0" y="244" text-anchor="middle">Jun</text>
+          <text x="543.0" y="244" text-anchor="middle">Jul</text>
+          <text x="583.0" y="244" text-anchor="middle">Aug</text>
+          <text x="626.0" y="244" text-anchor="middle">Sep</text>
+        </g>
+      </svg>
+      <figcaption class="section-sub" style="margin-top:10px;">
+        <span style="color:var(--accent); font-weight:700;">— 5 pips</span>&nbsp;&nbsp;
+        <span style="color:var(--sell); font-weight:700;">— 10 pips</span>&nbsp;&nbsp;
+        <span style="color:var(--buy); font-weight:700;">— 20 pips</span>&nbsp;&nbsp;
+        <span style="color:var(--ink-faint); font-weight:700;">— 30 pips</span>
+      </figcaption>
+    </figure>
+    <div class="table-shell" style="max-height:480px; overflow-y:auto;">
+      <table>
+        <thead style="position:sticky; top:0; background:var(--surface-raised);"><tr><th>Date</th><th>5 pips</th><th>10 pips</th><th>20 pips</th><th>30 pips</th></tr></thead>
+        <tbody>
+<tr><td>Jan 1</td><td>$293</td><td>$258</td><td>$199.10</td><td>$197.00</td></tr>
+<tr><td>Jan 2</td><td>$312</td><td>$252</td><td>$196.19</td><td>$194.09</td></tr>
+<tr><td>Jan 3</td><td>$312</td><td>$252</td><td>$196.19</td><td>$194.09</td></tr>
+<tr><td>Jan 4</td><td>$313</td><td>$250</td><td>$196.19</td><td>$194.09</td></tr>
+<tr><td>Jan 5</td><td>$417</td><td>$235</td><td>$190.46</td><td>$194.09</td></tr>
+<tr><td>Jan 6</td><td>$540</td><td>$242</td><td>$190.46</td><td>$194.09</td></tr>
+<tr><td>Jan 7</td><td>$808</td><td>$258</td><td>$190.46</td><td>$194.09</td></tr>
+<tr><td>Jan 8</td><td>$1,020</td><td>$289</td><td>$190.46</td><td>$194.09</td></tr>
+<tr><td>Jan 9</td><td>$1,107</td><td>$309</td><td>$184.99</td><td>$194.09</td></tr>
+<tr><td>Jan 10</td><td>$1,107</td><td>$309</td><td>$184.99</td><td>$194.09</td></tr>
+<tr><td>Jan 11</td><td>$1,106</td><td>$311</td><td>$184.99</td><td>$194.09</td></tr>
+<tr><td>Jan 12</td><td>$1,243</td><td>$316</td><td>$181.66</td><td>$188.44</td></tr>
+<tr><td>Jan 13</td><td>$1,720</td><td>$349</td><td>$181.66</td><td>$188.44</td></tr>
+<tr><td>Jan 14</td><td>$1,979</td><td>$407</td><td>$181.01</td><td>$185.71</td></tr>
+<tr><td>Jan 15</td><td>$2,906</td><td>$447</td><td>$178.46</td><td>$185.71</td></tr>
+<tr><td>Jan 16</td><td>$3,893</td><td>$492</td><td>$180.40</td><td>$185.71</td></tr>
+<tr><td>Jan 17</td><td>$3,893</td><td>$492</td><td>$180.40</td><td>$185.71</td></tr>
+<tr><td>Jan 18</td><td>$3,951</td><td>$473</td><td>$180.40</td><td>$185.71</td></tr>
+<tr><td>Jan 19</td><td>$4,535</td><td>$521</td><td>$180.40</td><td>$185.71</td></tr>
+<tr><td>Jan 20</td><td>$9,772</td><td>$652</td><td>$182.95</td><td>$185.71</td></tr>
+<tr><td>Jan 21</td><td>$16,404</td><td>$737</td><td>$185.50</td><td>$185.71</td></tr>
+<tr><td>Jan 22</td><td>$20,294</td><td>$776</td><td>$182.95</td><td>$185.71</td></tr>
+<tr><td>Jan 23</td><td>$33,226</td><td>$957</td><td>$191.62</td><td>$182.97</td></tr>
+<tr><td>Jan 24</td><td>$33,226</td><td>$957</td><td>$191.62</td><td>$182.97</td></tr>
+<tr><td>Jan 25</td><td>$33,984</td><td>$999</td><td>$191.54</td><td>$182.97</td></tr>
+<tr><td>Jan 26</td><td>$76,542</td><td>$1,192</td><td>$190.30</td><td>$182.97</td></tr>
+<tr><td>Jan 27</td><td>$179,449</td><td>$1,777</td><td>$207.63</td><td>$180.39</td></tr>
+<tr><td>Jan 28</td><td>$426,723</td><td>$2,578</td><td>$223.06</td><td>$180.39</td></tr>
+<tr><td>Jan 29</td><td>$1,145,025</td><td>$3,955</td><td>$241.97</td><td>$182.48</td></tr>
+<tr><td>Jan 30</td><td>$3,165,900</td><td>$6,281</td><td>$238.77</td><td>$182.48</td></tr>
+<tr><td>Jan 31</td><td>$3,165,900</td><td>$6,281</td><td>$238.77</td><td>$182.48</td></tr>
+<tr><td>Feb 1</td><td>$3,236,283</td><td>$6,344</td><td>$235.57</td><td>$182.48</td></tr>
+<tr><td>Feb 2</td><td>$6,751,826</td><td>$7,662</td><td>$241.02</td><td>$182.48</td></tr>
+<tr><td>Feb 3</td><td>$9,896,326</td><td>$9,547</td><td>$243.37</td><td>$182.48</td></tr>
+<tr><td>Feb 4</td><td>$13,485,769</td><td>$11,284</td><td>$243.37</td><td>$182.48</td></tr>
+<tr><td>Feb 5</td><td>$18,781,507</td><td>$18,650</td><td>$238.64</td><td>$182.48</td></tr>
+<tr><td>Feb 6</td><td>$20,216,005</td><td>$18,279</td><td>$243.34</td><td>$182.48</td></tr>
+<tr><td>Feb 7</td><td>$20,216,005</td><td>$18,279</td><td>$243.34</td><td>$182.48</td></tr>
+<tr><td>Feb 8</td><td>$20,127,517</td><td>$18,822</td><td>$243.34</td><td>$179.90</td></tr>
+<tr><td>Feb 9</td><td>$25,475,467</td><td>$28,730</td><td>$242.67</td><td>$182.40</td></tr>
+<tr><td>Feb 10</td><td>$28,097,967</td><td>$31,239</td><td>$239.43</td><td>$182.40</td></tr>
+<tr><td>Feb 11</td><td>$32,056,301</td><td>$48,507</td><td>$253.54</td><td>$182.40</td></tr>
+<tr><td>Feb 12</td><td>$35,771,477</td><td>$67,414</td><td>$274.13</td><td>$184.91</td></tr>
+<tr><td>Feb 13</td><td>$37,270,364</td><td>$76,680</td><td>$267.21</td><td>$184.91</td></tr>
+<tr><td>Feb 14</td><td>$37,270,364</td><td>$76,680</td><td>$267.21</td><td>$184.91</td></tr>
+<tr><td>Feb 15</td><td>$37,250,781</td><td>$77,366</td><td>$267.21</td><td>$184.91</td></tr>
+<tr><td>Feb 16</td><td>$38,464,128</td><td>$79,870</td><td>$267.21</td><td>$184.91</td></tr>
+<tr><td>Feb 17</td><td>$41,590,818</td><td>$100,208</td><td>$267.21</td><td>$184.91</td></tr>
+<tr><td>Feb 18</td><td>$43,510,848</td><td>$108,763</td><td>$273.29</td><td>$184.91</td></tr>
+<tr><td>Feb 19</td><td>$45,094,925</td><td>$115,267</td><td>$273.29</td><td>$184.91</td></tr>
+<tr><td>Feb 20</td><td>$45,706,665</td><td>$108,126</td><td>$272.36</td><td>$184.91</td></tr>
+<tr><td>Feb 21</td><td>$45,706,665</td><td>$108,126</td><td>$272.36</td><td>$184.91</td></tr>
+<tr><td>Feb 22</td><td>$45,742,937</td><td>$104,017</td><td>$265.50</td><td>$184.91</td></tr>
+<tr><td>Feb 23</td><td>$47,811,836</td><td>$109,280</td><td>$265.50</td><td>$184.91</td></tr>
+<tr><td>Feb 24</td><td>$49,144,943</td><td>$111,774</td><td>$265.50</td><td>$184.91</td></tr>
+<tr><td>Feb 25</td><td>$50,314,420</td><td>$115,497</td><td>$268.78</td><td>$184.91</td></tr>
+<tr><td>Feb 26</td><td>$52,064,108</td><td>$121,618</td><td>$268.78</td><td>$184.91</td></tr>
+<tr><td>Feb 27</td><td>$53,510,033</td><td>$128,939</td><td>$268.78</td><td>$184.91</td></tr>
+<tr><td>Feb 28</td><td>$53,510,033</td><td>$128,939</td><td>$268.78</td><td>$184.91</td></tr>
+<tr><td>Mar 1</td><td>$53,641,588</td><td>$127,727</td><td>$268.78</td><td>$184.91</td></tr>
+<tr><td>Mar 2</td><td>$59,188,217</td><td>$162,380</td><td>$268.78</td><td>$184.91</td></tr>
+<tr><td>Mar 3</td><td>$65,128,482</td><td>$208,815</td><td>$271.25</td><td>$184.91</td></tr>
+<tr><td>Mar 4</td><td>$68,742,445</td><td>$229,160</td><td>$270.66</td><td>$187.16</td></tr>
+<tr><td>Mar 5</td><td>$72,730,481</td><td>$257,983</td><td>$264.10</td><td>$187.16</td></tr>
+<tr><td>Mar 6</td><td>$78,695,441</td><td>$326,537</td><td>$278.89</td><td>$187.16</td></tr>
+<tr><td>Mar 7</td><td>$78,695,441</td><td>$326,537</td><td>$278.89</td><td>$187.16</td></tr>
+<tr><td>Mar 8</td><td>$79,460,574</td><td>$330,513</td><td>$277.97</td><td>$187.16</td></tr>
+<tr><td>Mar 9</td><td>$86,711,814</td><td>$425,806</td><td>$279.73</td><td>$187.16</td></tr>
+<tr><td>Mar 10</td><td>$89,991,738</td><td>$463,175</td><td>$282.34</td><td>$187.16</td></tr>
+<tr><td>Mar 11</td><td>$93,239,103</td><td>$516,001</td><td>$278.85</td><td>$187.16</td></tr>
+<tr><td>Mar 12</td><td>$95,511,511</td><td>$592,799</td><td>$275.35</td><td>$187.16</td></tr>
+<tr><td>Mar 13</td><td>$97,847,463</td><td>$648,685</td><td>$278.11</td><td>$187.16</td></tr>
+<tr><td>Mar 14</td><td>$97,847,463</td><td>$648,685</td><td>$278.11</td><td>$187.16</td></tr>
+<tr><td>Mar 15</td><td>$98,211,400</td><td>$648,099</td><td>$278.11</td><td>$187.16</td></tr>
+<tr><td>Mar 16</td><td>$99,567,429</td><td>$690,234</td><td>$288.82</td><td>$187.16</td></tr>
+<tr><td>Mar 17</td><td>$102,491,628</td><td>$842,613</td><td>$291.58</td><td>$187.16</td></tr>
+<tr><td>Mar 18</td><td>$106,168,583</td><td>$1,045,770</td><td>$291.58</td><td>$187.16</td></tr>
+<tr><td>Mar 19</td><td>$113,730,698</td><td>$1,707,160</td><td>$306.89</td><td>$187.16</td></tr>
+<tr><td>Mar 20</td><td>$116,126,492</td><td>$1,792,026</td><td>$306.07</td><td>$187.16</td></tr>
+<tr><td>Mar 21</td><td>$116,126,492</td><td>$1,792,026</td><td>$306.07</td><td>$187.16</td></tr>
+<tr><td>Mar 22</td><td>$115,978,262</td><td>$1,777,236</td><td>$309.01</td><td>$187.16</td></tr>
+<tr><td>Mar 23</td><td>$121,922,582</td><td>$3,517,918</td><td>$360.05</td><td>$195.39</td></tr>
+<tr><td>Mar 24</td><td>$126,507,878</td><td>$4,539,445</td><td>$354.86</td><td>$195.39</td></tr>
+<tr><td>Mar 25</td><td>$128,665,100</td><td>$4,726,179</td><td>$349.82</td><td>$195.39</td></tr>
+<tr><td>Mar 26</td><td>$130,643,388</td><td>$5,652,469</td><td>$349.82</td><td>$195.39</td></tr>
+<tr><td>Mar 27</td><td>$131,846,160</td><td>$5,846,861</td><td>$349.82</td><td>$195.39</td></tr>
+<tr><td>Mar 28</td><td>$131,846,160</td><td>$5,846,861</td><td>$349.82</td><td>$195.39</td></tr>
+<tr><td>Mar 29</td><td>$131,740,295</td><td>$5,882,504</td><td>$353.71</td><td>$195.39</td></tr>
+<tr><td>Mar 30</td><td>$133,317,365</td><td>$6,144,425</td><td>$353.71</td><td>$195.39</td></tr>
+<tr><td>Mar 31</td><td>$136,409,379</td><td>$7,024,849</td><td>$358.86</td><td>$198.18</td></tr>
+<tr><td>Apr 1</td><td>$139,046,855</td><td>$7,107,686</td><td>$362.85</td><td>$198.18</td></tr>
+<tr><td>Apr 2</td><td>$142,308,247</td><td>$8,032,470</td><td>$352.12</td><td>$198.18</td></tr>
+<tr><td>Apr 3</td><td>$145,668,658</td><td>$9,157,430</td><td>$352.12</td><td>$198.18</td></tr>
+<tr><td>Apr 4</td><td>$145,668,658</td><td>$9,157,430</td><td>$352.12</td><td>$198.18</td></tr>
+<tr><td>Apr 5</td><td>$145,860,498</td><td>$9,267,944</td><td>$357.39</td><td>$198.18</td></tr>
+<tr><td>Apr 6</td><td>$146,985,728</td><td>$9,306,695</td><td>$355.82</td><td>$198.18</td></tr>
+<tr><td>Apr 7</td><td>$149,382,726</td><td>$9,782,233</td><td>$345.54</td><td>$198.18</td></tr>
+<tr><td>Apr 8</td><td>$151,483,203</td><td>$10,293,030</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 9</td><td>$152,630,525</td><td>$10,382,303</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 10</td><td>$153,165,662</td><td>$10,421,094</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 11</td><td>$153,165,662</td><td>$10,421,094</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 12</td><td>$153,411,535</td><td>$10,518,004</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 13</td><td>$154,163,221</td><td>$10,488,097</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 14</td><td>$155,612,318</td><td>$10,944,641</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 15</td><td>$157,025,477</td><td>$11,433,560</td><td>$350.68</td><td>$198.18</td></tr>
+<tr><td>Apr 16</td><td>$158,414,501</td><td>$11,994,164</td><td>$355.90</td><td>$198.18</td></tr>
+<tr><td>Apr 17</td><td>$160,079,525</td><td>$12,275,344</td><td>$355.90</td><td>$198.18</td></tr>
+<tr><td>Apr 18</td><td>$160,079,525</td><td>$12,275,344</td><td>$355.90</td><td>$198.18</td></tr>
+<tr><td>Apr 19</td><td>$160,311,997</td><td>$12,357,921</td><td>$361.13</td><td>$198.18</td></tr>
+<tr><td>Apr 20</td><td>$161,281,943</td><td>$12,604,915</td><td>$361.13</td><td>$198.18</td></tr>
+<tr><td>Apr 21</td><td>$162,694,991</td><td>$13,218,860</td><td>$366.51</td><td>$198.18</td></tr>
+<tr><td>Apr 22</td><td>$163,995,560</td><td>$13,912,622</td><td>$366.51</td><td>$198.18</td></tr>
+<tr><td>Apr 23</td><td>$165,926,438</td><td>$14,405,429</td><td>$366.51</td><td>$198.18</td></tr>
+<tr><td>Apr 24</td><td>$166,362,907</td><td>$14,555,468</td><td>$370.60</td><td>$198.18</td></tr>
+<tr><td>Apr 25</td><td>$166,362,907</td><td>$14,555,468</td><td>$370.60</td><td>$198.18</td></tr>
+<tr><td>Apr 26</td><td>$166,534,108</td><td>$14,760,970</td><td>$370.60</td><td>$198.18</td></tr>
+<tr><td>Apr 27</td><td>$166,395,876</td><td>$14,721,792</td><td>$370.60</td><td>$198.18</td></tr>
+<tr><td>Apr 28</td><td>$166,323,657</td><td>$14,813,323</td><td>$370.60</td><td>$198.18</td></tr>
+<tr><td>Apr 29</td><td>$166,443,318</td><td>$14,980,301</td><td>$374.65</td><td>$198.18</td></tr>
+<tr><td>Apr 30</td><td>$166,684,048</td><td>$15,093,741</td><td>$394.49</td><td>$200.42</td></tr>
+<tr><td>May 1</td><td>$166,845,625</td><td>$15,191,123</td><td>$404.71</td><td>$206.04</td></tr>
+<tr><td>May 2</td><td>$166,845,625</td><td>$15,191,123</td><td>$404.71</td><td>$206.04</td></tr>
+<tr><td>May 3</td><td>$166,894,417</td><td>$15,191,123</td><td>$404.71</td><td>$206.04</td></tr>
+<tr><td>May 4</td><td>$166,625,682</td><td>$15,097,325</td><td>$398.58</td><td>$205.81</td></tr>
+<tr><td>May 5</td><td>$166,368,560</td><td>$15,152,745</td><td>$398.58</td><td>$205.81</td></tr>
+<tr><td>May 6</td><td>$166,871,080</td><td>$15,507,717</td><td>$422.60</td><td>$208.73</td></tr>
+<tr><td>May 7</td><td>$166,874,296</td><td>$15,450,399</td><td>$422.60</td><td>$208.73</td></tr>
+<tr><td>May 8</td><td>$166,728,030</td><td>$15,472,184</td><td>$422.60</td><td>$208.73</td></tr>
+<tr><td>May 9</td><td>$166,728,030</td><td>$15,472,184</td><td>$422.60</td><td>$208.73</td></tr>
+<tr><td>May 10</td><td>$166,546,757</td><td>$15,454,035</td><td>$422.60</td><td>$208.73</td></tr>
+<tr><td>May 11</td><td>$166,302,162</td><td>$15,426,044</td><td>$422.60</td><td>$208.73</td></tr>
+<tr><td>May 12</td><td>$166,362,934</td><td>$15,551,250</td><td>$427.35</td><td>$208.73</td></tr>
+<tr><td>May 13</td><td>$166,497,340</td><td>$15,652,644</td><td>$427.35</td><td>$208.73</td></tr>
+<tr><td>May 14</td><td>$166,347,293</td><td>$15,664,549</td><td>$433.53</td><td>$211.66</td></tr>
+<tr><td>May 15</td><td>$166,093,696</td><td>$15,614,702</td><td>$433.53</td><td>$211.66</td></tr>
+<tr><td>May 16</td><td>$166,064,497</td><td>$15,614,702</td><td>$433.53</td><td>$211.66</td></tr>
+<tr><td>May 17</td><td>$166,124,497</td><td>$15,674,702</td><td>$439.90</td><td>$214.67</td></tr>
+<tr><td>May 18</td><td>$165,854,845</td><td>$15,645,508</td><td>$444.89</td><td>$214.67</td></tr>
+<tr><td>May 19</td><td>$166,000,525</td><td>$15,730,484</td><td>$444.81</td><td>$214.67</td></tr>
+<tr><td>May 20</td><td>$165,762,586</td><td>$15,756,524</td><td>$444.81</td><td>$214.67</td></tr>
+<tr><td>May 21</td><td>$165,893,509</td><td>$15,745,823</td><td>$444.81</td><td>$214.67</td></tr>
+<tr><td>May 22</td><td>$165,993,707</td><td>$15,745,823</td><td>$444.81</td><td>$214.67</td></tr>
+<tr><td>May 23</td><td>$165,993,707</td><td>$15,745,823</td><td>$444.81</td><td>$214.67</td></tr>
+<tr><td>May 24</td><td>$166,155,834</td><td>$15,866,413</td><td>$444.81</td><td>$214.67</td></tr>
+<tr><td>May 25</td><td>$166,441,561</td><td>$16,286,727</td><td>$503.30</td><td>$235.69</td></tr>
+<tr><td>May 26</td><td>$168,340,437</td><td>$16,770,642</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>May 27</td><td>$168,282,274</td><td>$16,658,589</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>May 28</td><td>$168,350,283</td><td>$16,796,667</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>May 29</td><td>$168,106,348</td><td>$16,743,621</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>May 30</td><td>$168,106,348</td><td>$16,743,621</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>May 31</td><td>$168,038,643</td><td>$16,743,621</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>Jun 1</td><td>$167,900,066</td><td>$16,730,932</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>Jun 2</td><td>$167,809,449</td><td>$16,730,932</td><td>$521.44</td><td>$247.93</td></tr>
+<tr><td>Jun 3</td><td>$167,782,989</td><td>$16,692,037</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 4</td><td>$167,691,828</td><td>$16,692,933</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 5</td><td>$167,561,301</td><td>$16,739,208</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 6</td><td>$167,561,301</td><td>$16,739,208</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 7</td><td>$167,626,497</td><td>$16,739,208</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 8</td><td>$167,449,941</td><td>$16,660,798</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 9</td><td>$167,366,478</td><td>$16,660,798</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 10</td><td>$167,191,460</td><td>$16,498,181</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 11</td><td>$167,317,486</td><td>$16,423,755</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 12</td><td>$167,326,784</td><td>$16,504,014</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 13</td><td>$167,326,784</td><td>$16,504,014</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 14</td><td>$167,442,225</td><td>$16,569,516</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 15</td><td>$167,424,885</td><td>$16,405,160</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 16</td><td>$167,369,122</td><td>$16,434,500</td><td>$515.03</td><td>$247.93</td></tr>
+<tr><td>Jun 17</td><td>$167,394,169</td><td>$16,493,697</td><td>$527.64</td><td>$247.93</td></tr>
+<tr><td>Jun 18</td><td>$167,044,577</td><td>$16,479,351</td><td>$527.64</td><td>$247.93</td></tr>
+<tr><td>Jun 19</td><td>$167,037,001</td><td>$16,493,686</td><td>$527.64</td><td>$247.93</td></tr>
+<tr><td>Jun 20</td><td>$167,037,001</td><td>$16,493,686</td><td>$527.64</td><td>$247.93</td></tr>
+<tr><td>Jun 21</td><td>$166,987,843</td><td>$16,493,686</td><td>$527.64</td><td>$247.93</td></tr>
+<tr><td>Jun 22</td><td>$166,978,545</td><td>$16,477,052</td><td>$539.23</td><td>$247.93</td></tr>
+<tr><td>Jun 23</td><td>$166,942,073</td><td>$16,494,860</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 24</td><td>$166,807,078</td><td>$16,470,860</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 25</td><td>$166,662,454</td><td>$16,421,255</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 26</td><td>$166,338,884</td><td>$16,301,255</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 27</td><td>$166,338,884</td><td>$16,301,255</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 28</td><td>$166,312,553</td><td>$16,301,255</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 29</td><td>$166,322,468</td><td>$16,326,900</td><td>$532.29</td><td>$244.78</td></tr>
+<tr><td>Jun 30</td><td>$165,989,019</td><td>$16,154,378</td><td>$525.56</td><td>$244.78</td></tr>
+<tr><td>Jul 1</td><td>$166,060,918</td><td>$16,131,624</td><td>$525.56</td><td>$244.78</td></tr>
+<tr><td>Jul 2</td><td>$166,360,598</td><td>$16,268,286</td><td>$530.29</td><td>$247.52</td></tr>
+<tr><td>Jul 3</td><td>$166,304,500</td><td>$16,352,449</td><td>$530.29</td><td>$247.52</td></tr>
+<tr><td>Jul 4</td><td>$166,304,500</td><td>$16,352,449</td><td>$530.29</td><td>$247.52</td></tr>
+<tr><td>Jul 5</td><td>$166,378,580</td><td>$16,352,449</td><td>$530.29</td><td>$247.52</td></tr>
+<tr><td>Jul 6</td><td>$166,277,560</td><td>$16,311,121</td><td>$530.29</td><td>$247.52</td></tr>
+<tr><td>Jul 7</td><td>$166,080,291</td><td>$16,251,121</td><td>$523.22</td><td>$247.52</td></tr>
+<tr><td>Jul 8</td><td>$165,957,808</td><td>$16,308,337</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 9</td><td>$165,950,602</td><td>$16,308,337</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 10</td><td>$166,178,206</td><td>$16,363,388</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 11</td><td>$166,178,206</td><td>$16,363,388</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 12</td><td>$166,249,101</td><td>$16,363,388</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 13</td><td>$165,979,091</td><td>$16,326,469</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 14</td><td>$166,060,763</td><td>$16,375,766</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 15</td><td>$165,936,290</td><td>$16,411,915</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 16</td><td>$165,827,383</td><td>$16,411,915</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 17</td><td>$165,732,332</td><td>$16,411,915</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 18</td><td>$165,732,332</td><td>$16,411,915</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 19</td><td>$165,741,632</td><td>$16,411,915</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 20</td><td>$165,593,061</td><td>$16,411,915</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 21</td><td>$165,444,912</td><td>$16,441,980</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 22</td><td>$165,217,828</td><td>$16,441,980</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 23</td><td>$165,134,864</td><td>$16,394,840</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 24</td><td>$165,203,275</td><td>$16,422,269</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 25</td><td>$165,203,275</td><td>$16,422,269</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 26</td><td>$165,272,376</td><td>$16,439,147</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 27</td><td>$165,205,661</td><td>$16,475,296</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 28</td><td>$165,134,343</td><td>$16,415,296</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 29</td><td>$165,283,394</td><td>$16,314,710</td><td>$528.65</td><td>$247.52</td></tr>
+<tr><td>Jul 30</td><td>$165,789,492</td><td>$17,167,502</td><td>$603.87</td><td>$254.38</td></tr>
+<tr><td>Jul 31</td><td>$167,106,134</td><td>$18,114,575</td><td>$728.29</td><td>$288.87</td></tr>
+<tr><td>Aug 1</td><td>$167,106,134</td><td>$18,114,575</td><td>$728.29</td><td>$288.87</td></tr>
+<tr><td>Aug 2</td><td>$166,886,471</td><td>$18,055,164</td><td>$728.29</td><td>$288.87</td></tr>
+<tr><td>Aug 3</td><td>$167,525,549</td><td>$18,673,612</td><td>$819.20</td><td>$318.12</td></tr>
+<tr><td>Aug 4</td><td>$167,511,919</td><td>$18,507,167</td><td>$819.20</td><td>$318.12</td></tr>
+<tr><td>Aug 5</td><td>$167,110,737</td><td>$18,470,534</td><td>$819.20</td><td>$318.12</td></tr>
+<tr><td>Aug 6</td><td>$167,027,545</td><td>$18,470,534</td><td>$819.20</td><td>$318.12</td></tr>
+<tr><td>Aug 7</td><td>$167,053,927</td><td>$18,681,622</td><td>$836.28</td><td>$318.12</td></tr>
+<tr><td>Aug 8</td><td>$167,053,927</td><td>$18,681,622</td><td>$836.28</td><td>$318.12</td></tr>
+<tr><td>Aug 9</td><td>$167,165,790</td><td>$18,755,412</td><td>$836.28</td><td>$318.12</td></tr>
+<tr><td>Aug 10</td><td>$167,106,840</td><td>$18,775,672</td><td>$836.28</td><td>$318.12</td></tr>
+<tr><td>Aug 11</td><td>$167,054,217</td><td>$18,808,037</td><td>$836.28</td><td>$318.12</td></tr>
+<tr><td>Aug 12</td><td>$166,902,985</td><td>$18,835,769</td><td>$836.28</td><td>$313.39</td></tr>
+<tr><td>Aug 13</td><td>$166,771,109</td><td>$18,659,208</td><td>$836.28</td><td>$313.39</td></tr>
+<tr><td>Aug 14</td><td>$166,563,128</td><td>$18,468,340</td><td>$817.04</td><td>$313.39</td></tr>
+<tr><td>Aug 15</td><td>$166,563,128</td><td>$18,468,340</td><td>$817.04</td><td>$313.39</td></tr>
+<tr><td>Aug 16</td><td>$166,523,275</td><td>$18,468,340</td><td>$817.04</td><td>$313.39</td></tr>
+<tr><td>Aug 17</td><td>$166,371,713</td><td>$18,468,340</td><td>$817.04</td><td>$313.39</td></tr>
+<tr><td>Aug 18</td><td>$166,217,937</td><td>$18,468,340</td><td>$817.04</td><td>$313.39</td></tr>
+<tr><td>Aug 19</td><td>$166,377,664</td><td>$18,522,234</td><td>$826.09</td><td>$313.39</td></tr>
+<tr><td>Aug 20</td><td>$166,579,588</td><td>$18,651,591</td><td>$826.09</td><td>$313.39</td></tr>
+<tr><td>Aug 21</td><td>$166,445,702</td><td>$18,554,259</td><td>$816.77</td><td>$313.39</td></tr>
+<tr><td>Aug 22</td><td>$166,445,702</td><td>$18,554,259</td><td>$816.77</td><td>$313.39</td></tr>
+<tr><td>Aug 23</td><td>$166,426,287</td><td>$18,522,350</td><td>$816.77</td><td>$313.39</td></tr>
+<tr><td>Aug 24</td><td>$166,279,453</td><td>$18,490,576</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 25</td><td>$166,156,198</td><td>$18,490,576</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 26</td><td>$166,009,814</td><td>$18,490,576</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 27</td><td>$165,949,941</td><td>$18,490,576</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 28</td><td>$165,668,874</td><td>$18,355,991</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 29</td><td>$165,668,874</td><td>$18,355,991</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 30</td><td>$165,668,874</td><td>$18,355,991</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Aug 31</td><td>$165,667,785</td><td>$18,407,728</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Sep 1</td><td>$165,538,576</td><td>$18,418,333</td><td>$807.72</td><td>$313.39</td></tr>
+<tr><td>Sep 2</td><td>$165,785,625</td><td>$18,593,644</td><td>$832.02</td><td>$313.39</td></tr>
+<tr><td>Sep 3</td><td>$166,252,385</td><td>$18,664,597</td><td>$838.31</td><td>$317.98</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub" style="margin-top:10px;">Every one of the 246 trading days from Jan 1 through Sep 3, 2026, all four zone heights, all starting from the same $200 on Dec 31, 2025.</p>
+  </section>
+
+  <section>
+    <h2>Robustness: does it hold up across the year?</h2>
+    <p class="section-sub">Splitting 2026 YTD into three independent fresh-$200 periods — not a chained equity curve, three separate restarts — to see whether the edge is consistent or concentrated in one stretch.</p>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Min zone</th><th>Jan 1 – Mar 23</th><th>Mar 23 – Jun 13</th><th>Jun 13 – Sep 3</th></tr></thead>
+        <tbody>
+          <tr><td>5 pips</td><td class="win-cell">WR 83.6% (n=15,677)</td><td class="win-cell">WR 76.7% (n=5,595)</td><td class="loss-cell">WR 64.8% (n=2,241)</td></tr>
+          <tr><td>10 pips</td><td class="win-cell">WR 75.7% (n=2,467)</td><td class="win-cell">WR 68.0% (n=965)</td><td class="loss-cell">WR 59.6% (n=438)</td></tr>
+          <tr><td>20 pips</td><td>WR 65.8% (n=193)</td><td>WR 62.0% (n=121)</td><td>WR 70.1% (n=107)</td></tr>
+          <tr><td>30 pips</td><td class="loss-cell">WR 47.8% (n=23)</td><td>WR 63.8% (n=69)</td><td>WR 72.5% (n=40)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <h3>The finding that matters most on this page</h3>
+      <p>At both 5 and 10 pips, win rate falls in every successive third of 2026 — 83.6% → 76.7% → 64.8%, and 75.7% → 68.0% → 59.6%. That's not noise around a flat average, it's a trend, and it points the same direction as an unresolved question from earlier research: the full-history backtest showed win rate jump sharply starting in 2021 (~81% to ~94.5%) with no confirmed explanation. If that jump was ever partly a data artifact rather than a real, permanent regime, 2026's declining numbers are exactly what unwinding it would look like — and every parameter on this page (minimum zone height, risk, all of it) was chosen using data from inside that same unexplained period.</p>
+    </div>
+    <p class="section-sub">20 pips is the one size that doesn't show this decay (65.8% → 62.0% → 70.1%, roughly flat, if anything ticking up) — worth weighing against its much lower trade count (107-193 per third) before reading too much into that stability.</p>
+  </section>
+
+  <section>
+    <h2>Per-instrument breakdown (10-pip zone height)</h2>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Instrument</th><th>Trades</th><th>Win rate</th><th>Sum R</th></tr></thead>
+        <tbody>
+          <tr><td>EURGBP</td><td>611</td><td class="win-cell">79.4%</td><td class="win-cell">+292.4</td></tr>
+          <tr><td>GBPUSD</td><td>1,122</td><td class="win-cell">73.6%</td><td class="win-cell">+363.2</td></tr>
+          <tr><td>EURUSD</td><td>372</td><td class="win-cell">73.1%</td><td class="win-cell">+107.4</td></tr>
+          <tr><td>USDJPY</td><td>1,852</td><td class="win-cell">67.5%</td><td class="win-cell">+425.3</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub">All four pairs contribute positively, none propping up a loss elsewhere — a healthier sign than this project has seen from some other strategies tested this session.</p>
+  </section>
+
+  <section>
+    <h2>Is this ready for live trading?</h2>
+    <div class="verdict">
+      <div class="big">No — not yet.</div>
+      <p>This is a genuinely more rigorous backtest than where this research started — a real overshoot-gated entry, a validated target, a minimum-zone-size floor, risk sized against an actual margin-checked two-account model, and now a fresh-start, robustness-checked 2026 trial. But rigor within a backtest is not the same thing as readiness for real capital, and several specific gaps stand between here and live.</p>
+    </div>
+    <div class="checklist">
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">Every parameter was chosen on the same data being used to validate it</div>
+        <div class="detail">Minimum zone height and risk-per-trade were both selected by testing directly against this same 2003/2009/2018–2026 dataset, with no reserved holdout period that was never touched during tuning. That's the textbook setup for overfitting to have crept in somewhere, even unintentionally.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">The 2021+ win-rate jump is still unexplained</div>
+        <div class="detail">Flagged in dtfx.md, never resolved — and this exact 2026 trial sits entirely inside that unexplained period, with its own declining-WR pattern raising the same question again from a new angle.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark partial">~</span>
+        <div><div class="label">Execution is modeled only as a fixed 1.6-pip spread</div>
+        <div class="detail">No slippage beyond spread, no latency, no partial fills, no requotes, no weekend-gap handling beyond whatever the 1-minute bars themselves contain. Real fills will be worse than this on at least some trades.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark partial">~</span>
+        <div><div class="label">The concurrency model is a known simplification</div>
+        <div class="detail">One confirmed slot per side across all four pairs combined, per <span class="mono">goal79_two_account_portfolio.py</span>'s own docstring — this project has a more accurate cross-symbol resting-order race simulator elsewhere that wasn't used here.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">No paper-trading or forward-test track record exists</div>
+        <div class="detail">Every result on this page and every linked page is a backtest against historical data. This exact mechanism has not been run against a live or simulated real-time feed even once.</div></div>
+      </div>
+      <div class="check-item">
+        <span class="mark no">✕</span>
+        <div><div class="label">No account-level risk controls beyond position sizing</div>
+        <div class="detail">No daily loss limit, no circuit breaker, no anomaly detection for a broken feed or a stuck connection — the live bot this project actually runs (PRODLIVETRADING) trades a different strategy entirely; this mechanism has never been wired into any live risk infrastructure.</div></div>
+      </div>
+    </div>
+    <p class="section-sub" style="margin-top:16px;"><b>What would change the answer:</b> get an actual explanation for the 2021+ shift (a feed/vendor check, not another backtest); pick a true holdout window now — 2026 onward, say — and freeze every parameter before that window starts, so nothing downstream ever gets tuned against it; paper-trade the frozen configuration for a real stretch of live data; model realistic execution; and re-run this exact analysis on the production concurrency simulator instead of the simplified one. Until then, treat every number on this page as research, not a plan.</p>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/139aa102-fe4f-41e6-ae9e-13357c0a6d7b" target="_blank" rel="noopener">The Risk Ceiling<span>Where this 3% risk / 10-pip recommendation came from.</span></a>
+      <a href="https://claude.ai/code/artifact/0119e085-a75d-43be-acd1-568aab744429" target="_blank" rel="noopener">Head to Head<span>The account-cap compounding issue behind the dollar-figure caveat.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    EURUSD, GBPUSD, EURGBP, USDJPY · 1-minute bars · 2026-01-01 through 2026-09-03 · research-grade backtest, not a live track record. dtfx.md is the base specification this analysis extends.
+  </footer>
+</div>

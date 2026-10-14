@@ -1,0 +1,193 @@
+<title>The Entry Depth Sweep</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --candle-up: #2F7A57; --candle-down: #A8462C; --wick: #566254;
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 52px 24px 80px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(32px, 5vw, 48px); line-height: 1.06; letter-spacing: -0.01em; margin: 0 0 18px; text-wrap: balance; }
+  .dek { font-size: 16.5px; color: var(--ink-dim); max-width: 70ch; margin: 0 0 4px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 25px; letter-spacing: -0.005em; margin: 0 0 6px; text-wrap: balance; }
+  h3 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 16px; margin: 0 0 10px; }
+  .section-sub { color: var(--ink-dim); font-size: 14.5px; max-width: 68ch; margin: 0 0 22px; }
+  section { margin-top: 56px; }
+  section:first-of-type { margin-top: 40px; }
+  p { margin: 0 0 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow); }
+  figcaption { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
+  .overflow-x { overflow-x: auto; }
+
+  table.sweep { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 780px; }
+  table.sweep th { text-align: right; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.sweep th:first-child, table.sweep td:first-child { text-align: left; }
+  table.sweep td { text-align: right; padding: 9px; border-bottom: 1px solid var(--line); font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.sweep td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  table.sweep tr.pick { background: var(--buy-fill); }
+  table.sweep tr.pick td:first-child { color: var(--buy-strong); }
+  table.sweep tr.baseline td:first-child { color: var(--ink-dim); }
+  .pick-badge { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--buy); color: var(--accent-ink); border-radius: 20px; padding: 2px 7px; margin-left: 6px; vertical-align: 1px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .chart-card h3 { display: flex; align-items: center; justify-content: space-between; font-size: 14.5px; }
+  .chart-card .unit { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--ink-faint); font-weight: 400; }
+  svg.chart { width: 100%; height: auto; display: block; }
+
+  .caveat { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+  .caveat b { color: var(--ink-dim); }
+  .caveat + .caveat { margin-top: 12px; padding-top: 12px; border-top: none; }
+
+  .more-links { display: grid; gap: 10px; }
+  .more-links a { display: block; font-size: 14px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--surface); }
+  .more-links a span { color: var(--ink-faint); font-size: 12.5px; display: block; margin-top: 2px; }
+  .more-links a:hover { border-color: var(--accent); }
+  footer { margin-top: 66px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">EURUSD · GBPUSD · USDJPY · EURGBP · two-account backtest · full history 2009–2026</p>
+  <h1>The Entry Depth Sweep</h1>
+  <p class="dek">Same zones, same $100/$100 two-account architecture, same 1-per-side concurrency as the current ranking — the only thing that changes across these twelve rows is <b>where inside the zone the entry triggers</b>, from 10% retracement (barely inside the near edge) to 90% (almost a full fill). Every row is a complete, independent backtest.</p>
+
+  <section id="table">
+    <div class="card overflow-x">
+      <table class="sweep">
+        <thead>
+          <tr>
+            <th>Entry</th><th>Trades</th><th>Trades/yr</th><th>Trades/day</th>
+            <th>Win rate</th><th>R:R</th><th>PF</th><th>Expected R</th>
+            <th>Max DD</th><th>Sharpe (daily)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>10%</td><td>4,540</td><td>268</td><td>0.73</td><td>50.6%</td><td>9.03</td><td>9.258</td><td>+4.078R</td><td>−11.42%</td><td>0.35</td></tr>
+          <tr><td>15%</td><td>13,316</td><td>786</td><td>2.15</td><td>49.5%</td><td>5.69</td><td>5.578</td><td>+2.312R</td><td>−3.44%</td><td>2.55</td></tr>
+          <tr><td>20%</td><td>33,721</td><td>1,989</td><td>5.45</td><td>47.9%</td><td>4.05</td><td>3.720</td><td>+1.418R</td><td>−3.74%</td><td>3.67</td></tr>
+          <tr><td>25%</td><td>69,373</td><td>4,092</td><td>11.20</td><td>46.8%</td><td>3.07</td><td>2.705</td><td>+0.907R</td><td>−4.15%</td><td>3.38</td></tr>
+          <tr class="pick"><td>30%<span class="pick-badge">pick</span></td><td>131,369</td><td>7,749</td><td>21.22</td><td>46.7%</td><td>2.43</td><td>2.128</td><td>+0.601R</td><td>−5.11%</td><td>2.81</td></tr>
+          <tr><td>35%</td><td>204,715</td><td>12,076</td><td>33.06</td><td>46.8%</td><td>1.99</td><td>1.749</td><td>+0.398R</td><td>−5.07%</td><td>2.96</td></tr>
+          <tr><td>40%</td><td>297,081</td><td>17,524</td><td>47.98</td><td>47.6%</td><td>1.67</td><td>1.517</td><td>+0.271R</td><td>−10.59%</td><td>2.96</td></tr>
+          <tr class="baseline"><td>50% (v1)</td><td>506,411</td><td>29,872</td><td>81.79</td><td>49.9%</td><td>1.26</td><td>1.259</td><td>+0.130R</td><td>−16.08%</td><td>3.89</td></tr>
+          <tr><td>60%</td><td>793,644</td><td>46,816</td><td>128.17</td><td>53.6%</td><td>1.03</td><td>1.187</td><td>+0.087R</td><td>−22.02%</td><td>3.77</td></tr>
+          <tr><td>70%</td><td>1,103,023</td><td>65,066</td><td>178.14</td><td>59.0%</td><td>0.89</td><td>1.277</td><td>+0.114R</td><td>−18.67%</td><td>3.93</td></tr>
+          <tr><td>80%</td><td>1,606,212</td><td>94,748</td><td>259.41</td><td>65.9%</td><td>0.77</td><td>1.495</td><td>+0.169R</td><td>−20.05%</td><td>3.45</td></tr>
+          <tr><td>90%</td><td>2,019,987</td><td>119,156</td><td>326.23</td><td>74.2%</td><td>0.60</td><td>1.722</td><td>+0.186R</td><td>−32.37%</td><td>3.51</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub" style="margin-top:16px;">Expected R = win rate × avg win − (1 − win rate) × 1, the mean R-multiple per trade before compounding. Every other column is measured on the accepted (post-concurrency-filter) trade stream.</p>
+  </section>
+
+  <section>
+    <h2>Two shapes, one trade-off</h2>
+    <p class="section-sub">Profit factor is <b>U-shaped</b> — best at the shallowest entries, worst around 60%, recovering (for a different reason — win rate, not R:R) toward 90%. Trade frequency only ever goes one way: up, roughly 450× from the shallowest to the deepest entry tested.</p>
+    <div class="two-col">
+      <div class="card chart-card">
+        <h3>Profit factor <span class="unit">by entry depth</span></h3>
+        <svg class="chart" viewBox="0 0 460 230" role="img" aria-label="Profit factor falls from 9.3 at a 10 percent entry to a low of 1.19 around 60 percent, then recovers to 1.72 by 90 percent, forming a U shape.">
+          <line x1="40" y1="180.1" x2="446" y2="180.1" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>
+          <text x="446" y="177" text-anchor="end" font-size="9.5" fill="var(--accent)">PF = 1.0</text>
+          <g font-size="9.5" fill="var(--ink-faint)">
+            <text x="36" y="32" text-anchor="end">10</text>
+            <text x="36" y="184" text-anchor="end">1</text>
+            <text x="36" y="207" text-anchor="end">0</text>
+          </g>
+          <line x1="40" y1="14" x2="40" y2="204" stroke="var(--line)"/>
+          <line x1="40" y1="204" x2="446" y2="204" stroke="var(--line)"/>
+          <g font-size="9.5" fill="var(--ink-faint)" text-anchor="middle">
+            <text x="40" y="218">10%</text>
+            <text x="141.5" y="218">30%</text>
+            <text x="243" y="218">50%</text>
+            <text x="344.5" y="218">70%</text>
+            <text x="446" y="218">90%</text>
+          </g>
+          <polyline points="40.0,28.1 65.4,98.0 90.8,133.3 116.1,152.6 141.5,163.6 166.9,170.8 192.2,175.2 243.0,180.1 293.8,181.4 344.5,179.7 395.2,175.6 446.0,171.3" fill="none" stroke="var(--buy)" stroke-width="2"/>
+          <circle cx="141.5" cy="163.6" r="5" fill="var(--buy)" stroke="var(--surface-raised)" stroke-width="1.6"/>
+        </svg>
+        <figcaption>Filled dot marks the 30% pick — past the steepest part of the curve, well before the low.</figcaption>
+      </div>
+      <div class="card chart-card">
+        <h3>Trades / year <span class="unit">log scale, by entry depth</span></h3>
+        <svg class="chart" viewBox="0 0 460 230" role="img" aria-label="Trades per year rises monotonically and roughly exponentially from 268 at a 10 percent entry to over 119,000 at a 90 percent entry.">
+          <g font-size="9.5" fill="var(--ink-faint)">
+            <line x1="40" y1="204.0" x2="446" y2="204.0" stroke="var(--grid)"/><text x="36" y="207" text-anchor="end">100</text>
+            <line x1="40" y1="146.4" x2="446" y2="146.4" stroke="var(--grid)"/><text x="36" y="149.4" text-anchor="end">1K</text>
+            <line x1="40" y1="88.9" x2="446" y2="88.9" stroke="var(--grid)"/><text x="36" y="91.9" text-anchor="end">10K</text>
+            <line x1="40" y1="31.3" x2="446" y2="31.3" stroke="var(--grid)"/><text x="36" y="34.3" text-anchor="end">100K</text>
+          </g>
+          <line x1="40" y1="14" x2="40" y2="204" stroke="var(--line)"/>
+          <g font-size="9.5" fill="var(--ink-faint)" text-anchor="middle">
+            <text x="40" y="218">10%</text>
+            <text x="141.5" y="218">30%</text>
+            <text x="243" y="218">50%</text>
+            <text x="344.5" y="218">70%</text>
+            <text x="446" y="218">90%</text>
+          </g>
+          <polyline points="40.0,179.4 65.4,152.5 90.8,129.3 116.1,111.2 141.5,95.3 166.9,84.2 192.2,74.9 243.0,61.5 293.8,50.3 344.5,42.1 395.2,32.7 446.0,26.9" fill="none" stroke="var(--sell)" stroke-width="2"/>
+          <circle cx="141.5" cy="95.3" r="5" fill="var(--sell)" stroke="var(--surface-raised)" stroke-width="1.6"/>
+        </svg>
+        <figcaption>Same 30% pick: ~7,749 trades/year, comfortably past the thinnest (least statistically trustworthy) end.</figcaption>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Reading the shape</h2>
+    <div class="card">
+      <p><b style="color:var(--ink);">Why profit factor falls, then rises.</b> From 10% to ~60%, moving the entry deeper shrinks the reward (target is now closer) while win rate barely moves at first — pure R:R decay. Past 60%, a different effect takes over: the entry is now so deep into the zone that only a strong, decisive move reaches it at all, and win rate climbs sharply (50.6%→74.2% from 10% to 90%) enough to drag profit factor back up even as R:R keeps falling. Two different edges, not one continuous effect.</p>
+      <p><b style="color:var(--ink);">Why Sharpe looks worst exactly where profit factor looks best.</b> At a 10% entry there are only 268 trades a year — about one every 1.4 days. A daily-return Sharpe calculation sees mostly flat, no-trade days punctuated by rare, huge jumps; that's a real property of trading this infrequently, but it makes the daily Sharpe number a poor fit for comparing across a 450× range of trade frequency. Expected R and profit factor are the more honest read of quality at the shallow end; Sharpe becomes more meaningful once trading frequency is high enough to actually fill most days (roughly 20%+ entry, where daily Sharpe holds fairly steady around 3–4 regardless of depth).</p>
+      <div class="caveat">Same architecture, same caveats as the ranking file: modeled 1.6-pip round-trip spread (confirmed sufficient for this backtest — 0.8 pips each way on market-order entries and exits), pre-v26 concurrency approximation, $2M position-sizing cap (which is most of why excess kurtosis on the daily equity curve runs into the hundreds-to-thousands at several depths — a fixed-dollar-per-trade cap measured as a percentage return necessarily decays as equity grows past it; not evidence of a large real single-trade risk).</div>
+      <div class="caveat">Every row passed a three-independent-thirds robustness check (profitable in each third of the 17-year history, not just on aggregate) at the time it was tested in this research thread — see <code>goal80_entry_variants_research.py</code> and <code>goal81_shallow_entry_two_account.py</code> for the full derivation, including the population-selection confound that had to be ruled out before trusting the shallow-entry numbers at all.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>More from this research</h2>
+    <div class="more-links">
+      <a href="https://claude.ai/code/artifact/d77164c1-825f-465c-8af8-681a807da739" target="_blank" rel="noopener">The Pullback Playbook<span>The rule itself, step by step, plus real trade-level examples.</span></a>
+      <a href="https://claude.ai/code/artifact/3227a861-f4f9-42a6-9ae8-af81f08f49ce" target="_blank" rel="noopener">The Portfolio Ledger<span>Full-history results at the original 50% entry, single pooled account.</span></a>
+    </div>
+  </section>
+
+  <footer>
+    All twelve rows: EURUSD + GBPUSD + USDJPY + EURGBP, 2009-09-25 to 2026-09-03, 1-minute bars, $100/$100 two-account start, 5% risk of min(buy,sell) equity, max 1 open position per side, 50x leverage, $2M cap. Research-grade backtest — not investment advice, not a live track record.
+  </footer>
+
+</div>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEID Strategy Backtest Performance Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  :root {
+    --bg-main: #080B10;
+    --bg-card: #111622;
+    --border-color: #20293A;
+    --text-primary: #F0F4F8;
+    --text-secondary: #7E8C9F;
+    --accent-blue: #388BFD;
+    --accent-green: #238636;
+    --accent-red: #DA3633;
+    --accent-gold: #F1E05A;
+    --accent-purple: #A371F7;
+    --accent-cyan: #39C5BB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background-color: var(--bg-main); color: var(--text-primary); padding: 20px; line-height: 1.5; }
+  
+  .header { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
+  .title { font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+  
+  .rules-banner { background: #0E1626; border: 1px solid #1C2B44; border-radius: 10px; padding: 15px 20px; margin-bottom: 20px; font-size: 13.5px; line-height: 1.6; }
+  .rules-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-right: 6px; }
+  
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+  .metric-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; }
+  .metric-label { font-size: 11.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+  .metric-val { font-size: 22px; font-weight: 700; }
+
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 25px; }
+  @media (max-width: 1000px) { .charts-row { grid-template-columns: 1fr; } }
+
+  .chart-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+  .chart-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #fff; }
+  
+  .table-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-top: 25px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+  th { background: #0E131E; color: var(--text-secondary); padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
+  td { padding: 10px 14px; border-bottom: 1px solid #1A2234; }
+  tr:hover { background: #151C2C; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+  .badge-win { background: rgba(35, 134, 54, 0.25); color: #4ADE80; border: 1px solid #238636; }
+  .badge-loss { background: rgba(218, 54, 51, 0.25); color: #F87171; border: 1px solid #DA3633; }
+  .badge-buy { background: rgba(35, 134, 54, 0.2); color: #4ADE80; border: 1px solid #238636; }
+  .badge-sell { background: rgba(218, 54, 51, 0.2); color: #F87171; border: 1px solid #DA3633; }
+  
+  #equityDiv { width: 100%; height: 380px; }
+  #breakdownDiv { width: 100%; height: 380px; }
+  #candleChartDiv { width: 100%; height: 600px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">⚡ BEID Strategy: Multi-Asset Backtest & Performance Dashboard</div>
+  <div style="font-size: 13.5px; color: var(--text-secondary); margin-top: 6px;">
+    Deterministic price action system: <b>Entry @ 50% Midpoint</b> | <b>Take Profit @ Zone Top (Buy) / Zone Bottom (Sell)</b> | <b>Stop Loss @ Zone Bottom (Buy) / Zone Top (Sell)</b> | <b>1.0R (1:1 RR)</b>.
+  </div>
+</div>
+
+<div class="rules-banner">
+  <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">📐 BEID Strategy Execution Architecture:</div>
+  <div style="color: #D1D5DB;">
+    • <span class="rules-tag" style="background: rgba(56, 139, 253, 0.2); color: #60A5FA; border: 1px solid #388BFD;">Limit Entry</span> <b>50% Midpoint</b> of confirmed left-anchored zone.<br>
+    • <span class="rules-tag" style="background: rgba(35, 134, 54, 0.2); color: #4ADE80; border: 1px solid #238636;">Take Profit (TP)</span> <b>Zone Top</b> for Buy Zone | <b>Zone Bottom</b> for Sell Zone (+1.0R).<br>
+    • <span class="rules-tag" style="background: rgba(218, 54, 51, 0.2); color: #F87171; border: 1px solid #DA3633;">Stop Loss (SL)</span> <b>Zone Bottom</b> for Buy Zone | <b>Zone Top</b> for Sell Zone (-1.0R).<br>
+    • <span class="rules-tag" style="background: rgba(241, 224, 90, 0.2); color: #FDE047; border: 1px solid #F1E05A;">Lifecycle</span> Zone ends when price touches 50% on Candle A and exits the zone on subsequent Candle B.
+  </div>
+</div>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-label">Total Trades Resolved</div>
+    <div class="metric-val" style="color: #fff;">321 Trades</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">32 Datasets Evaluated</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Overall Win Rate</div>
+    <div class="metric-val" style="color: #4ADE80;">60.4%</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">194 Wins / 127 Losses</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Profit Factor</div>
+    <div class="metric-val" style="color: #60A5FA;">1.53</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Gross Win / Gross Loss</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Total Net Return</div>
+    <div class="metric-val" style="color: #4ADE80;">+67.0 R</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">1:1 Fixed R Profile</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Expectancy / Trade</div>
+    <div class="metric-val" style="color: #FDE047;">+0.209 R</div>
+    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Positive Edge per Trade</div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">📈 Cumulative BEID Portfolio Equity Curve (Net R)</div>
+    <div id="equityDiv"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">📊 Win Rate by Asset Class</div>
+    <div id="breakdownDiv"></div>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top: 25px;">
+  <div class="chart-title">🕯️ Live Trade Inspector: GBP/USD 15M (Real Market Execution)</div>
+  <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px;">
+    Visualizing actual BEID zones, 50% limit entries, TP targets, SL stops, and trade resolutions.
+  </div>
+  <div id="candleChartDiv"></div>
+</div>
+
+<div class="table-card">
+  <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #fff;">📋 Comprehensive Dataset Performance Summary (32 Datasets)</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Asset</th>
+        <th>Timeframe</th>
+        <th>Candles</th>
+        <th>Zones Detected</th>
+        <th>Trades Executed</th>
+        <th>Wins</th>
+        <th>Losses</th>
+        <th>Win Rate</th>
+        <th>Net Return (R)</th>
+        <th>Profit Factor</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">EUR/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>15</td>
+        <td style="font-weight: 600;">13</td>
+        <td style="color: #4ADE80; font-weight: 600;">6</td>
+        <td style="color: #F87171; font-weight: 600;">7</td>
+        <td style="font-weight: 700; color: #F87171;">46.2%</td>
+        <td style="font-weight: 700; color: #F87171;">-1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.86</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">EUR/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1D</span></td>
+        <td>721</td>
+        <td>12</td>
+        <td style="font-weight: 600;">11</td>
+        <td style="color: #4ADE80; font-weight: 600;">7</td>
+        <td style="color: #F87171; font-weight: 600;">4</td>
+        <td style="font-weight: 700; color: #4ADE80;">63.6%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+3.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.75</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">EUR/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1H</span></td>
+        <td>721</td>
+        <td>10</td>
+        <td style="font-weight: 600;">10</td>
+        <td style="color: #4ADE80; font-weight: 600;">9</td>
+        <td style="color: #F87171; font-weight: 600;">1</td>
+        <td style="font-weight: 700; color: #4ADE80;">90.0%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+8.0 R</td>
+        <td style="font-weight: 600; color: #fff;">9.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">GBP/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>18</td>
+        <td style="font-weight: 600;">18</td>
+        <td style="color: #4ADE80; font-weight: 600;">12</td>
+        <td style="color: #F87171; font-weight: 600;">6</td>
+        <td style="font-weight: 700; color: #4ADE80;">66.7%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+6.0 R</td>
+        <td style="font-weight: 600; color: #fff;">2.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">GBP/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1H</span></td>
+        <td>721</td>
+        <td>13</td>
+        <td style="font-weight: 600;">12</td>
+        <td style="color: #4ADE80; font-weight: 600;">8</td>
+        <td style="color: #F87171; font-weight: 600;">4</td>
+        <td style="font-weight: 700; color: #4ADE80;">66.7%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+4.0 R</td>
+        <td style="font-weight: 600; color: #fff;">2.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">GBP/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">4H</span></td>
+        <td>721</td>
+        <td>20</td>
+        <td style="font-weight: 600;">18</td>
+        <td style="color: #4ADE80; font-weight: 600;">11</td>
+        <td style="color: #F87171; font-weight: 600;">7</td>
+        <td style="font-weight: 700; color: #4ADE80;">61.1%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+4.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.57</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>9</td>
+        <td style="font-weight: 600;">7</td>
+        <td style="color: #4ADE80; font-weight: 600;">4</td>
+        <td style="color: #F87171; font-weight: 600;">3</td>
+        <td style="font-weight: 700; color: #4ADE80;">57.1%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.33</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1D</span></td>
+        <td>721</td>
+        <td>11</td>
+        <td style="font-weight: 600;">8</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">3</td>
+        <td style="font-weight: 700; color: #4ADE80;">62.5%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+2.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.67</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1H</span></td>
+        <td>721</td>
+        <td>13</td>
+        <td style="font-weight: 600;">7</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">2</td>
+        <td style="font-weight: 700; color: #4ADE80;">71.4%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+3.0 R</td>
+        <td style="font-weight: 600; color: #fff;">2.5</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">4H</span></td>
+        <td>721</td>
+        <td>9</td>
+        <td style="font-weight: 600;">7</td>
+        <td style="color: #4ADE80; font-weight: 600;">4</td>
+        <td style="color: #F87171; font-weight: 600;">3</td>
+        <td style="font-weight: 700; color: #4ADE80;">57.1%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.33</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>14</td>
+        <td style="font-weight: 600;">12</td>
+        <td style="color: #4ADE80; font-weight: 600;">7</td>
+        <td style="color: #F87171; font-weight: 600;">5</td>
+        <td style="font-weight: 700; color: #4ADE80;">58.3%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+2.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.4</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1D</span></td>
+        <td>721</td>
+        <td>15</td>
+        <td style="font-weight: 600;">13</td>
+        <td style="color: #4ADE80; font-weight: 600;">8</td>
+        <td style="color: #F87171; font-weight: 600;">5</td>
+        <td style="font-weight: 700; color: #4ADE80;">61.5%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+3.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.6</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1H</span></td>
+        <td>721</td>
+        <td>4</td>
+        <td style="font-weight: 600;">1</td>
+        <td style="color: #4ADE80; font-weight: 600;">1</td>
+        <td style="color: #F87171; font-weight: 600;">0</td>
+        <td style="font-weight: 700; color: #4ADE80;">100.0%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">4H</span></td>
+        <td>721</td>
+        <td>12</td>
+        <td style="font-weight: 600;">11</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">6</td>
+        <td style="font-weight: 700; color: #F87171;">45.5%</td>
+        <td style="font-weight: 700; color: #F87171;">-1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.83</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">BTC</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>13</td>
+        <td style="font-weight: 600;">9</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">4</td>
+        <td style="font-weight: 700; color: #4ADE80;">55.6%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.25</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">BTC</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1D</span></td>
+        <td>721</td>
+        <td>3</td>
+        <td style="font-weight: 600;">2</td>
+        <td style="color: #4ADE80; font-weight: 600;">0</td>
+        <td style="color: #F87171; font-weight: 600;">2</td>
+        <td style="font-weight: 700; color: #F87171;">0.0%</td>
+        <td style="font-weight: 700; color: #F87171;">-2.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">BTC</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1H</span></td>
+        <td>721</td>
+        <td>14</td>
+        <td style="font-weight: 600;">7</td>
+        <td style="color: #4ADE80; font-weight: 600;">4</td>
+        <td style="color: #F87171; font-weight: 600;">3</td>
+        <td style="font-weight: 700; color: #4ADE80;">57.1%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.33</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">EUR/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>15</td>
+        <td style="font-weight: 600;">13</td>
+        <td style="color: #4ADE80; font-weight: 600;">6</td>
+        <td style="color: #F87171; font-weight: 600;">7</td>
+        <td style="font-weight: 700; color: #F87171;">46.2%</td>
+        <td style="font-weight: 700; color: #F87171;">-1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.86</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">EUR/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1M</span></td>
+        <td>721</td>
+        <td>19</td>
+        <td style="font-weight: 600;">18</td>
+        <td style="color: #4ADE80; font-weight: 600;">17</td>
+        <td style="color: #F87171; font-weight: 600;">1</td>
+        <td style="font-weight: 700; color: #4ADE80;">94.4%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+16.0 R</td>
+        <td style="font-weight: 600; color: #fff;">17.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">EUR/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">5M</span></td>
+        <td>721</td>
+        <td>5</td>
+        <td style="font-weight: 600;">4</td>
+        <td style="color: #4ADE80; font-weight: 600;">2</td>
+        <td style="color: #F87171; font-weight: 600;">2</td>
+        <td style="font-weight: 700; color: #FDE047;">50.0%</td>
+        <td style="font-weight: 700; color: #FDE047;">+0.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">GBP/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>18</td>
+        <td style="font-weight: 600;">18</td>
+        <td style="color: #4ADE80; font-weight: 600;">12</td>
+        <td style="color: #F87171; font-weight: 600;">6</td>
+        <td style="font-weight: 700; color: #4ADE80;">66.7%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+6.0 R</td>
+        <td style="font-weight: 600; color: #fff;">2.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">GBP/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1M</span></td>
+        <td>721</td>
+        <td>7</td>
+        <td style="font-weight: 600;">6</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">1</td>
+        <td style="font-weight: 700; color: #4ADE80;">83.3%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+4.0 R</td>
+        <td style="font-weight: 600; color: #fff;">5.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">GBP/USD</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">5M</span></td>
+        <td>721</td>
+        <td>5</td>
+        <td style="font-weight: 600;">5</td>
+        <td style="color: #4ADE80; font-weight: 600;">4</td>
+        <td style="color: #F87171; font-weight: 600;">1</td>
+        <td style="font-weight: 700; color: #4ADE80;">80.0%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+3.0 R</td>
+        <td style="font-weight: 600; color: #fff;">4.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>9</td>
+        <td style="font-weight: 600;">7</td>
+        <td style="color: #4ADE80; font-weight: 600;">4</td>
+        <td style="color: #F87171; font-weight: 600;">3</td>
+        <td style="font-weight: 700; color: #4ADE80;">57.1%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.33</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1M</span></td>
+        <td>721</td>
+        <td>2</td>
+        <td style="font-weight: 600;">2</td>
+        <td style="color: #4ADE80; font-weight: 600;">0</td>
+        <td style="color: #F87171; font-weight: 600;">2</td>
+        <td style="font-weight: 700; color: #F87171;">0.0%</td>
+        <td style="font-weight: 700; color: #F87171;">-2.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.0</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">SOL</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">5M</span></td>
+        <td>721</td>
+        <td>18</td>
+        <td style="font-weight: 600;">17</td>
+        <td style="color: #4ADE80; font-weight: 600;">11</td>
+        <td style="color: #F87171; font-weight: 600;">6</td>
+        <td style="font-weight: 700; color: #4ADE80;">64.7%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+5.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.83</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>14</td>
+        <td style="font-weight: 600;">12</td>
+        <td style="color: #4ADE80; font-weight: 600;">7</td>
+        <td style="color: #F87171; font-weight: 600;">5</td>
+        <td style="font-weight: 700; color: #4ADE80;">58.3%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+2.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.4</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1M</span></td>
+        <td>721</td>
+        <td>17</td>
+        <td style="font-weight: 600;">16</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">11</td>
+        <td style="font-weight: 700; color: #F87171;">31.2%</td>
+        <td style="font-weight: 700; color: #F87171;">-6.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.45</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">ETH</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">5M</span></td>
+        <td>721</td>
+        <td>12</td>
+        <td style="font-weight: 600;">5</td>
+        <td style="color: #4ADE80; font-weight: 600;">3</td>
+        <td style="color: #F87171; font-weight: 600;">2</td>
+        <td style="font-weight: 700; color: #4ADE80;">60.0%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.5</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">BTC</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">15M</span></td>
+        <td>721</td>
+        <td>13</td>
+        <td style="font-weight: 600;">9</td>
+        <td style="color: #4ADE80; font-weight: 600;">5</td>
+        <td style="color: #F87171; font-weight: 600;">4</td>
+        <td style="font-weight: 700; color: #4ADE80;">55.6%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+1.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.25</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">BTC</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">1M</span></td>
+        <td>721</td>
+        <td>23</td>
+        <td style="font-weight: 600;">19</td>
+        <td style="color: #4ADE80; font-weight: 600;">11</td>
+        <td style="color: #F87171; font-weight: 600;">8</td>
+        <td style="font-weight: 700; color: #4ADE80;">57.9%</td>
+        <td style="font-weight: 700; color: #4ADE80;">+3.0 R</td>
+        <td style="font-weight: 600; color: #fff;">1.38</td>
+      </tr>
+      
+      <tr>
+        <td style="font-weight: 700; color: #fff;">BTC</td>
+        <td><span class="badge" style="background: #1C2B44; color: #60A5FA; border: 1px solid #388BFD;">5M</span></td>
+        <td>721</td>
+        <td>10</td>
+        <td style="font-weight: 600;">4</td>
+        <td style="color: #4ADE80; font-weight: 600;">1</td>
+        <td style="color: #F87171; font-weight: 600;">3</td>
+        <td style="font-weight: 700; color: #F87171;">25.0%</td>
+        <td style="font-weight: 700; color: #F87171;">-2.0 R</td>
+        <td style="font-weight: 600; color: #fff;">0.33</td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+<script>
+const equityData = [{"trade_num": 1, "fill_time": "2024-09-25", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 1.0}, {"trade_num": 2, "fill_time": "2024-09-26", "dataset": "SOL 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 2.0}, {"trade_num": 3, "fill_time": "2024-09-30", "dataset": "BTC 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 1.0}, {"trade_num": 4, "fill_time": "2024-10-07", "dataset": "SOL 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 2.0}, {"trade_num": 5, "fill_time": "2024-10-14", "dataset": "BTC 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 1.0}, {"trade_num": 6, "fill_time": "2024-10-16", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 2.0}, {"trade_num": 7, "fill_time": "2024-10-16", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 3.0}, {"trade_num": 8, "fill_time": "2024-10-23", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 4.0}, {"trade_num": 9, "fill_time": "2024-10-30", "dataset": "EUR/USD 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 3.0}, {"trade_num": 10, "fill_time": "2024-11-06", "dataset": "EUR/USD 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 2.0}, {"trade_num": 11, "fill_time": "2024-12-09", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 3.0}, {"trade_num": 12, "fill_time": "2024-12-20", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 4.0}, {"trade_num": 13, "fill_time": "2025-01-31", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 5.0}, {"trade_num": 14, "fill_time": "2025-02-03", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 6.0}, {"trade_num": 15, "fill_time": "2025-04-12", "dataset": "SOL 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 5.0}, {"trade_num": 16, "fill_time": "2025-05-08", "dataset": "ETH 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 4.0}, {"trade_num": 17, "fill_time": "2025-05-10", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 5.0}, {"trade_num": 18, "fill_time": "2025-06-05", "dataset": "SOL 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 6.0}, {"trade_num": 19, "fill_time": "2025-06-13", "dataset": "ETH 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 5.0}, {"trade_num": 20, "fill_time": "2025-07-02", "dataset": "ETH 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 4.0}, {"trade_num": 21, "fill_time": "2025-07-10", "dataset": "SOL 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 3.0}, {"trade_num": 22, "fill_time": "2025-07-16", "dataset": "ETH 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 2.0}, {"trade_num": 23, "fill_time": "2025-07-20", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 3.0}, {"trade_num": 24, "fill_time": "2025-07-29", "dataset": "EUR/USD 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 2.0}, {"trade_num": 25, "fill_time": "2025-08-06", "dataset": "EUR/USD 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 1.0}, {"trade_num": 26, "fill_time": "2025-08-28", "dataset": "SOL 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 2.0}, {"trade_num": 27, "fill_time": "2025-10-10", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 3.0}, {"trade_num": 28, "fill_time": "2025-10-10", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 4.0}, {"trade_num": 29, "fill_time": "2025-12-18", "dataset": "SOL 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 5.0}, {"trade_num": 30, "fill_time": "2026-05-10 20:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 4.0}, {"trade_num": 31, "fill_time": "2026-05-10 20:00:00", "dataset": "ETH 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 5.0}, {"trade_num": 32, "fill_time": "2026-05-11 12:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 6.0}, {"trade_num": 33, "fill_time": "2026-05-12 00:00:00", "dataset": "SOL 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 7.0}, {"trade_num": 34, "fill_time": "2026-05-13 12:00:00", "dataset": "SOL 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 6.0}, {"trade_num": 35, "fill_time": "2026-05-14 12:00:00", "dataset": "ETH 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 7.0}, {"trade_num": 36, "fill_time": "2026-05-18 04:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 6.0}, {"trade_num": 37, "fill_time": "2026-05-20 16:00:00", "dataset": "SOL 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 7.0}, {"trade_num": 38, "fill_time": "2026-05-22 16:00:00", "dataset": "SOL 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 6.0}, {"trade_num": 39, "fill_time": "2026-05-26 12:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 7.0}, {"trade_num": 40, "fill_time": "2026-05-26 12:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 8.0}, {"trade_num": 41, "fill_time": "2026-05-28 00:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 7.0}, {"trade_num": 42, "fill_time": "2026-05-31 20:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 8.0}, {"trade_num": 43, "fill_time": "2026-06-04", "dataset": "ETH 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 9.0}, {"trade_num": 44, "fill_time": "2026-06-09 08:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 10.0}, {"trade_num": 45, "fill_time": "2026-06-15 08:00:00", "dataset": "ETH 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 9.0}, {"trade_num": 46, "fill_time": "2026-06-23 08:00:00", "dataset": "ETH 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 10.0}, {"trade_num": 47, "fill_time": "2026-06-25 12:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 9.0}, {"trade_num": 48, "fill_time": "2026-07-03", "dataset": "SOL 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 8.0}, {"trade_num": 49, "fill_time": "2026-07-03 16:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 9.0}, {"trade_num": 50, "fill_time": "2026-07-09 04:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 8.0}, {"trade_num": 51, "fill_time": "2026-07-10 12:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 7.0}, {"trade_num": 52, "fill_time": "2026-07-13 16:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 8.0}, {"trade_num": 53, "fill_time": "2026-07-14 12:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 9.0}, {"trade_num": 54, "fill_time": "2026-07-14 12:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 10.0}, {"trade_num": 55, "fill_time": "2026-07-14 12:00:00", "dataset": "ETH 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 9.0}, {"trade_num": 56, "fill_time": "2026-07-15 16:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 10.0}, {"trade_num": 57, "fill_time": "2026-07-16 08:00:00", "dataset": "ETH 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 9.0}, {"trade_num": 58, "fill_time": "2026-07-20 16:00:00", "dataset": "ETH 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 8.0}, {"trade_num": 59, "fill_time": "2026-07-21 12:00:00", "dataset": "GBP/USD 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 7.0}, {"trade_num": 60, "fill_time": "2026-07-28 16:00:00", "dataset": "GBP/USD 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 8.0}, {"trade_num": 61, "fill_time": "2026-08-09 23:00:00", "dataset": "SOL 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 9.0}, {"trade_num": 62, "fill_time": "2026-08-10 15:00:00", "dataset": "BTC 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 8.0}, {"trade_num": 63, "fill_time": "2026-08-11 20:00:00", "dataset": "SOL 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 7.0}, {"trade_num": 64, "fill_time": "2026-08-12 09:00:00", "dataset": "SOL 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 8.0}, {"trade_num": 65, "fill_time": "2026-08-12 10:00:00", "dataset": "BTC 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 9.0}, {"trade_num": 66, "fill_time": "2026-08-12 14:00:00", "dataset": "GBP/USD 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 8.0}, {"trade_num": 67, "fill_time": "2026-08-12 14:00:00", "dataset": "SOL 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 9.0}, {"trade_num": 68, "fill_time": "2026-08-12 17:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 10.0}, {"trade_num": 69, "fill_time": "2026-08-13 02:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 11.0}, {"trade_num": 70, "fill_time": "2026-08-13 10:00:00", "dataset": "GBP/USD 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 10.0}, {"trade_num": 71, "fill_time": "2026-08-13 14:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 11.0}, {"trade_num": 72, "fill_time": "2026-08-13 16:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 12.0}, {"trade_num": 73, "fill_time": "2026-08-16 16:00:00", "dataset": "BTC 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 13.0}, {"trade_num": 74, "fill_time": "2026-08-17 14:00:00", "dataset": "BTC 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 12.0}, {"trade_num": 75, "fill_time": "2026-08-18 14:00:00", "dataset": "BTC 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 11.0}, {"trade_num": 76, "fill_time": "2026-08-19", "dataset": "ETH 1D", "result": "LOSS", "r_mult": -1.0, "cum_r": 10.0}, {"trade_num": 77, "fill_time": "2026-08-19 03:00:00", "dataset": "BTC 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 11.0}, {"trade_num": 78, "fill_time": "2026-08-19 12:00:00", "dataset": "ETH 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 10.0}, {"trade_num": 79, "fill_time": "2026-08-19 14:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 11.0}, {"trade_num": 80, "fill_time": "2026-08-19 14:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 12.0}, {"trade_num": 81, "fill_time": "2026-08-19 14:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 13.0}, {"trade_num": 82, "fill_time": "2026-08-19 20:00:00", "dataset": "ETH 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 14.0}, {"trade_num": 83, "fill_time": "2026-08-19 20:00:00", "dataset": "ETH 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 13.0}, {"trade_num": 84, "fill_time": "2026-08-20 12:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 14.0}, {"trade_num": 85, "fill_time": "2026-08-20 16:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 15.0}, {"trade_num": 86, "fill_time": "2026-08-20 16:00:00", "dataset": "ETH 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 16.0}, {"trade_num": 87, "fill_time": "2026-08-21 01:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 17.0}, {"trade_num": 88, "fill_time": "2026-08-21 08:00:00", "dataset": "SOL 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 18.0}, {"trade_num": 89, "fill_time": "2026-08-21 20:00:00", "dataset": "SOL 4H", "result": "LOSS", "r_mult": -1.0, "cum_r": 17.0}, {"trade_num": 90, "fill_time": "2026-08-22 00:00:00", "dataset": "SOL 4H", "result": "WIN", "r_mult": 1.0, "cum_r": 18.0}, {"trade_num": 91, "fill_time": "2026-08-22 05:00:00", "dataset": "SOL 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 19.0}, {"trade_num": 92, "fill_time": "2026-08-22 05:00:00", "dataset": "SOL 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 20.0}, {"trade_num": 93, "fill_time": "2026-08-22 05:00:00", "dataset": "ETH 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 21.0}, {"trade_num": 94, "fill_time": "2026-08-24 22:00:00", "dataset": "SOL 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 20.0}, {"trade_num": 95, "fill_time": "2026-08-25 00:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 21.0}, {"trade_num": 96, "fill_time": "2026-08-25 08:00:00", "dataset": "EUR/USD 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 20.0}, {"trade_num": 97, "fill_time": "2026-08-26 05:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 21.0}, {"trade_num": 98, "fill_time": "2026-08-28", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 22.0}, {"trade_num": 99, "fill_time": "2026-08-28", "dataset": "EUR/USD 1D", "result": "WIN", "r_mult": 1.0, "cum_r": 23.0}, {"trade_num": 100, "fill_time": "2026-08-28 14:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 24.0}, {"trade_num": 101, "fill_time": "2026-08-28 14:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 25.0}, {"trade_num": 102, "fill_time": "2026-08-28 16:00:00", "dataset": "BTC 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 26.0}, {"trade_num": 103, "fill_time": "2026-08-29 11:00:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 27.0}, {"trade_num": 104, "fill_time": "2026-08-29 12:15:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 28.0}, {"trade_num": 105, "fill_time": "2026-08-29 17:30:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 29.0}, {"trade_num": 106, "fill_time": "2026-08-29 17:30:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 30.0}, {"trade_num": 107, "fill_time": "2026-08-29 21:00:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 31.0}, {"trade_num": 108, "fill_time": "2026-08-29 21:00:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 32.0}, {"trade_num": 109, "fill_time": "2026-08-29 21:30:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 33.0}, {"trade_num": 110, "fill_time": "2026-08-29 21:30:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 34.0}, {"trade_num": 111, "fill_time": "2026-08-30 01:15:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 35.0}, {"trade_num": 112, "fill_time": "2026-08-30 01:15:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 36.0}, {"trade_num": 113, "fill_time": "2026-08-30 10:00:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 37.0}, {"trade_num": 114, "fill_time": "2026-08-30 10:00:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 38.0}, {"trade_num": 115, "fill_time": "2026-08-30 12:30:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 39.0}, {"trade_num": 116, "fill_time": "2026-08-30 12:30:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 40.0}, {"trade_num": 117, "fill_time": "2026-08-30 17:15:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 118, "fill_time": "2026-08-30 17:15:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 119, "fill_time": "2026-08-30 20:30:00", "dataset": "SOL 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 120, "fill_time": "2026-08-30 20:30:00", "dataset": "SOL 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 40.0}, {"trade_num": 121, "fill_time": "2026-08-30 21:00:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 122, "fill_time": "2026-08-30 21:00:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 123, "fill_time": "2026-08-30 21:00:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 124, "fill_time": "2026-08-30 21:00:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 125, "fill_time": "2026-08-30 21:00:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 126, "fill_time": "2026-08-30 21:00:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 127, "fill_time": "2026-08-30 23:15:00", "dataset": "SOL 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 128, "fill_time": "2026-08-30 23:15:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 40.0}, {"trade_num": 129, "fill_time": "2026-08-30 23:15:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 39.0}, {"trade_num": 130, "fill_time": "2026-08-30 23:15:00", "dataset": "SOL 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 38.0}, {"trade_num": 131, "fill_time": "2026-08-30 23:15:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 37.0}, {"trade_num": 132, "fill_time": "2026-08-30 23:15:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 36.0}, {"trade_num": 133, "fill_time": "2026-08-30 23:30:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 35.0}, {"trade_num": 134, "fill_time": "2026-08-30 23:30:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 34.0}, {"trade_num": 135, "fill_time": "2026-08-31 02:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 35.0}, {"trade_num": 136, "fill_time": "2026-08-31 02:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 36.0}, {"trade_num": 137, "fill_time": "2026-08-31 07:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 37.0}, {"trade_num": 138, "fill_time": "2026-08-31 09:00:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 38.0}, {"trade_num": 139, "fill_time": "2026-08-31 09:00:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 39.0}, {"trade_num": 140, "fill_time": "2026-08-31 10:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 40.0}, {"trade_num": 141, "fill_time": "2026-08-31 10:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 142, "fill_time": "2026-08-31 10:45:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 143, "fill_time": "2026-08-31 14:00:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 144, "fill_time": "2026-08-31 14:00:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 40.0}, {"trade_num": 145, "fill_time": "2026-08-31 18:15:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 146, "fill_time": "2026-08-31 18:15:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 147, "fill_time": "2026-09-01 04:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 148, "fill_time": "2026-09-01 04:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 149, "fill_time": "2026-09-01 08:15:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 150, "fill_time": "2026-09-01 08:15:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 151, "fill_time": "2026-09-01 08:15:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 152, "fill_time": "2026-09-01 08:15:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 40.0}, {"trade_num": 153, "fill_time": "2026-09-01 10:30:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 154, "fill_time": "2026-09-01 10:30:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 155, "fill_time": "2026-09-01 14:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 156, "fill_time": "2026-09-01 14:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 157, "fill_time": "2026-09-01 15:00:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 158, "fill_time": "2026-09-01 15:00:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 159, "fill_time": "2026-09-01 16:15:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 160, "fill_time": "2026-09-01 16:15:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 161, "fill_time": "2026-09-02 01:30:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 162, "fill_time": "2026-09-02 01:30:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 163, "fill_time": "2026-09-02 02:15:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 164, "fill_time": "2026-09-02 02:15:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 165, "fill_time": "2026-09-02 05:15:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 166, "fill_time": "2026-09-02 05:15:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 167, "fill_time": "2026-09-02 05:45:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 168, "fill_time": "2026-09-02 05:45:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 169, "fill_time": "2026-09-02 06:15:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 170, "fill_time": "2026-09-02 06:15:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 171, "fill_time": "2026-09-02 07:00:00", "dataset": "GBP/USD 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 172, "fill_time": "2026-09-02 07:15:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 40.0}, {"trade_num": 173, "fill_time": "2026-09-02 07:15:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 39.0}, {"trade_num": 174, "fill_time": "2026-09-02 08:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 40.0}, {"trade_num": 175, "fill_time": "2026-09-02 08:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 176, "fill_time": "2026-09-02 08:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 177, "fill_time": "2026-09-02 09:00:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 41.0}, {"trade_num": 178, "fill_time": "2026-09-02 09:00:00", "dataset": "GBP/USD 1H", "result": "LOSS", "r_mult": -1.0, "cum_r": 40.0}, {"trade_num": 179, "fill_time": "2026-09-02 09:00:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 39.0}, {"trade_num": 180, "fill_time": "2026-09-02 13:15:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 40.0}, {"trade_num": 181, "fill_time": "2026-09-02 13:15:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 39.0}, {"trade_num": 182, "fill_time": "2026-09-02 13:15:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 40.0}, {"trade_num": 183, "fill_time": "2026-09-02 13:15:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 39.0}, {"trade_num": 184, "fill_time": "2026-09-02 13:30:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 40.0}, {"trade_num": 185, "fill_time": "2026-09-02 13:30:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 41.0}, {"trade_num": 186, "fill_time": "2026-09-02 18:00:00", "dataset": "EUR/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 42.0}, {"trade_num": 187, "fill_time": "2026-09-02 18:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 188, "fill_time": "2026-09-02 18:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 189, "fill_time": "2026-09-03 11:50:00", "dataset": "EUR/USD 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 45.0}, {"trade_num": 190, "fill_time": "2026-09-03 11:50:00", "dataset": "ETH 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 46.0}, {"trade_num": 191, "fill_time": "2026-09-03 13:15:00", "dataset": "EUR/USD 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 47.0}, {"trade_num": 192, "fill_time": "2026-09-03 13:35:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 48.0}, {"trade_num": 193, "fill_time": "2026-09-03 13:50:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 49.0}, {"trade_num": 194, "fill_time": "2026-09-03 14:00:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 48.0}, {"trade_num": 195, "fill_time": "2026-09-03 14:00:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 47.0}, {"trade_num": 196, "fill_time": "2026-09-03 14:15:00", "dataset": "SOL 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 46.0}, {"trade_num": 197, "fill_time": "2026-09-03 14:15:00", "dataset": "SOL 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 45.0}, {"trade_num": 198, "fill_time": "2026-09-03 15:00:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 44.0}, {"trade_num": 199, "fill_time": "2026-09-03 15:00:00", "dataset": "EUR/USD 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 200, "fill_time": "2026-09-03 15:00:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 201, "fill_time": "2026-09-03 15:15:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 202, "fill_time": "2026-09-03 15:15:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 203, "fill_time": "2026-09-03 16:00:00", "dataset": "BTC 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 45.0}, {"trade_num": 204, "fill_time": "2026-09-03 16:25:00", "dataset": "ETH 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 46.0}, {"trade_num": 205, "fill_time": "2026-09-03 16:45:00", "dataset": "BTC 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 45.0}, {"trade_num": 206, "fill_time": "2026-09-03 19:15:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 44.0}, {"trade_num": 207, "fill_time": "2026-09-03 19:15:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 208, "fill_time": "2026-09-03 19:15:00", "dataset": "GBP/USD 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 209, "fill_time": "2026-09-03 20:35:00", "dataset": "ETH 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 210, "fill_time": "2026-09-03 22:10:00", "dataset": "SOL 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 42.0}, {"trade_num": 211, "fill_time": "2026-09-03 22:30:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 43.0}, {"trade_num": 212, "fill_time": "2026-09-03 22:30:00", "dataset": "BTC 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 213, "fill_time": "2026-09-04 01:50:00", "dataset": "SOL 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 43.0}, {"trade_num": 214, "fill_time": "2026-09-04 02:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 44.0}, {"trade_num": 215, "fill_time": "2026-09-04 02:00:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 45.0}, {"trade_num": 216, "fill_time": "2026-09-04 02:00:00", "dataset": "GBP/USD 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 46.0}, {"trade_num": 217, "fill_time": "2026-09-04 03:00:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 47.0}, {"trade_num": 218, "fill_time": "2026-09-04 04:45:00", "dataset": "SOL 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 46.0}, {"trade_num": 219, "fill_time": "2026-09-04 05:45:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 47.0}, {"trade_num": 220, "fill_time": "2026-09-04 06:10:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 48.0}, {"trade_num": 221, "fill_time": "2026-09-04 06:30:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 49.0}, {"trade_num": 222, "fill_time": "2026-09-04 06:30:00", "dataset": "ETH 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 223, "fill_time": "2026-09-04 07:00:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 224, "fill_time": "2026-09-04 08:30:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 225, "fill_time": "2026-09-04 08:30:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 226, "fill_time": "2026-09-04 09:20:00", "dataset": "SOL 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 48.0}, {"trade_num": 227, "fill_time": "2026-09-04 09:35:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 49.0}, {"trade_num": 228, "fill_time": "2026-09-04 10:15:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 229, "fill_time": "2026-09-04 10:45:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 230, "fill_time": "2026-09-04 10:45:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 52.0}, {"trade_num": 231, "fill_time": "2026-09-04 10:50:00", "dataset": "GBP/USD 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 53.0}, {"trade_num": 232, "fill_time": "2026-09-04 12:00:00", "dataset": "GBP/USD 1H", "result": "WIN", "r_mult": 1.0, "cum_r": 54.0}, {"trade_num": 233, "fill_time": "2026-09-04 12:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 55.0}, {"trade_num": 234, "fill_time": "2026-09-04 12:30:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 54.0}, {"trade_num": 235, "fill_time": "2026-09-04 12:30:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 55.0}, {"trade_num": 236, "fill_time": "2026-09-04 12:30:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 54.0}, {"trade_num": 237, "fill_time": "2026-09-04 12:30:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 55.0}, {"trade_num": 238, "fill_time": "2026-09-04 12:30:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 54.0}, {"trade_num": 239, "fill_time": "2026-09-04 12:30:00", "dataset": "EUR/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 55.0}, {"trade_num": 240, "fill_time": "2026-09-04 12:30:00", "dataset": "EUR/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 54.0}, {"trade_num": 241, "fill_time": "2026-09-04 12:30:00", "dataset": "EUR/USD 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 53.0}, {"trade_num": 242, "fill_time": "2026-09-04 12:30:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 54.0}, {"trade_num": 243, "fill_time": "2026-09-04 12:30:00", "dataset": "GBP/USD 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 53.0}, {"trade_num": 244, "fill_time": "2026-09-04 12:30:00", "dataset": "GBP/USD 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 54.0}, {"trade_num": 245, "fill_time": "2026-09-04 12:30:00", "dataset": "SOL 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 55.0}, {"trade_num": 246, "fill_time": "2026-09-04 12:30:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 56.0}, {"trade_num": 247, "fill_time": "2026-09-04 12:30:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 57.0}, {"trade_num": 248, "fill_time": "2026-09-04 12:30:00", "dataset": "SOL 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 56.0}, {"trade_num": 249, "fill_time": "2026-09-04 12:30:00", "dataset": "SOL 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 55.0}, {"trade_num": 250, "fill_time": "2026-09-04 12:30:00", "dataset": "ETH 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 54.0}, {"trade_num": 251, "fill_time": "2026-09-04 12:30:00", "dataset": "ETH 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 53.0}, {"trade_num": 252, "fill_time": "2026-09-04 14:45:00", "dataset": "BTC 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 52.0}, {"trade_num": 253, "fill_time": "2026-09-04 15:15:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 51.0}, {"trade_num": 254, "fill_time": "2026-09-04 15:15:00", "dataset": "ETH 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 255, "fill_time": "2026-09-04 15:15:00", "dataset": "BTC 15M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 256, "fill_time": "2026-09-04 15:30:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 257, "fill_time": "2026-09-04 15:30:00", "dataset": "GBP/USD 15M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 258, "fill_time": "2026-09-04 15:35:00", "dataset": "BTC 5M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 259, "fill_time": "2026-09-04 15:40:00", "dataset": "GBP/USD 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 260, "fill_time": "2026-09-05 09:39:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 261, "fill_time": "2026-09-05 09:40:00", "dataset": "ETH 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 262, "fill_time": "2026-09-05 09:48:00", "dataset": "ETH 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 52.0}, {"trade_num": 263, "fill_time": "2026-09-05 09:57:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 51.0}, {"trade_num": 264, "fill_time": "2026-09-05 10:09:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 265, "fill_time": "2026-09-05 10:11:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 266, "fill_time": "2026-09-05 10:26:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 267, "fill_time": "2026-09-05 10:27:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 268, "fill_time": "2026-09-05 10:36:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 269, "fill_time": "2026-09-05 11:05:00", "dataset": "SOL 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 270, "fill_time": "2026-09-05 11:17:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 271, "fill_time": "2026-09-05 11:55:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 272, "fill_time": "2026-09-05 12:30:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 52.0}, {"trade_num": 273, "fill_time": "2026-09-05 12:33:00", "dataset": "SOL 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 51.0}, {"trade_num": 274, "fill_time": "2026-09-05 12:39:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 275, "fill_time": "2026-09-05 12:45:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 276, "fill_time": "2026-09-05 12:48:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 48.0}, {"trade_num": 277, "fill_time": "2026-09-05 12:55:00", "dataset": "ETH 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 49.0}, {"trade_num": 278, "fill_time": "2026-09-05 12:57:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 279, "fill_time": "2026-09-05 13:13:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 280, "fill_time": "2026-09-05 13:22:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 281, "fill_time": "2026-09-05 13:25:00", "dataset": "EUR/USD 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 282, "fill_time": "2026-09-05 13:26:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 283, "fill_time": "2026-09-05 13:37:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 49.0}, {"trade_num": 284, "fill_time": "2026-09-05 13:37:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 48.0}, {"trade_num": 285, "fill_time": "2026-09-05 13:39:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 49.0}, {"trade_num": 286, "fill_time": "2026-09-05 13:40:00", "dataset": "ETH 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 50.0}, {"trade_num": 287, "fill_time": "2026-09-05 13:40:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 288, "fill_time": "2026-09-05 13:42:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 52.0}, {"trade_num": 289, "fill_time": "2026-09-05 13:50:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 53.0}, {"trade_num": 290, "fill_time": "2026-09-05 13:50:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 52.0}, {"trade_num": 291, "fill_time": "2026-09-05 14:08:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 51.0}, {"trade_num": 292, "fill_time": "2026-09-05 14:27:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 50.0}, {"trade_num": 293, "fill_time": "2026-09-05 14:41:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 51.0}, {"trade_num": 294, "fill_time": "2026-09-05 14:42:00", "dataset": "GBP/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 52.0}, {"trade_num": 295, "fill_time": "2026-09-05 14:42:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 51.0}, {"trade_num": 296, "fill_time": "2026-09-05 14:45:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 52.0}, {"trade_num": 297, "fill_time": "2026-09-05 14:54:00", "dataset": "ETH 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 53.0}, {"trade_num": 298, "fill_time": "2026-09-05 14:54:00", "dataset": "ETH 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 52.0}, {"trade_num": 299, "fill_time": "2026-09-05 15:37:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 53.0}, {"trade_num": 300, "fill_time": "2026-09-05 16:30:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 54.0}, {"trade_num": 301, "fill_time": "2026-09-05 16:38:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 55.0}, {"trade_num": 302, "fill_time": "2026-09-05 17:10:00", "dataset": "SOL 5M", "result": "WIN", "r_mult": 1.0, "cum_r": 56.0}, {"trade_num": 303, "fill_time": "2026-09-05 18:41:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 57.0}, {"trade_num": 304, "fill_time": "2026-09-05 18:41:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 58.0}, {"trade_num": 305, "fill_time": "2026-09-05 18:42:00", "dataset": "GBP/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 59.0}, {"trade_num": 306, "fill_time": "2026-09-05 18:42:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 60.0}, {"trade_num": 307, "fill_time": "2026-09-05 19:02:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 61.0}, {"trade_num": 308, "fill_time": "2026-09-05 19:05:00", "dataset": "GBP/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 62.0}, {"trade_num": 309, "fill_time": "2026-09-05 19:22:00", "dataset": "GBP/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 63.0}, {"trade_num": 310, "fill_time": "2026-09-05 19:25:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 62.0}, {"trade_num": 311, "fill_time": "2026-09-05 19:34:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 63.0}, {"trade_num": 312, "fill_time": "2026-09-05 19:34:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 62.0}, {"trade_num": 313, "fill_time": "2026-09-05 19:38:00", "dataset": "GBP/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 63.0}, {"trade_num": 314, "fill_time": "2026-09-05 19:46:00", "dataset": "GBP/USD 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 62.0}, {"trade_num": 315, "fill_time": "2026-09-05 19:49:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 63.0}, {"trade_num": 316, "fill_time": "2026-09-05 20:02:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 64.0}, {"trade_num": 317, "fill_time": "2026-09-05 20:03:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 65.0}, {"trade_num": 318, "fill_time": "2026-09-05 20:12:00", "dataset": "BTC 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 66.0}, {"trade_num": 319, "fill_time": "2026-09-05 20:20:00", "dataset": "BTC 1M", "result": "LOSS", "r_mult": -1.0, "cum_r": 65.0}, {"trade_num": 320, "fill_time": "2026-09-05 20:40:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 66.0}, {"trade_num": 321, "fill_time": "2026-09-05 21:25:00", "dataset": "EUR/USD 1M", "result": "WIN", "r_mult": 1.0, "cum_r": 67.0}];
+const assetData = [{"asset": "BTC", "trades": 50, "wins": 26, "losses": 24, "net_r": 2.0, "win_rate": 52.0}, {"asset": "ETH", "trades": 70, "wins": 36, "losses": 34, "net_r": 2.0, "win_rate": 51.4}, {"asset": "EUR/USD", "trades": 69, "wins": 47, "losses": 22, "net_r": 25.0, "win_rate": 68.1}, {"asset": "GBP/USD", "trades": 77, "wins": 52, "losses": 25, "net_r": 27.0, "win_rate": 67.5}, {"asset": "SOL", "trades": 55, "wins": 33, "losses": 22, "net_r": 11.0, "win_rate": 60.0}];
+const sampleCandles = [{"idx": 0, "t": "2026-08-29 08:45:00", "o": 1.35425, "h": 1.35433, "l": 1.35401, "c": 1.35433}, {"idx": 1, "t": "2026-08-29 09:00:00", "o": 1.35411, "h": 1.35442, "l": 1.35408, "c": 1.3541}, {"idx": 2, "t": "2026-08-29 09:15:00", "o": 1.35424, "h": 1.35441, "l": 1.35393, "c": 1.35412}, {"idx": 3, "t": "2026-08-29 09:30:00", "o": 1.35439, "h": 1.35441, "l": 1.35387, "c": 1.3541}, {"idx": 4, "t": "2026-08-29 09:45:00", "o": 1.3541, "h": 1.35443, "l": 1.35409, "c": 1.35438}, {"idx": 5, "t": "2026-08-29 10:00:00", "o": 1.35411, "h": 1.35439, "l": 1.35382, "c": 1.3541}, {"idx": 6, "t": "2026-08-29 10:15:00", "o": 1.3541, "h": 1.35439, "l": 1.35387, "c": 1.35411}, {"idx": 7, "t": "2026-08-29 10:30:00", "o": 1.35411, "h": 1.35439, "l": 1.3541, "c": 1.3541}, {"idx": 8, "t": "2026-08-29 10:45:00", "o": 1.35426, "h": 1.35437, "l": 1.35389, "c": 1.35411}, {"idx": 9, "t": "2026-08-29 11:00:00", "o": 1.35411, "h": 1.3543, "l": 1.35408, "c": 1.35424}, {"idx": 10, "t": "2026-08-29 11:15:00", "o": 1.35408, "h": 1.35433, "l": 1.35384, "c": 1.35406}, {"idx": 11, "t": "2026-08-29 11:30:00", "o": 1.35389, "h": 1.35428, "l": 1.35388, "c": 1.35415}, {"idx": 12, "t": "2026-08-29 11:45:00", "o": 1.35415, "h": 1.35428, "l": 1.35333, "c": 1.35413}, {"idx": 13, "t": "2026-08-29 12:00:00", "o": 1.35388, "h": 1.35542, "l": 1.35368, "c": 1.35416}, {"idx": 14, "t": "2026-08-29 12:15:00", "o": 1.35393, "h": 1.35416, "l": 1.3539, "c": 1.35392}, {"idx": 15, "t": "2026-08-29 12:30:00", "o": 1.35392, "h": 1.35432, "l": 1.35369, "c": 1.35393}, {"idx": 16, "t": "2026-08-29 12:45:00", "o": 1.35393, "h": 1.35421, "l": 1.35368, "c": 1.35408}, {"idx": 17, "t": "2026-08-29 13:00:00", "o": 1.35408, "h": 1.35428, "l": 1.35388, "c": 1.35422}, {"idx": 18, "t": "2026-08-29 13:15:00", "o": 1.35403, "h": 1.35427, "l": 1.354, "c": 1.35404}, {"idx": 19, "t": "2026-08-29 13:30:00", "o": 1.354, "h": 1.35425, "l": 1.35383, "c": 1.35422}, {"idx": 20, "t": "2026-08-29 13:45:00", "o": 1.35397, "h": 1.35421, "l": 1.35379, "c": 1.35379}, {"idx": 21, "t": "2026-08-29 14:00:00", "o": 1.3538, "h": 1.35402, "l": 1.35368, "c": 1.35371}, {"idx": 22, "t": "2026-08-29 14:15:00", "o": 1.35371, "h": 1.35399, "l": 1.35359, "c": 1.35397}, {"idx": 23, "t": "2026-08-29 14:30:00", "o": 1.35384, "h": 1.35398, "l": 1.35353, "c": 1.35378}, {"idx": 24, "t": "2026-08-29 14:45:00", "o": 1.35387, "h": 1.35393, "l": 1.35344, "c": 1.35364}, {"idx": 25, "t": "2026-08-29 15:00:00", "o": 1.35363, "h": 1.35382, "l": 1.35354, "c": 1.35372}, {"idx": 26, "t": "2026-08-29 15:15:00", "o": 1.35355, "h": 1.35389, "l": 1.35351, "c": 1.35373}, {"idx": 27, "t": "2026-08-29 15:30:00", "o": 1.35373, "h": 1.35392, "l": 1.35351, "c": 1.35376}, {"idx": 28, "t": "2026-08-29 15:45:00", "o": 1.35376, "h": 1.35377, "l": 1.3533, "c": 1.35356}, {"idx": 29, "t": "2026-08-29 16:00:00", "o": 1.35356, "h": 1.35385, "l": 1.3533, "c": 1.35358}, {"idx": 30, "t": "2026-08-29 16:15:00", "o": 1.35344, "h": 1.35371, "l": 1.3533, "c": 1.35346}, {"idx": 31, "t": "2026-08-29 16:30:00", "o": 1.35354, "h": 1.35372, "l": 1.3533, "c": 1.35361}, {"idx": 32, "t": "2026-08-29 16:45:00", "o": 1.35359, "h": 1.35384, "l": 1.3533, "c": 1.35357}, {"idx": 33, "t": "2026-08-29 17:00:00", "o": 1.35358, "h": 1.35358, "l": 1.3533, "c": 1.35333}, {"idx": 34, "t": "2026-08-29 17:15:00", "o": 1.35333, "h": 1.35368, "l": 1.3533, "c": 1.35339}, {"idx": 35, "t": "2026-08-29 17:30:00", "o": 1.35353, "h": 1.35368, "l": 1.35317, "c": 1.35326}, {"idx": 36, "t": "2026-08-29 17:45:00", "o": 1.35329, "h": 1.35353, "l": 1.35318, "c": 1.35348}, {"idx": 37, "t": "2026-08-29 18:00:00", "o": 1.35349, "h": 1.35368, "l": 1.35324, "c": 1.35333}, {"idx": 38, "t": "2026-08-29 18:15:00", "o": 1.35328, "h": 1.35352, "l": 1.3531, "c": 1.35347}, {"idx": 39, "t": "2026-08-29 18:30:00", "o": 1.35322, "h": 1.3535, "l": 1.35321, "c": 1.35323}, {"idx": 40, "t": "2026-08-29 18:45:00", "o": 1.3534, "h": 1.35368, "l": 1.35315, "c": 1.35318}, {"idx": 41, "t": "2026-08-29 19:00:00", "o": 1.35313, "h": 1.35369, "l": 1.35312, "c": 1.35332}, {"idx": 42, "t": "2026-08-29 19:15:00", "o": 1.35332, "h": 1.35335, "l": 1.35312, "c": 1.35312}, {"idx": 43, "t": "2026-08-29 19:30:00", "o": 1.35318, "h": 1.35365, "l": 1.35306, "c": 1.35313}, {"idx": 44, "t": "2026-08-29 19:45:00", "o": 1.35309, "h": 1.35344, "l": 1.35301, "c": 1.35301}, {"idx": 45, "t": "2026-08-29 20:00:00", "o": 1.35305, "h": 1.35336, "l": 1.35302, "c": 1.35311}, {"idx": 46, "t": "2026-08-29 20:15:00", "o": 1.35328, "h": 1.3533, "l": 1.35305, "c": 1.35306}, {"idx": 47, "t": "2026-08-29 20:30:00", "o": 1.35306, "h": 1.3533, "l": 1.35302, "c": 1.35305}, {"idx": 48, "t": "2026-08-29 20:45:00", "o": 1.35325, "h": 1.35325, "l": 1.35255, "c": 1.35266}, {"idx": 49, "t": "2026-08-29 21:00:00", "o": 1.35268, "h": 1.35299, "l": 1.35262, "c": 1.35273}, {"idx": 50, "t": "2026-08-29 21:15:00", "o": 1.35269, "h": 1.35288, "l": 1.35263, "c": 1.35265}, {"idx": 51, "t": "2026-08-29 21:30:00", "o": 1.35267, "h": 1.35303, "l": 1.35264, "c": 1.35289}, {"idx": 52, "t": "2026-08-29 21:45:00", "o": 1.35288, "h": 1.35291, "l": 1.35227, "c": 1.35243}, {"idx": 53, "t": "2026-08-29 22:00:00", "o": 1.35275, "h": 1.35282, "l": 1.35235, "c": 1.35244}, {"idx": 54, "t": "2026-08-29 22:15:00", "o": 1.35266, "h": 1.35277, "l": 1.3524, "c": 1.35269}, {"idx": 55, "t": "2026-08-29 22:30:00", "o": 1.35274, "h": 1.35278, "l": 1.35243, "c": 1.35261}, {"idx": 56, "t": "2026-08-29 22:45:00", "o": 1.35276, "h": 1.35285, "l": 1.35248, "c": 1.35277}, {"idx": 57, "t": "2026-08-29 23:00:00", "o": 1.35247, "h": 1.35284, "l": 1.35247, "c": 1.35284}, {"idx": 58, "t": "2026-08-29 23:15:00", "o": 1.35256, "h": 1.35366, "l": 1.35255, "c": 1.35351}, {"idx": 59, "t": "2026-08-29 23:30:00", "o": 1.3535, "h": 1.35374, "l": 1.35328, "c": 1.35344}, {"idx": 60, "t": "2026-08-29 23:45:00", "o": 1.35344, "h": 1.35362, "l": 1.35341, "c": 1.35344}, {"idx": 61, "t": "2026-08-30 00:00:00", "o": 1.35365, "h": 1.35366, "l": 1.35335, "c": 1.35337}, {"idx": 62, "t": "2026-08-30 00:15:00", "o": 1.35337, "h": 1.35368, "l": 1.35332, "c": 1.35341}, {"idx": 63, "t": "2026-08-30 00:30:00", "o": 1.35342, "h": 1.35367, "l": 1.35323, "c": 1.35338}, {"idx": 64, "t": "2026-08-30 00:45:00", "o": 1.35362, "h": 1.35364, "l": 1.35316, "c": 1.35338}, {"idx": 65, "t": "2026-08-30 01:00:00", "o": 1.35338, "h": 1.35363, "l": 1.3532, "c": 1.35337}, {"idx": 66, "t": "2026-08-30 01:15:00", "o": 1.35355, "h": 1.35362, "l": 1.35322, "c": 1.35322}, {"idx": 67, "t": "2026-08-30 01:30:00", "o": 1.35335, "h": 1.35358, "l": 1.35334, "c": 1.35352}, {"idx": 68, "t": "2026-08-30 01:45:00", "o": 1.35334, "h": 1.35354, "l": 1.35321, "c": 1.35333}, {"idx": 69, "t": "2026-08-30 02:00:00", "o": 1.35333, "h": 1.35354, "l": 1.35312, "c": 1.35313}, {"idx": 70, "t": "2026-08-30 02:15:00", "o": 1.35317, "h": 1.35338, "l": 1.35312, "c": 1.35317}, {"idx": 71, "t": "2026-08-30 02:30:00", "o": 1.35315, "h": 1.35345, "l": 1.35315, "c": 1.35319}, {"idx": 72, "t": "2026-08-30 02:45:00", "o": 1.35338, "h": 1.35343, "l": 1.35316, "c": 1.35337}, {"idx": 73, "t": "2026-08-30 03:00:00", "o": 1.35318, "h": 1.35343, "l": 1.35318, "c": 1.35338}, {"idx": 74, "t": "2026-08-30 03:15:00", "o": 1.35334, "h": 1.35344, "l": 1.35319, "c": 1.35321}, {"idx": 75, "t": "2026-08-30 03:30:00", "o": 1.35343, "h": 1.35343, "l": 1.35319, "c": 1.35343}, {"idx": 76, "t": "2026-08-30 03:45:00", "o": 1.35323, "h": 1.35355, "l": 1.35321, "c": 1.35327}, {"idx": 77, "t": "2026-08-30 04:00:00", "o": 1.35329, "h": 1.35355, "l": 1.35322, "c": 1.35325}, {"idx": 78, "t": "2026-08-30 04:15:00", "o": 1.35349, "h": 1.35349, "l": 1.35323, "c": 1.35345}, {"idx": 79, "t": "2026-08-30 04:30:00", "o": 1.35323, "h": 1.35355, "l": 1.35322, "c": 1.35348}, {"idx": 80, "t": "2026-08-30 04:45:00", "o": 1.35331, "h": 1.3535, "l": 1.35324, "c": 1.35349}, {"idx": 81, "t": "2026-08-30 05:00:00", "o": 1.35349, "h": 1.3535, "l": 1.35324, "c": 1.35349}, {"idx": 82, "t": "2026-08-30 05:15:00", "o": 1.35349, "h": 1.3535, "l": 1.35325, "c": 1.35328}, {"idx": 83, "t": "2026-08-30 05:30:00", "o": 1.35326, "h": 1.3535, "l": 1.35326, "c": 1.3535}, {"idx": 84, "t": "2026-08-30 05:45:00", "o": 1.35331, "h": 1.3535, "l": 1.35326, "c": 1.35349}, {"idx": 85, "t": "2026-08-30 06:00:00", "o": 1.3535, "h": 1.3535, "l": 1.35323, "c": 1.3535}, {"idx": 86, "t": "2026-08-30 06:15:00", "o": 1.35324, "h": 1.35363, "l": 1.35324, "c": 1.3535}, {"idx": 87, "t": "2026-08-30 06:30:00", "o": 1.35348, "h": 1.3535, "l": 1.35323, "c": 1.35327}, {"idx": 88, "t": "2026-08-30 06:45:00", "o": 1.3533, "h": 1.35349, "l": 1.35324, "c": 1.35331}, {"idx": 89, "t": "2026-08-30 07:00:00", "o": 1.35326, "h": 1.35356, "l": 1.35307, "c": 1.35324}, {"idx": 90, "t": "2026-08-30 07:15:00", "o": 1.35343, "h": 1.35355, "l": 1.35318, "c": 1.35318}, {"idx": 91, "t": "2026-08-30 07:30:00", "o": 1.35318, "h": 1.35341, "l": 1.3531, "c": 1.35319}, {"idx": 92, "t": "2026-08-30 07:45:00", "o": 1.35321, "h": 1.35341, "l": 1.35318, "c": 1.3534}, {"idx": 93, "t": "2026-08-30 08:00:00", "o": 1.35321, "h": 1.35344, "l": 1.35318, "c": 1.35339}, {"idx": 94, "t": "2026-08-30 08:15:00", "o": 1.35323, "h": 1.35345, "l": 1.35302, "c": 1.35316}, {"idx": 95, "t": "2026-08-30 08:30:00", "o": 1.35317, "h": 1.35344, "l": 1.35302, "c": 1.35312}, {"idx": 96, "t": "2026-08-30 08:45:00", "o": 1.35333, "h": 1.35336, "l": 1.3531, "c": 1.35324}, {"idx": 97, "t": "2026-08-30 09:00:00", "o": 1.35313, "h": 1.35347, "l": 1.3531, "c": 1.35336}, {"idx": 98, "t": "2026-08-30 09:15:00", "o": 1.35319, "h": 1.35351, "l": 1.35308, "c": 1.35329}, {"idx": 99, "t": "2026-08-30 09:30:00", "o": 1.35312, "h": 1.35333, "l": 1.35302, "c": 1.35307}, {"idx": 100, "t": "2026-08-30 09:45:00", "o": 1.35307, "h": 1.35331, "l": 1.35296, "c": 1.35309}, {"idx": 101, "t": "2026-08-30 10:00:00", "o": 1.35308, "h": 1.35331, "l": 1.35296, "c": 1.35315}, {"idx": 102, "t": "2026-08-30 10:15:00", "o": 1.35308, "h": 1.35337, "l": 1.35306, "c": 1.35319}, {"idx": 103, "t": "2026-08-30 10:30:00", "o": 1.35317, "h": 1.35348, "l": 1.35312, "c": 1.35319}, {"idx": 104, "t": "2026-08-30 10:45:00", "o": 1.3534, "h": 1.35355, "l": 1.35316, "c": 1.35342}, {"idx": 105, "t": "2026-08-30 11:00:00", "o": 1.35349, "h": 1.35358, "l": 1.35296, "c": 1.35321}, {"idx": 106, "t": "2026-08-30 11:15:00", "o": 1.35347, "h": 1.35355, "l": 1.35287, "c": 1.35321}, {"idx": 107, "t": "2026-08-30 11:30:00", "o": 1.35297, "h": 1.35344, "l": 1.35288, "c": 1.35342}, {"idx": 108, "t": "2026-08-30 11:45:00", "o": 1.35342, "h": 1.35349, "l": 1.35292, "c": 1.3532}, {"idx": 109, "t": "2026-08-30 12:00:00", "o": 1.3532, "h": 1.35348, "l": 1.35314, "c": 1.35346}, {"idx": 110, "t": "2026-08-30 12:15:00", "o": 1.35326, "h": 1.35349, "l": 1.35324, "c": 1.35325}, {"idx": 111, "t": "2026-08-30 12:30:00", "o": 1.3533, "h": 1.35356, "l": 1.35315, "c": 1.35328}, {"idx": 112, "t": "2026-08-30 12:45:00", "o": 1.35328, "h": 1.35344, "l": 1.35299, "c": 1.35321}, {"idx": 113, "t": "2026-08-30 13:00:00", "o": 1.35326, "h": 1.35342, "l": 1.35305, "c": 1.35321}, {"idx": 114, "t": "2026-08-30 13:15:00", "o": 1.35305, "h": 1.35327, "l": 1.35304, "c": 1.3531}, {"idx": 115, "t": "2026-08-30 13:30:00", "o": 1.35305, "h": 1.35341, "l": 1.35305, "c": 1.35314}, {"idx": 116, "t": "2026-08-30 13:45:00", "o": 1.35306, "h": 1.35344, "l": 1.35304, "c": 1.35305}, {"idx": 117, "t": "2026-08-30 14:00:00", "o": 1.35307, "h": 1.35342, "l": 1.35304, "c": 1.35306}, {"idx": 118, "t": "2026-08-30 14:15:00", "o": 1.3531, "h": 1.3533, "l": 1.35303, "c": 1.35327}, {"idx": 119, "t": "2026-08-30 14:30:00", "o": 1.35324, "h": 1.3533, "l": 1.35302, "c": 1.35309}, {"idx": 120, "t": "2026-08-30 14:45:00", "o": 1.35326, "h": 1.3533, "l": 1.35306, "c": 1.3533}, {"idx": 121, "t": "2026-08-30 15:00:00", "o": 1.35324, "h": 1.35331, "l": 1.35297, "c": 1.35305}, {"idx": 122, "t": "2026-08-30 15:15:00", "o": 1.35306, "h": 1.3533, "l": 1.35305, "c": 1.35307}, {"idx": 123, "t": "2026-08-30 15:30:00", "o": 1.3532, "h": 1.35411, "l": 1.35298, "c": 1.35306}, {"idx": 124, "t": "2026-08-30 15:45:00", "o": 1.35307, "h": 1.3533, "l": 1.35306, "c": 1.35307}, {"idx": 125, "t": "2026-08-30 16:00:00", "o": 1.35306, "h": 1.35332, "l": 1.35295, "c": 1.35311}, {"idx": 126, "t": "2026-08-30 16:15:00", "o": 1.35314, "h": 1.35333, "l": 1.35309, "c": 1.35311}, {"idx": 127, "t": "2026-08-30 16:30:00", "o": 1.35311, "h": 1.3533, "l": 1.35293, "c": 1.35325}, {"idx": 128, "t": "2026-08-30 16:45:00", "o": 1.35326, "h": 1.35331, "l": 1.3529, "c": 1.35327}, {"idx": 129, "t": "2026-08-30 17:00:00", "o": 1.35328, "h": 1.35334, "l": 1.35296, "c": 1.35312}, {"idx": 130, "t": "2026-08-30 17:15:00", "o": 1.35313, "h": 1.35334, "l": 1.35308, "c": 1.35323}, {"idx": 131, "t": "2026-08-30 17:30:00", "o": 1.35311, "h": 1.35323, "l": 1.35297, "c": 1.35309}, {"idx": 132, "t": "2026-08-30 17:45:00", "o": 1.35309, "h": 1.35323, "l": 1.35248, "c": 1.35261}, {"idx": 133, "t": "2026-08-30 18:00:00", "o": 1.35263, "h": 1.35288, "l": 1.35261, "c": 1.35279}, {"idx": 134, "t": "2026-08-30 18:15:00", "o": 1.35267, "h": 1.35284, "l": 1.35264, "c": 1.35266}, {"idx": 135, "t": "2026-08-30 18:30:00", "o": 1.35266, "h": 1.35298, "l": 1.35266, "c": 1.35284}, {"idx": 136, "t": "2026-08-30 18:45:00", "o": 1.35297, "h": 1.35304, "l": 1.35269, "c": 1.35293}, {"idx": 137, "t": "2026-08-30 19:00:00", "o": 1.3528, "h": 1.35303, "l": 1.3527, "c": 1.35295}, {"idx": 138, "t": "2026-08-30 19:15:00", "o": 1.3528, "h": 1.35295, "l": 1.35276, "c": 1.35277}, {"idx": 139, "t": "2026-08-30 19:30:00", "o": 1.35277, "h": 1.35296, "l": 1.35213, "c": 1.35274}, {"idx": 140, "t": "2026-08-30 19:45:00", "o": 1.35275, "h": 1.35293, "l": 1.35255, "c": 1.3526}, {"idx": 141, "t": "2026-08-30 20:00:00", "o": 1.35255, "h": 1.35269, "l": 1.35248, "c": 1.3526}, {"idx": 142, "t": "2026-08-30 20:15:00", "o": 1.35258, "h": 1.35284, "l": 1.3525, "c": 1.35265}, {"idx": 143, "t": "2026-08-30 20:30:00", "o": 1.35284, "h": 1.35284, "l": 1.35228, "c": 1.35257}, {"idx": 144, "t": "2026-08-30 20:45:00", "o": 1.35258, "h": 1.35277, "l": 1.35229, "c": 1.35242}, {"idx": 145, "t": "2026-08-30 21:00:00", "o": 1.35234, "h": 1.35336, "l": 1.35233, "c": 1.35335}, {"idx": 146, "t": "2026-08-30 21:15:00", "o": 1.35335, "h": 1.35358, "l": 1.35303, "c": 1.35315}, {"idx": 147, "t": "2026-08-30 21:30:00", "o": 1.35311, "h": 1.35338, "l": 1.35291, "c": 1.35331}, {"idx": 148, "t": "2026-08-30 21:45:00", "o": 1.35333, "h": 1.35346, "l": 1.35286, "c": 1.35307}, {"idx": 149, "t": "2026-08-30 22:00:00", "o": 1.35297, "h": 1.35303, "l": 1.35242, "c": 1.35267}, {"idx": 150, "t": "2026-08-30 22:15:00", "o": 1.35267, "h": 1.35303, "l": 1.35264, "c": 1.35303}, {"idx": 151, "t": "2026-08-30 22:30:00", "o": 1.35297, "h": 1.35346, "l": 1.35292, "c": 1.35319}, {"idx": 152, "t": "2026-08-30 22:45:00", "o": 1.35318, "h": 1.35339, "l": 1.353, "c": 1.35306}, {"idx": 153, "t": "2026-08-30 23:00:00", "o": 1.35296, "h": 1.35348, "l": 1.35296, "c": 1.35335}, {"idx": 154, "t": "2026-08-30 23:15:00", "o": 1.35347, "h": 1.35353, "l": 1.35324, "c": 1.3533}, {"idx": 155, "t": "2026-08-30 23:30:00", "o": 1.3533, "h": 1.35368, "l": 1.3533, "c": 1.35343}, {"idx": 156, "t": "2026-08-30 23:45:00", "o": 1.35336, "h": 1.35367, "l": 1.35325, "c": 1.35357}, {"idx": 157, "t": "2026-08-31 00:00:00", "o": 1.35357, "h": 1.35403, "l": 1.35356, "c": 1.35392}, {"idx": 158, "t": "2026-08-31 00:15:00", "o": 1.3539, "h": 1.35399, "l": 1.35308, "c": 1.35322}, {"idx": 159, "t": "2026-08-31 00:30:00", "o": 1.35327, "h": 1.35408, "l": 1.35314, "c": 1.35401}, {"idx": 160, "t": "2026-08-31 00:45:00", "o": 1.35403, "h": 1.35457, "l": 1.35379, "c": 1.35436}, {"idx": 161, "t": "2026-08-31 01:00:00", "o": 1.35427, "h": 1.35437, "l": 1.35352, "c": 1.35366}, {"idx": 162, "t": "2026-08-31 01:15:00", "o": 1.35377, "h": 1.35423, "l": 1.35363, "c": 1.35417}, {"idx": 163, "t": "2026-08-31 01:30:00", "o": 1.35406, "h": 1.35452, "l": 1.35392, "c": 1.35448}, {"idx": 164, "t": "2026-08-31 01:45:00", "o": 1.35445, "h": 1.35456, "l": 1.35401, "c": 1.35408}, {"idx": 165, "t": "2026-08-31 02:00:00", "o": 1.35408, "h": 1.35433, "l": 1.35404, "c": 1.35426}, {"idx": 166, "t": "2026-08-31 02:15:00", "o": 1.35418, "h": 1.35436, "l": 1.35395, "c": 1.35436}, {"idx": 167, "t": "2026-08-31 02:30:00", "o": 1.35429, "h": 1.35436, "l": 1.35371, "c": 1.35373}, {"idx": 168, "t": "2026-08-31 02:45:00", "o": 1.35371, "h": 1.35444, "l": 1.35371, "c": 1.35439}, {"idx": 169, "t": "2026-08-31 03:00:00", "o": 1.35431, "h": 1.35459, "l": 1.35427, "c": 1.35447}, {"idx": 170, "t": "2026-08-31 03:15:00", "o": 1.35459, "h": 1.35463, "l": 1.35439, "c": 1.35452}, {"idx": 171, "t": "2026-08-31 03:30:00", "o": 1.35431, "h": 1.35442, "l": 1.35404, "c": 1.35425}, {"idx": 172, "t": "2026-08-31 03:45:00", "o": 1.35428, "h": 1.35428, "l": 1.35414, "c": 1.35422}, {"idx": 173, "t": "2026-08-31 04:00:00", "o": 1.35422, "h": 1.35448, "l": 1.35422, "c": 1.35448}, {"idx": 174, "t": "2026-08-31 04:15:00", "o": 1.3544, "h": 1.35449, "l": 1.35405, "c": 1.3541}, {"idx": 175, "t": "2026-08-31 04:30:00", "o": 1.35409, "h": 1.35415, "l": 1.35401, "c": 1.35415}, {"idx": 176, "t": "2026-08-31 04:45:00", "o": 1.35414, "h": 1.35436, "l": 1.35414, "c": 1.35426}, {"idx": 177, "t": "2026-08-31 05:00:00", "o": 1.3544, "h": 1.3544, "l": 1.35404, "c": 1.35424}, {"idx": 178, "t": "2026-08-31 05:15:00", "o": 1.35424, "h": 1.35447, "l": 1.35415, "c": 1.35444}, {"idx": 179, "t": "2026-08-31 05:30:00", "o": 1.35442, "h": 1.35447, "l": 1.35408, "c": 1.35438}, {"idx": 180, "t": "2026-08-31 05:45:00", "o": 1.35424, "h": 1.35454, "l": 1.35418, "c": 1.35447}, {"idx": 181, "t": "2026-08-31 06:00:00", "o": 1.35457, "h": 1.35457, "l": 1.35418, "c": 1.35437}, {"idx": 182, "t": "2026-08-31 06:15:00", "o": 1.35452, "h": 1.35488, "l": 1.35447, "c": 1.35448}, {"idx": 183, "t": "2026-08-31 06:30:00", "o": 1.35454, "h": 1.3548, "l": 1.35439, "c": 1.35441}, {"idx": 184, "t": "2026-08-31 06:45:00", "o": 1.35446, "h": 1.35456, "l": 1.3534, "c": 1.3539}, {"idx": 185, "t": "2026-08-31 07:00:00", "o": 1.35385, "h": 1.35393, "l": 1.35328, "c": 1.35356}, {"idx": 186, "t": "2026-08-31 07:15:00", "o": 1.35366, "h": 1.35455, "l": 1.35341, "c": 1.35427}, {"idx": 187, "t": "2026-08-31 07:30:00", "o": 1.35427, "h": 1.35433, "l": 1.35395, "c": 1.35433}, {"idx": 188, "t": "2026-08-31 07:45:00", "o": 1.35428, "h": 1.35455, "l": 1.35421, "c": 1.35433}, {"idx": 189, "t": "2026-08-31 08:00:00", "o": 1.35431, "h": 1.35524, "l": 1.35412, "c": 1.35412}, {"idx": 190, "t": "2026-08-31 08:15:00", "o": 1.35432, "h": 1.35444, "l": 1.35401, "c": 1.35432}, {"idx": 191, "t": "2026-08-31 08:30:00", "o": 1.35434, "h": 1.3545, "l": 1.3539, "c": 1.35394}, {"idx": 192, "t": "2026-08-31 08:45:00", "o": 1.35391, "h": 1.35415, "l": 1.35354, "c": 1.35376}, {"idx": 193, "t": "2026-08-31 09:00:00", "o": 1.35369, "h": 1.3542, "l": 1.35369, "c": 1.3541}, {"idx": 194, "t": "2026-08-31 09:15:00", "o": 1.35408, "h": 1.35431, "l": 1.3538, "c": 1.35399}, {"idx": 195, "t": "2026-08-31 09:30:00", "o": 1.35399, "h": 1.35417, "l": 1.35366, "c": 1.35382}, {"idx": 196, "t": "2026-08-31 09:45:00", "o": 1.35383, "h": 1.35412, "l": 1.35379, "c": 1.35391}, {"idx": 197, "t": "2026-08-31 10:00:00", "o": 1.35391, "h": 1.35444, "l": 1.35384, "c": 1.35416}, {"idx": 198, "t": "2026-08-31 10:15:00", "o": 1.35416, "h": 1.35429, "l": 1.3539, "c": 1.35406}, {"idx": 199, "t": "2026-08-31 10:30:00", "o": 1.35409, "h": 1.35414, "l": 1.35358, "c": 1.3536}, {"idx": 200, "t": "2026-08-31 10:45:00", "o": 1.35349, "h": 1.35387, "l": 1.35326, "c": 1.3537}, {"idx": 201, "t": "2026-08-31 11:00:00", "o": 1.3537, "h": 1.35382, "l": 1.3534, "c": 1.35368}, {"idx": 202, "t": "2026-08-31 11:15:00", "o": 1.35368, "h": 1.35427, "l": 1.35368, "c": 1.35412}, {"idx": 203, "t": "2026-08-31 11:30:00", "o": 1.3542, "h": 1.35422, "l": 1.35365, "c": 1.35385}, {"idx": 204, "t": "2026-08-31 11:45:00", "o": 1.35384, "h": 1.35404, "l": 1.35338, "c": 1.35345}, {"idx": 205, "t": "2026-08-31 12:00:00", "o": 1.35345, "h": 1.35405, "l": 1.35339, "c": 1.35394}, {"idx": 206, "t": "2026-08-31 12:15:00", "o": 1.35398, "h": 1.35445, "l": 1.35341, "c": 1.35408}, {"idx": 207, "t": "2026-08-31 12:30:00", "o": 1.35413, "h": 1.35413, "l": 1.35349, "c": 1.35357}, {"idx": 208, "t": "2026-08-31 12:45:00", "o": 1.35346, "h": 1.35367, "l": 1.35325, "c": 1.35358}, {"idx": 209, "t": "2026-08-31 13:00:00", "o": 1.35349, "h": 1.35413, "l": 1.35345, "c": 1.35395}, {"idx": 210, "t": "2026-08-31 13:15:00", "o": 1.35399, "h": 1.35463, "l": 1.35383, "c": 1.35443}, {"idx": 211, "t": "2026-08-31 13:30:00", "o": 1.35443, "h": 1.35459, "l": 1.35404, "c": 1.35417}, {"idx": 212, "t": "2026-08-31 13:45:00", "o": 1.35412, "h": 1.35442, "l": 1.3539, "c": 1.35417}, {"idx": 213, "t": "2026-08-31 14:00:00", "o": 1.35429, "h": 1.35429, "l": 1.35344, "c": 1.35382}, {"idx": 214, "t": "2026-08-31 14:15:00", "o": 1.35387, "h": 1.35445, "l": 1.35363, "c": 1.35404}, {"idx": 215, "t": "2026-08-31 14:30:00", "o": 1.35404, "h": 1.35483, "l": 1.35386, "c": 1.35412}, {"idx": 216, "t": "2026-08-31 14:45:00", "o": 1.35412, "h": 1.35638, "l": 1.35412, "c": 1.35535}, {"idx": 217, "t": "2026-08-31 15:00:00", "o": 1.35543, "h": 1.35579, "l": 1.3547, "c": 1.35517}, {"idx": 218, "t": "2026-08-31 15:15:00", "o": 1.35497, "h": 1.35507, "l": 1.3545, "c": 1.35494}, {"idx": 219, "t": "2026-08-31 15:30:00", "o": 1.35499, "h": 1.3553, "l": 1.35484, "c": 1.35489}];
+const sampleZones = [{"id": "Z_1", "name": "BUY ZONE 1", "type": "BUY", "side": "BUY", "left_idx": 1, "left_time": "2026-08-29 09:00:00", "created_idx": 163, "created_time": "2026-08-31 01:30:00", "top": 1.35442, "bottom": 1.35213, "entry": 1.353275, "tp": 1.35442, "sl": 1.35213, "risk": 0.0011449999999999516, "reward": 0.0011449999999999516}, {"id": "Z_2", "name": "BUY ZONE 2", "type": "BUY", "side": "BUY", "left_idx": 164, "left_time": "2026-08-31 01:45:00", "created_idx": 216, "created_time": "2026-08-31 14:45:00", "top": 1.35456, "bottom": 1.35325, "entry": 1.353905, "tp": 1.35456, "sl": 1.35325, "risk": 0.0006549999999998501, "reward": 0.0006550000000000722}, {"id": "Z_3", "name": "SELL FLIP ZONE", "type": "SELL_FLIP", "side": "SELL", "left_idx": 208, "left_time": "2026-08-31 12:45:00", "created_idx": 283, "created_time": "2026-09-01 07:30:00", "top": 1.35638, "bottom": 1.35325, "entry": 1.354815, "tp": 1.35325, "sl": 1.35638, "risk": 0.0015649999999998165, "reward": 0.0015650000000000386}, {"id": "Z_4", "name": "SELL ZONE 4", "type": "SELL", "side": "SELL", "left_idx": 284, "left_time": "2026-09-01 07:45:00", "created_idx": 285, "created_time": "2026-09-01 08:00:00", "top": 1.3539, "bottom": 1.35302, "entry": 1.35346, "tp": 1.35302, "sl": 1.3539, "risk": 0.00043999999999999595, "reward": 0.000440000000000218}, {"id": "Z_5", "name": "BUY FLIP ZONE", "type": "BUY_FLIP", "side": "BUY", "left_idx": 285, "left_time": "2026-09-01 08:00:00", "created_idx": 287, "created_time": "2026-09-01 08:30:00", "top": 1.3539, "bottom": 1.35283, "entry": 1.353365, "tp": 1.3539, "sl": 1.35283, "risk": 0.0005349999999999522, "reward": 0.0005350000000001742}, {"id": "Z_6", "name": "BUY ZONE 6", "type": "BUY", "side": "BUY", "left_idx": 291, "left_time": "2026-09-01 09:30:00", "created_idx": 309, "created_time": "2026-09-01 14:00:00", "top": 1.35468, "bottom": 1.35243, "entry": 1.353555, "tp": 1.35468, "sl": 1.35243, "risk": 0.0011250000000000426, "reward": 0.0011250000000000426}, {"id": "Z_7", "name": "SELL FLIP ZONE", "type": "SELL_FLIP", "side": "SELL", "left_idx": 305, "left_time": "2026-09-01 13:00:00", "created_idx": 318, "created_time": "2026-09-01 16:15:00", "top": 1.35524, "bottom": 1.35243, "entry": 1.353835, "tp": 1.35243, "sl": 1.35524, "risk": 0.0014050000000001006, "reward": 0.0014049999999998786}, {"id": "Z_8", "name": "SELL ZONE 8", "type": "SELL", "side": "SELL", "left_idx": 327, "left_time": "2026-09-01 18:30:00", "created_idx": 353, "created_time": "2026-09-02 01:00:00", "top": 1.35211, "bottom": 1.35054, "entry": 1.351325, "tp": 1.35054, "sl": 1.35211, "risk": 0.0007849999999998136, "reward": 0.0007850000000000357}];
+const sampleTrades = [{"zone_id": "Z_1", "zone_name": "BUY ZONE 1", "zone_type": "BUY", "side": "BUY", "created_time": "2026-08-31 01:30:00", "fill_time": "2026-08-31 10:45:00", "exit_time": "2026-08-31 12:15:00", "fill_idx": 200, "exit_idx": 206, "entry": 1.353275, "tp": 1.35442, "sl": 1.35213, "top": 1.35442, "bottom": 1.35213, "result": "WIN", "r_mult": 1.0, "duration_candles": 6}, {"zone_id": "Z_2", "zone_name": "BUY ZONE 2", "zone_type": "BUY", "side": "BUY", "created_time": "2026-08-31 14:45:00", "fill_time": "2026-09-01 04:00:00", "exit_time": "2026-09-01 05:00:00", "fill_idx": 269, "exit_idx": 273, "entry": 1.353905, "tp": 1.35456, "sl": 1.35325, "top": 1.35456, "bottom": 1.35325, "result": "WIN", "r_mult": 1.0, "duration_candles": 4}, {"zone_id": "Z_3", "zone_name": "SELL FLIP ZONE", "zone_type": "SELL_FLIP", "side": "SELL", "created_time": "2026-09-01 07:30:00", "fill_time": "2026-09-01 14:00:00", "exit_time": "2026-09-01 15:00:00", "fill_idx": 309, "exit_idx": 313, "entry": 1.354815, "tp": 1.35325, "sl": 1.35638, "top": 1.35638, "bottom": 1.35325, "result": "WIN", "r_mult": 1.0, "duration_candles": 4}, {"zone_id": "Z_4", "zone_name": "SELL ZONE 4", "zone_type": "SELL", "side": "SELL", "created_time": "2026-09-01 08:00:00", "fill_time": "2026-09-01 08:15:00", "exit_time": "2026-09-01 08:30:00", "fill_idx": 286, "exit_idx": 287, "entry": 1.35346, "tp": 1.35302, "sl": 1.3539, "top": 1.3539, "bottom": 1.35302, "result": "LOSS", "r_mult": -1.0, "duration_candles": 1}, {"zone_id": "Z_5", "zone_name": "BUY FLIP ZONE", "zone_type": "BUY_FLIP", "side": "BUY", "created_time": "2026-09-01 08:30:00", "fill_time": "2026-09-01 10:30:00", "exit_time": "2026-09-01 11:30:00", "fill_idx": 295, "exit_idx": 299, "entry": 1.353365, "tp": 1.3539, "sl": 1.35283, "top": 1.3539, "bottom": 1.35283, "result": "WIN", "r_mult": 1.0, "duration_candles": 4}, {"zone_id": "Z_6", "zone_name": "BUY ZONE 6", "zone_type": "BUY", "side": "BUY", "created_time": "2026-09-01 14:00:00", "fill_time": "2026-09-01 15:00:00", "exit_time": "2026-09-01 15:45:00", "fill_idx": 313, "exit_idx": 316, "entry": 1.353555, "tp": 1.35468, "sl": 1.35243, "top": 1.35468, "bottom": 1.35243, "result": "LOSS", "r_mult": -1.0, "duration_candles": 3}, {"zone_id": "Z_7", "zone_name": "SELL FLIP ZONE", "zone_type": "SELL_FLIP", "side": "SELL", "created_time": "2026-09-01 16:15:00", "fill_time": "2026-09-03 15:15:00", "exit_time": "2026-09-03 15:45:00", "fill_idx": 506, "exit_idx": 508, "entry": 1.353835, "tp": 1.35243, "sl": 1.35524, "top": 1.35524, "bottom": 1.35243, "result": "WIN", "r_mult": 1.0, "duration_candles": 2}, {"zone_id": "Z_8", "zone_name": "SELL ZONE 8", "zone_type": "SELL", "side": "SELL", "created_time": "2026-09-02 01:00:00", "fill_time": "2026-09-02 08:00:00", "exit_time": "2026-09-02 08:45:00", "fill_idx": 381, "exit_idx": 384, "entry": 1.351325, "tp": 1.35054, "sl": 1.35211, "top": 1.35211, "bottom": 1.35054, "result": "WIN", "r_mult": 1.0, "duration_candles": 3}];
+
+// 1. Equity Curve Chart
+const eqTrace = {
+  x: equityData.map(d => d.trade_num),
+  y: equityData.map(d => d.cum_r),
+  type: 'scatter', mode: 'lines',
+  line: { color: '#4ADE80', width: 2.5 },
+  fill: 'tozeroy',
+  fillcolor: 'rgba(35, 134, 54, 0.12)',
+  name: 'Net Cumulative R'
+};
+
+const eqLayout = {
+  paper_bgcolor: '#111622', plot_bgcolor: '#080B10',
+  xaxis: { title: 'Trade Number (#)', gridcolor: '#1A2234', color: '#7E8C9F' },
+  yaxis: { title: 'Net Return (R)', gridcolor: '#1A2234', color: '#7E8C9F' },
+  margin: { l: 50, r: 30, t: 20, b: 40 }
+};
+Plotly.newPlot('equityDiv', [eqTrace], eqLayout, { responsive: true });
+
+// 2. Asset Win Rate Chart
+const assetTrace = {
+  x: assetData.map(d => d.asset),
+  y: assetData.map(d => d.win_rate),
+  type: 'bar',
+  marker: {
+    color: assetData.map(d => d.win_rate >= 60 ? '#4ADE80' : (d.win_rate >= 50 ? '#388BFD' : '#F87171')),
+    line: { color: '#20293A', width: 1 }
+  },
+  text: assetData.map(d => `${d.win_rate}% (${d.trades}T)`),
+  textposition: 'auto'
+};
+
+const assetLayout = {
+  paper_bgcolor: '#111622', plot_bgcolor: '#080B10',
+  xaxis: { gridcolor: '#1A2234', color: '#7E8C9F' },
+  yaxis: { title: 'Win Rate (%)', gridcolor: '#1A2234', color: '#7E8C9F', range: [0, 100] },
+  margin: { l: 50, r: 30, t: 20, b: 40 }
+};
+Plotly.newPlot('breakdownDiv', [assetTrace], assetLayout, { responsive: true });
+
+// 3. Sample Live Trade Inspector Candlestick Chart
+const times = sampleCandles.map(c => c.t);
+const candleTrace = {
+  x: times,
+  open: sampleCandles.map(c => c.o),
+  high: sampleCandles.map(c => c.h),
+  low: sampleCandles.map(c => c.l),
+  close: sampleCandles.map(c => c.c),
+  type: 'candlestick', name: 'GBP/USD 15M',
+  increasing: { line: { color: '#26A69A' } },
+  decreasing: { line: { color: '#EF5350' } },
+  showlegend: false
+};
+
+const shapes = [];
+const annotations = [];
+
+sampleZones.forEach((z) => {
+  const isBuy = z.side === 'BUY';
+  let startTime = z.left_time;
+  let endTime = times[Math.min(times.length - 1, times.indexOf(z.created_time) + 8)];
+  if (times.indexOf(startTime) === -1) startTime = times[0];
+
+  shapes.push({
+    type: 'rect',
+    x0: startTime, x1: endTime,
+    y0: z.bottom, y1: z.top,
+    fillcolor: isBuy ? 'rgba(35, 134, 54, 0.15)' : 'rgba(218, 54, 51, 0.15)',
+    line: { color: isBuy ? '#238636' : '#DA3633', width: 1.5 },
+    layer: 'below'
+  });
+
+  shapes.push({
+    type: 'line',
+    x0: startTime, x1: endTime,
+    y0: z.entry, y1: z.entry,
+    line: { color: '#388BFD', width: 1.5, dash: 'dot' }
+  });
+});
+
+sampleTrades.forEach((t) => {
+  if (times.indexOf(t.fill_time) !== -1 && times.indexOf(t.exit_time) !== -1) {
+    const isWin = t.result === 'WIN';
+    annotations.push({
+      x: t.fill_time, y: t.entry,
+      text: `🎯 50% Entry (${t.side})`,
+      showarrow: true, arrowhead: 2,
+      ax: 0, ay: t.side === 'BUY' ? 25 : -25,
+      bgcolor: '#1C2B44', bordercolor: '#388BFD',
+      font: { color: '#60A5FA', size: 9, weight: 'bold' }
+    });
+
+    annotations.push({
+      x: t.exit_time, y: t.result === 'WIN' ? t.tp : t.sl,
+      text: isWin ? '🏆 TP Hit (+1.0R)' : '❌ SL Hit (-1.0R)',
+      showarrow: true, arrowhead: 2,
+      ax: 0, ay: isWin ? (t.side === 'BUY' ? -25 : 25) : (t.side === 'BUY' ? 25 : -25),
+      bgcolor: isWin ? '#142C1D' : '#2A1719',
+      bordercolor: isWin ? '#238636' : '#DA3633',
+      font: { color: isWin ? '#4ADE80' : '#F87171', size: 9, weight: 'bold' }
+    });
+  }
+});
+
+const candleLayout = {
+  paper_bgcolor: '#111622', plot_bgcolor: '#080B10',
+  xaxis: { gridcolor: '#1A2234', color: '#7E8C9F', rangeslider: { visible: false } },
+  yaxis: { gridcolor: '#1A2234', color: '#7E8C9F' },
+  margin: { l: 60, r: 40, t: 20, b: 40 },
+  shapes: shapes,
+  annotations: annotations
+};
+Plotly.newPlot('candleChartDiv', [candleTrace], candleLayout, { responsive: true });
+</script>
+</body>
+</html>

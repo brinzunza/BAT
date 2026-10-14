@@ -1,0 +1,134 @@
+[
+  {
+    "period": "validation",
+    "cost": 1.6,
+    "calendar_block_days": 7,
+    "n": 138,
+    "mean_r_95pct_interval": [
+      -0.17420907545528125,
+      0.004983148601128907,
+      0.1707058291782665
+    ]
+  },
+  {
+    "period": "validation",
+    "cost": 1.6,
+    "calendar_block_days": 28,
+    "n": 138,
+    "mean_r_95pct_interval": [
+      -0.16176267635194952,
+      0.005323341665288828,
+      0.17365288381273658
+    ]
+  },
+  {
+    "period": "validation",
+    "cost": 2.4,
+    "calendar_block_days": 7,
+    "n": 138,
+    "mean_r_95pct_interval": [
+      -0.2069479994912916,
+      -0.027274895778406145,
+      0.13842369179831387
+    ]
+  },
+  {
+    "period": "validation",
+    "cost": 2.4,
+    "calendar_block_days": 28,
+    "n": 138,
+    "mean_r_95pct_interval": [
+      -0.19381226513312866,
+      -0.026908449621693167,
+      0.1418920550061936
+    ]
+  },
+  {
+    "period": "recent",
+    "cost": 1.6,
+    "calendar_block_days": 7,
+    "n": 243,
+    "mean_r_95pct_interval": [
+      -0.02721287516234314,
+      0.10017861212642365,
+      0.2256297944171477
+    ]
+  },
+  {
+    "period": "recent",
+    "cost": 1.6,
+    "calendar_block_days": 28,
+    "n": 243,
+    "mean_r_95pct_interval": [
+      -0.026413088398981564,
+      0.09950252183631278,
+      0.22363238699881408
+    ]
+  },
+  {
+    "period": "recent",
+    "cost": 2.4,
+    "calendar_block_days": 7,
+    "n": 243,
+    "mean_r_95pct_interval": [
+      -0.056625609496736624,
+      0.0705698340521306,
+      0.19559453096741095
+    ]
+  },
+  {
+    "period": "recent",
+    "cost": 2.4,
+    "calendar_block_days": 28,
+    "n": 243,
+    "mean_r_95pct_interval": [
+      -0.05582745511269229,
+      0.07032649115494462,
+      0.1952592341000385
+    ]
+  },
+  {
+    "period": "all_later",
+    "cost": 1.6,
+    "calendar_block_days": 7,
+    "n": 387,
+    "mean_r_95pct_interval": [
+      -0.03366222450318904,
+      0.07388039358310954,
+      0.16760467408621632
+    ]
+  },
+  {
+    "period": "all_later",
+    "cost": 1.6,
+    "calendar_block_days": 28,
+    "n": 387,
+    "mean_r_95pct_interval": [
+      -0.031232270131768613,
+      0.07048300554061113,
+      0.17568860574392753
+    ]
+  },
+  {
+    "period": "all_later",
+    "cost": 2.4,
+    "calendar_block_days": 7,
+    "n": 387,
+    "mean_r_95pct_interval": [
+      -0.06431819566097785,
+      0.04391609836199696,
+      0.13771747355608663
+    ]
+  },
+  {
+    "period": "all_later",
+    "cost": 2.4,
+    "calendar_block_days": 28,
+    "n": 387,
+    "mean_r_95pct_interval": [
+      -0.06144749838698641,
+      0.04036351442050821,
+      0.14537514697614018
+    ]
+  }
+]

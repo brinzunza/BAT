@@ -1,0 +1,42 @@
+[
+  {
+    "symbol": "EURUSD",
+    "path": "/Users/brunoinzunza/Documents/GitHub/trading-data/eurusd_1min_2000_2026_master.csv",
+    "bytes": 455250448,
+    "first": "2000-05-30 17:27:00",
+    "last": "2026-08-21 20:59:00",
+    "rows": 9095879,
+    "bars": 3170584,
+    "duplicates": 0
+  },
+  {
+    "symbol": "GBPUSD",
+    "path": "/Users/brunoinzunza/Documents/GitHub/trading-data/gbpusd_1min_2000_2026_master.csv",
+    "bytes": 463540962,
+    "first": "2000-05-30 17:59:00",
+    "last": "2026-08-19 16:00:00",
+    "rows": 9259973,
+    "bars": 3183907,
+    "duplicates": 0
+  },
+  {
+    "symbol": "USDJPY",
+    "path": "/Users/brunoinzunza/Documents/GitHub/trading-data/usdjpy_1min_2000_2026_master.csv",
+    "bytes": 303165491,
+    "first": "2000-05-30 17:58:00",
+    "last": "2026-08-21 20:59:00",
+    "rows": 6135456,
+    "bars": 2173824,
+    "duplicates": 0
+  },
+  {
+    "symbol": "EURGBP",
+    "path": "/Users/brunoinzunza/Documents/GitHub/trading-data/lse_eurgbp_1min_full.csv",
+    "bytes": 415557781,
+    "first": "2003-01-01 20:59:00",
+    "last": "2026-09-03 15:58:00",
+    "rows": 8127882,
+    "bars": 2726623,
+    "duplicates": 0
+  }
+]

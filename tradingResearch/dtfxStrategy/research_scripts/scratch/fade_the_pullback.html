@@ -1,0 +1,457 @@
+<title>Fade the Pullback</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #E7EBE3; --surface: #F3F5EE; --surface-raised: #FDFEFA;
+    --ink: #16211C; --ink-dim: #55645A; --ink-faint: #7C8B80;
+    --line: #C9D0C0; --grid: #D6DBCC;
+    --accent: #96631E; --accent-ink: #FCF8EF;
+    --buy: #1E7A5C; --buy-strong: #145A43; --buy-fill: rgba(30,122,92,0.13);
+    --sell: #A8462C; --sell-strong: #7E3220; --sell-fill: rgba(168,70,44,0.13);
+    --candle-up: #2F7A57; --candle-down: #A8462C; --wick: #566254;
+    --shadow: 0 1px 2px rgba(22,33,28,0.06), 0 8px 24px -12px rgba(22,33,28,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+      --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+      --line: #26332B; --grid: #1E2A23;
+      --accent: #E0AA4E; --accent-ink: #14201A;
+      --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+      --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+      --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1512; --surface: #131C18; --surface-raised: #182119;
+    --ink: #DFEAE2; --ink-dim: #93A79A; --ink-faint: #62766A;
+    --line: #26332B; --grid: #1E2A23;
+    --accent: #E0AA4E; --accent-ink: #14201A;
+    --buy: #45CB98; --buy-strong: #7EE0B9; --buy-fill: rgba(69,203,152,0.14);
+    --sell: #E8815C; --sell-strong: #F2A585; --sell-fill: rgba(232,129,92,0.14);
+    --candle-up: #45CB98; --candle-down: #E8815C; --wick: #6E8377;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 52px 24px 72px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 14px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: clamp(34px, 5vw, 52px); line-height: 1.06; letter-spacing: -0.01em; margin: 0 0 18px; text-wrap: balance; }
+  .dek { font-size: 17px; color: var(--ink-dim); max-width: 66ch; margin: 0 0 4px; }
+  .dek b { color: var(--ink); font-weight: 600; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 26px; letter-spacing: -0.005em; margin: 0 0 6px; text-wrap: balance; }
+  .section-sub { color: var(--ink-dim); font-size: 15px; max-width: 64ch; margin: 0 0 26px; }
+  section { margin-top: 64px; }
+  section:first-of-type { margin-top: 42px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 26px 26px 20px; box-shadow: var(--shadow); }
+  figure { margin: 0; }
+  figcaption { margin-top: 16px; font-size: 13.5px; color: var(--ink-dim); border-top: 1px solid var(--line); padding-top: 14px; }
+  svg.diagram { width: 100%; height: auto; display: block; color: var(--ink); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 22px; }
+  .stat { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); font-weight: 600; }
+  .stat .value { font-family: "IBM Plex Mono", monospace; font-size: 20px; font-weight: 500; margin-top: 4px; }
+
+  .replay-meta { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 14px; font-size: 13px; color: var(--ink-dim); }
+  .replay-meta .clock { font-family: "IBM Plex Mono", monospace; color: var(--ink); font-size: 14px; font-weight: 500; }
+  .chart-shell { position: relative; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); overflow: hidden; }
+  #chart { display: block; width: 100%; height: 380px; cursor: crosshair; }
+  .tooltip2 { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-family: "IBM Plex Mono", monospace; font-size: 11.5px; padding: 7px 10px; border-radius: 6px; line-height: 1.5; white-space: nowrap; transform: translate(-50%, -110%); opacity: 0; transition: opacity 0.1s; z-index: 5; }
+  .transport { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  button.ctl { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; border: 1px solid var(--line); background: var(--surface-raised); color: var(--ink); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+  button.ctl:hover { border-color: var(--ink-faint); }
+  button.ctl:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.ctl.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-width: 84px; }
+  select.speed { font-family: "IBM Plex Mono", monospace; font-size: 13px; border: 1px solid var(--line); background: var(--surface-raised); color: var(--ink); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+  input[type="range"] { flex: 1 1 160px; accent-color: var(--accent); }
+  .step-count { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-dim); min-width: 74px; text-align: right; }
+  .legend2 { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; font-size: 12.5px; color: var(--ink-dim); }
+  .legend2 span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .stats2 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 20px; }
+  .stat2 { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat2 .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); font-weight: 600; }
+  .stat2 .value { font-family: "IBM Plex Mono", monospace; font-size: 22px; font-weight: 500; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat2 .value.win { color: var(--buy-strong); }
+  .stat2 .value.loss { color: var(--sell-strong); }
+
+  footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-faint); max-width: 68ch; }
+  footer p { margin: 0 0 8px; }
+
+  @media (max-width: 640px) { .stat-row, .stats2 { grid-template-columns: repeat(2, 1fr); } .replay-meta { flex-direction: column; align-items: flex-start; } }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Validated on full history &middot; 4 symbols</p>
+  <h1>Fade the Pullback</h1>
+  <p class="dek">The dynamic-zigzag zone rule loses money followed as designed &mdash; PF 0.52&ndash;0.66 across EURUSD, GBPUSD, USDJPY and EURGBP over full history. Taking the <b>opposite</b> side of the same signal, from the same entry &mdash; every zone unchanged, buy becomes sell and sell becomes buy &mdash; turns a consistent loser into PF 1.17&ndash;1.42 on the same 100K&ndash;300K-trade samples. That number already includes every zone type; the replay below shows the full set, pullback and flip zones both, so you can see exactly which ones carry the edge and which don't.</p>
+
+  <section id="ideal">
+    <h2>The ideal setup</h2>
+    <p class="section-sub">Same zone, same 50% entry trigger, same fill timing. The only thing that changes is which boundary is the stop and which is the target.</p>
+
+    <div class="card">
+      <figure>
+        <svg class="diagram" viewBox="0 0 900 400" role="img" aria-label="Diagram of an uptrend pullback zone: a swing low, a swing high, and a higher low forming the zone. The original rule buys at the zone's 50% level targeting the top with a stop at the bottom; the inverted, validated rule instead sells at the same 50% level, targeting the bottom with a stop at the top.">
+          <defs>
+            <marker id="arrowF" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L8,4 L0,8 Z" fill="currentColor"></path>
+            </marker>
+          </defs>
+
+          <g stroke="currentColor" stroke-opacity="0.07">
+            <line x1="30" y1="90" x2="870" y2="90"></line>
+            <line x1="30" y1="200" x2="870" y2="200"></line>
+            <line x1="30" y1="310" x2="870" y2="310"></line>
+          </g>
+
+          <rect x="300" y="70" width="420" height="220" fill="var(--sell-fill)" stroke="var(--sell)" stroke-width="1.6" rx="2"></rect>
+          <line x1="300" y1="180" x2="720" y2="180" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="2 4"></line>
+
+          <polyline points="60,290 220,70 300,52" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"></polyline>
+          <polyline points="300,52 420,180" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"></polyline>
+
+          <!-- inverted (validated): sell at 50%, target bottom, stop top -->
+          <polyline points="420,180 620,282" fill="none" stroke="var(--buy)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowF)"></polyline>
+          <polyline points="420,180 620,80" fill="none" stroke="var(--sell-strong)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4" marker-end="url(#arrowF)"></polyline>
+
+          <circle cx="60" cy="290" r="4.5" fill="currentColor"></circle>
+          <circle cx="220" cy="70" r="4.5" fill="currentColor"></circle>
+          <circle cx="420" cy="180" r="6" fill="var(--surface)" stroke="var(--accent)" stroke-width="2.5"></circle>
+
+          <text x="52" y="312" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="currentColor" text-anchor="middle">swing low</text>
+          <text x="220" y="52" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="currentColor" text-anchor="middle">swing high</text>
+          <text x="308" y="40" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--sell)" text-anchor="start" font-weight="600">higher low confirms &rarr; uptrend pullback zone</text>
+
+          <text x="726" y="76" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-faint)" text-anchor="start">top</text>
+          <text x="726" y="90" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-faint)" text-anchor="start" text-decoration="line-through">was: take-profit (buy)</text>
+          <text x="726" y="104" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--sell-strong)" text-anchor="start" font-weight="600">now: stop-loss (sell)</text>
+
+          <text x="726" y="184" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--accent)" text-anchor="start" font-weight="600">50% = entry, unchanged</text>
+
+          <text x="726" y="270" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-faint)" text-anchor="start">bottom</text>
+          <text x="726" y="284" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-faint)" text-anchor="start" text-decoration="line-through">was: stop-loss (buy)</text>
+          <text x="726" y="298" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--buy-strong)" text-anchor="start" font-weight="600">now: take-profit (sell)</text>
+        </svg>
+        <figcaption>The original rule buys this zone at 50%, betting the higher-low holds and price returns to make a new high. The validated, inverted rule instead <b style="color:var(--sell-strong)">sells</b> the same 50% touch &mdash; betting the "higher low" was actually noise and price falls through it. On full history this bet wins often enough to turn a losing signal into a profitable one. The mirror case (a downtrend's lower-high pullback zone) inverts the same way: originally sold, now bought.</figcaption>
+      </figure>
+
+      <div class="stat-row">
+        <div class="stat"><div class="label">Original PF (full hist.)</div><div class="value" style="color:var(--sell-strong)">0.52&ndash;0.66</div></div>
+        <div class="stat"><div class="label">Inverted PF (full hist.)</div><div class="value" style="color:var(--buy-strong)">1.17&ndash;1.42</div></div>
+        <div class="stat"><div class="label">Sample size</div><div class="value">119K&ndash;308K trades</div></div>
+        <div class="stat"><div class="label">Flip zones</div><div class="value" style="color:var(--ink-dim)">excluded here</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="replay">
+    <h2>On real price</h2>
+    <p class="section-sub">GBPUSD, Jan&ndash;Apr 2024, 4-hour bars &mdash; same window as the earlier replays. <b>Every zone the corrected rule produces</b> &mdash; pullback zones (thin border) and flip/inversion zones (thick border) both &mdash; with the same fixed shape as before: same top/bottom, same 50% entry, same touch timing. The only thing inverted is which side gets traded: buy becomes sell, sell becomes buy. 149 zones total (107 pullback, 42 flip), WR=36.2% on this window.</p>
+
+    <div class="card" style="margin-top:0;">
+      <div class="replay-meta">
+        <span>GBPUSD &middot; 4H &middot; Jan&ndash;Apr 2024 &middot; all zones, inverted entry</span>
+        <span class="clock mono" id="clockLabel">2024-01-01 00:00</span>
+      </div>
+
+      <div class="chart-shell">
+        <canvas id="chart"></canvas>
+        <div class="tooltip2" id="tooltip"></div>
+      </div>
+
+      <div class="transport">
+        <button class="ctl primary" id="playBtn">Play</button>
+        <button class="ctl" id="stepBackBtn" title="Step back one bar">&larr;</button>
+        <button class="ctl" id="stepFwdBtn" title="Step forward one bar">&rarr;</button>
+        <button class="ctl" id="nextEventBtn">Next event</button>
+        <select class="speed" id="speedSelect" title="Playback speed">
+          <option value="4">0.5&times;</option>
+          <option value="2" selected>1&times;</option>
+          <option value="1">2&times;</option>
+          <option value="0.4">5&times;</option>
+        </select>
+        <input type="range" id="scrubber" min="0" max="468" value="0" step="1">
+        <button class="ctl" id="resetBtn">Reset</button>
+        <span class="step-count mono" id="barCount">bar 0 / 468</span>
+      </div>
+
+      <div class="legend2">
+        <span><i class="swatch" style="background:var(--buy-fill); border:1.5px solid var(--buy);"></i>pullback zone, now bought</span>
+        <span><i class="swatch" style="background:var(--sell-fill); border:1.5px solid var(--sell);"></i>pullback zone, now sold</span>
+        <span><i class="swatch" style="background:var(--surface-raised); border:2.5px solid var(--ink);"></i>flip zone (either side)</span>
+        <span><i class="swatch" style="background:var(--accent); border-radius:50%;"></i>entry at 50%</span>
+        <span><i class="swatch" style="background:var(--buy-strong); border-radius:50%;"></i>take-profit</span>
+        <span><i class="swatch" style="background:var(--sell-strong); border-radius:50%;"></i>stop-loss</span>
+      </div>
+
+      <div class="stats2">
+        <div class="stat2"><div class="label">Zones formed</div><div class="value" id="statZones">0</div></div>
+        <div class="stat2"><div class="label">Touched</div><div class="value" id="statTouched">0</div></div>
+        <div class="stat2"><div class="label">Take-profit</div><div class="value win" id="statWins">0</div></div>
+        <div class="stat2"><div class="label">Stop-loss</div><div class="value loss" id="statLosses">0</div></div>
+        <div class="stat2"><div class="label">Win rate</div><div class="value" id="statWR">&mdash;</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b style="color:var(--ink)">What this is.</b> The full-history result (PF 1.17&ndash;1.42 across four symbols, 100K+ trades each) is the one that's statistically load-bearing. This 90-day GBPUSD window is here to make the mechanism visible, not to re-prove the edge &mdash; a single quarter is nowhere near enough sample to judge that on its own, and this window's own win rate may land anywhere.</p>
+    <p>Zones and outcomes computed once at page load from the dynamic zigzag (no fixed lookback, confirms the instant price fails to extend a candidate) and the corrected pullback-only zone rule, both described in the earlier replays this session.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var DATA = {"bars":[{"t":"2024-01-01T00:00","o":1.2731,"h":1.2731,"l":1.2728,"c":1.2728},{"t":"2024-01-01T04:00","o":1.2731,"h":1.2732,"l":1.2731,"c":1.2731},{"t":"2024-01-01T16:00","o":1.2695,"h":1.2756,"l":1.26721,"c":1.272},{"t":"2024-01-01T20:00","o":1.2718,"h":1.2735,"l":1.26723,"c":1.2726},{"t":"2024-01-02T00:00","o":1.2727,"h":1.2733,"l":1.2708,"c":1.2719},{"t":"2024-01-02T04:00","o":1.2718,"h":1.27439,"l":1.2709,"c":1.27321},{"t":"2024-01-02T08:00","o":1.27319,"h":1.276,"l":1.2653,"c":1.26616},{"t":"2024-01-02T12:00","o":1.26619,"h":1.26631,"l":1.2614,"c":1.2625},{"t":"2024-01-02T16:00","o":1.2625,"h":1.2637,"l":1.26099,"c":1.26199},{"t":"2024-01-02T20:00","o":1.26196,"h":1.2627,"l":1.2611,"c":1.26217},{"t":"2024-01-03T00:00","o":1.2622,"h":1.2642,"l":1.26188,"c":1.26397},{"t":"2024-01-03T04:00","o":1.26397,"h":1.26471,"l":1.2623,"c":1.26428},{"t":"2024-01-03T08:00","o":1.26434,"h":1.2653,"l":1.26176,"c":1.26263},{"t":"2024-01-03T12:00","o":1.26262,"h":1.26563,"l":1.2615,"c":1.26281},{"t":"2024-01-03T16:00","o":1.26283,"h":1.26766,"l":1.2626,"c":1.2663},{"t":"2024-01-03T20:00","o":1.26643,"h":1.26741,"l":1.2653,"c":1.26721},{"t":"2024-01-04T00:00","o":1.26718,"h":1.26741,"l":1.2655,"c":1.26727},{"t":"2024-01-04T04:00","o":1.26727,"h":1.2694,"l":1.26619,"c":1.26926},{"t":"2024-01-04T08:00","o":1.26928,"h":1.27297,"l":1.268,"c":1.269},{"t":"2024-01-04T12:00","o":1.26902,"h":1.27106,"l":1.2663,"c":1.26988},{"t":"2024-01-04T16:00","o":1.26993,"h":1.2705,"l":1.26715,"c":1.26827},{"t":"2024-01-04T20:00","o":1.26827,"h":1.2695,"l":1.26664,"c":1.26807},{"t":"2024-01-05T00:00","o":1.26799,"h":1.2696,"l":1.2677,"c":1.26803},{"t":"2024-01-05T04:00","o":1.26803,"h":1.26861,"l":1.2663,"c":1.26784},{"t":"2024-01-05T08:00","o":1.26775,"h":1.26891,"l":1.265,"c":1.26535},{"t":"2024-01-05T12:00","o":1.26536,"h":1.27709,"l":1.26099,"c":1.27517},{"t":"2024-01-05T16:00","o":1.27516,"h":1.27551,"l":1.27089,"c":1.2723},{"t":"2024-01-05T20:00","o":1.27229,"h":1.27241,"l":1.271,"c":1.2717},{"t":"2024-01-07T20:00","o":1.2705,"h":1.272,"l":1.2705,"c":1.27168},{"t":"2024-01-08T00:00","o":1.27166,"h":1.273,"l":1.26969,"c":1.27007},{"t":"2024-01-08T04:00","o":1.27008,"h":1.272,"l":1.26969,"c":1.27079},{"t":"2024-01-08T08:00","o":1.27079,"h":1.27133,"l":1.2672,"c":1.26979},{"t":"2024-01-08T12:00","o":1.26978,"h":1.27559,"l":1.2696,"c":1.27496},{"t":"2024-01-08T16:00","o":1.27502,"h":1.2767,"l":1.27386,"c":1.2757},{"t":"2024-01-08T20:00","o":1.27586,"h":1.27587,"l":1.27394,"c":1.27406},{"t":"2024-01-09T00:00","o":1.27405,"h":1.2765,"l":1.27389,"c":1.2756},{"t":"2024-01-09T04:00","o":1.27551,"h":1.2756,"l":1.2732,"c":1.27467},{"t":"2024-01-09T08:00","o":1.27471,"h":1.27472,"l":1.27059,"c":1.27131},{"t":"2024-01-09T12:00","o":1.27129,"h":1.27356,"l":1.26999,"c":1.27033},{"t":"2024-01-09T16:00","o":1.27034,"h":1.27188,"l":1.2689,"c":1.26991},{"t":"2024-01-09T20:00","o":1.26997,"h":1.2712,"l":1.26977,"c":1.27111},{"t":"2024-01-10T00:00","o":1.27106,"h":1.27176,"l":1.2697,"c":1.26982},{"t":"2024-01-10T04:00","o":1.26977,"h":1.27061,"l":1.26849,"c":1.26972},{"t":"2024-01-10T08:00","o":1.26972,"h":1.27349,"l":1.2695,"c":1.27256},{"t":"2024-01-10T12:00","o":1.27255,"h":1.27402,"l":1.2712,"c":1.27361},{"t":"2024-01-10T16:00","o":1.27363,"h":1.2743,"l":1.2716,"c":1.27419},{"t":"2024-01-10T20:00","o":1.2742,"h":1.27451,"l":1.27152,"c":1.27435},{"t":"2024-01-11T00:00","o":1.27438,"h":1.277,"l":1.27429,"c":1.27646},{"t":"2024-01-11T04:00","o":1.27661,"h":1.2774,"l":1.2757,"c":1.27647},{"t":"2024-01-11T08:00","o":1.27649,"h":1.27681,"l":1.27329,"c":1.27656},{"t":"2024-01-11T12:00","o":1.27658,"h":1.27705,"l":1.2689,"c":1.27139},{"t":"2024-01-11T16:00","o":1.27136,"h":1.27652,"l":1.26989,"c":1.27621},{"t":"2024-01-11T20:00","o":1.27622,"h":1.2779,"l":1.27333,"c":1.27776},{"t":"2024-01-12T00:00","o":1.27779,"h":1.27842,"l":1.2764,"c":1.2774},{"t":"2024-01-12T04:00","o":1.2774,"h":1.27781,"l":1.2753,"c":1.27558},{"t":"2024-01-12T08:00","o":1.27549,"h":1.27794,"l":1.2723,"c":1.27254},{"t":"2024-01-12T12:00","o":1.27251,"h":1.27859,"l":1.2719,"c":1.27615},{"t":"2024-01-12T16:00","o":1.27616,"h":1.27689,"l":1.2731,"c":1.2747},{"t":"2024-01-12T20:00","o":1.27471,"h":1.27533,"l":1.27396,"c":1.27506},{"t":"2024-01-14T20:00","o":1.27422,"h":1.2751,"l":1.27345,"c":1.27351},{"t":"2024-01-15T00:00","o":1.2735,"h":1.27651,"l":1.2728,"c":1.27565},{"t":"2024-01-15T04:00","o":1.27564,"h":1.276,"l":1.274,"c":1.27432},{"t":"2024-01-15T08:00","o":1.2743,"h":1.27593,"l":1.27119,"c":1.2731},{"t":"2024-01-15T12:00","o":1.27311,"h":1.27394,"l":1.27119,"c":1.27306},{"t":"2024-01-15T16:00","o":1.27308,"h":1.27382,"l":1.2724,"c":1.2726},{"t":"2024-01-15T20:00","o":1.27263,"h":1.27368,"l":1.27125,"c":1.27149},{"t":"2024-01-16T00:00","o":1.27144,"h":1.2717,"l":1.2677,"c":1.2681},{"t":"2024-01-16T04:00","o":1.268,"h":1.26863,"l":1.26609,"c":1.26729},{"t":"2024-01-16T08:00","o":1.26725,"h":1.26761,"l":1.2619,"c":1.26455},{"t":"2024-01-16T12:00","o":1.26463,"h":1.26727,"l":1.2636,"c":1.26657},{"t":"2024-01-16T16:00","o":1.26654,"h":1.2679,"l":1.2618,"c":1.26313},{"t":"2024-01-16T20:00","o":1.26314,"h":1.26421,"l":1.26223,"c":1.2635},{"t":"2024-01-17T00:00","o":1.26351,"h":1.2644,"l":1.26133,"c":1.26187},{"t":"2024-01-17T04:00","o":1.26174,"h":1.26571,"l":1.2595,"c":1.26563},{"t":"2024-01-17T08:00","o":1.26555,"h":1.2696,"l":1.2642,"c":1.26916},{"t":"2024-01-17T12:00","o":1.26916,"h":1.26923,"l":1.2637,"c":1.26573},{"t":"2024-01-17T16:00","o":1.26569,"h":1.2686,"l":1.26558,"c":1.26772},{"t":"2024-01-17T20:00","o":1.26779,"h":1.26871,"l":1.2669,"c":1.26756},{"t":"2024-01-18T00:00","o":1.26764,"h":1.26951,"l":1.267,"c":1.26817},{"t":"2024-01-18T04:00","o":1.26804,"h":1.2705,"l":1.2676,"c":1.26973},{"t":"2024-01-18T08:00","o":1.26977,"h":1.2699,"l":1.26718,"c":1.26846},{"t":"2024-01-18T12:00","o":1.2685,"h":1.26916,"l":1.26469,"c":1.26732},{"t":"2024-01-18T16:00","o":1.2673,"h":1.2702,"l":1.2668,"c":1.26858},{"t":"2024-01-18T20:00","o":1.26859,"h":1.27115,"l":1.2683,"c":1.27104},{"t":"2024-01-19T00:00","o":1.27107,"h":1.2715,"l":1.2698,"c":1.27113},{"t":"2024-01-19T04:00","o":1.27127,"h":1.2713,"l":1.26712,"c":1.26857},{"t":"2024-01-19T08:00","o":1.26847,"h":1.26907,"l":1.2664,"c":1.2679},{"t":"2024-01-19T12:00","o":1.26809,"h":1.2687,"l":1.26599,"c":1.26786},{"t":"2024-01-19T16:00","o":1.26799,"h":1.2699,"l":1.2663,"c":1.26965},{"t":"2024-01-19T20:00","o":1.26967,"h":1.2706,"l":1.2693,"c":1.27027},{"t":"2024-01-21T20:00","o":1.26785,"h":1.27084,"l":1.26785,"c":1.2699},{"t":"2024-01-22T00:00","o":1.2699,"h":1.2718,"l":1.2695,"c":1.27114},{"t":"2024-01-22T04:00","o":1.27114,"h":1.2725,"l":1.26973,"c":1.27034},{"t":"2024-01-22T08:00","o":1.27031,"h":1.2715,"l":1.26859,"c":1.2714},{"t":"2024-01-22T12:00","o":1.27143,"h":1.2732,"l":1.2709,"c":1.27199},{"t":"2024-01-22T16:00","o":1.272,"h":1.2733,"l":1.2696,"c":1.27044},{"t":"2024-01-22T20:00","o":1.27047,"h":1.2713,"l":1.26959,"c":1.27054},{"t":"2024-01-23T00:00","o":1.27057,"h":1.273,"l":1.2704,"c":1.27244},{"t":"2024-01-23T04:00","o":1.27242,"h":1.2747,"l":1.27219,"c":1.27422},{"t":"2024-01-23T08:00","o":1.27424,"h":1.27441,"l":1.2698,"c":1.27066},{"t":"2024-01-23T12:00","o":1.27057,"h":1.27184,"l":1.26571,"c":1.26656},{"t":"2024-01-23T16:00","o":1.26654,"h":1.26829,"l":1.26479,"c":1.26803},{"t":"2024-01-23T20:00","o":1.26803,"h":1.2695,"l":1.26605,"c":1.26897},{"t":"2024-01-24T00:00","o":1.26897,"h":1.27,"l":1.26836,"c":1.26946},{"t":"2024-01-24T04:00","o":1.26947,"h":1.27129,"l":1.26929,"c":1.2704},{"t":"2024-01-24T08:00","o":1.27049,"h":1.2773,"l":1.27035,"c":1.2741},{"t":"2024-01-24T12:00","o":1.27404,"h":1.27746,"l":1.27269,"c":1.27521},{"t":"2024-01-24T16:00","o":1.2753,"h":1.27546,"l":1.2711,"c":1.27247},{"t":"2024-01-24T20:00","o":1.27251,"h":1.2731,"l":1.2713,"c":1.27172},{"t":"2024-01-25T00:00","o":1.27166,"h":1.2719,"l":1.27019,"c":1.27127},{"t":"2024-01-25T04:00","o":1.27119,"h":1.2734,"l":1.27059,"c":1.2732},{"t":"2024-01-25T08:00","o":1.2733,"h":1.2744,"l":1.27185,"c":1.27327},{"t":"2024-01-25T12:00","o":1.27331,"h":1.27406,"l":1.26949,"c":1.26996},{"t":"2024-01-25T16:00","o":1.26996,"h":1.27068,"l":1.268,"c":1.27003},{"t":"2024-01-25T20:00","o":1.27003,"h":1.27121,"l":1.2694,"c":1.2707},{"t":"2024-01-26T00:00","o":1.27047,"h":1.27161,"l":1.2699,"c":1.27093},{"t":"2024-01-26T04:00","o":1.27092,"h":1.27112,"l":1.2674,"c":1.26821},{"t":"2024-01-26T08:00","o":1.26816,"h":1.27466,"l":1.268,"c":1.27422},{"t":"2024-01-26T12:00","o":1.27422,"h":1.27585,"l":1.2719,"c":1.27224},{"t":"2024-01-26T16:00","o":1.27223,"h":1.27243,"l":1.2697,"c":1.27045},{"t":"2024-01-26T20:00","o":1.27047,"h":1.271,"l":1.2697,"c":1.2704},{"t":"2024-01-28T20:00","o":1.26981,"h":1.2703,"l":1.269,"c":1.2696},{"t":"2024-01-29T00:00","o":1.2696,"h":1.2706,"l":1.269,"c":1.27023},{"t":"2024-01-29T04:00","o":1.27011,"h":1.27189,"l":1.26983,"c":1.27104},{"t":"2024-01-29T08:00","o":1.27108,"h":1.27148,"l":1.2691,"c":1.26949},{"t":"2024-01-29T12:00","o":1.26948,"h":1.2713,"l":1.2661,"c":1.26774},{"t":"2024-01-29T16:00","o":1.2678,"h":1.2693,"l":1.26719,"c":1.26916},{"t":"2024-01-29T20:00","o":1.26925,"h":1.27172,"l":1.26918,"c":1.2713},{"t":"2024-01-30T00:00","o":1.27108,"h":1.2721,"l":1.27039,"c":1.27059},{"t":"2024-01-30T04:00","o":1.27059,"h":1.2712,"l":1.2682,"c":1.26952},{"t":"2024-01-30T08:00","o":1.2696,"h":1.2699,"l":1.2669,"c":1.26779},{"t":"2024-01-30T12:00","o":1.26778,"h":1.2688,"l":1.26394,"c":1.26654},{"t":"2024-01-30T16:00","o":1.2665,"h":1.26965,"l":1.2658,"c":1.26954},{"t":"2024-01-30T20:00","o":1.26954,"h":1.2702,"l":1.2686,"c":1.2692},{"t":"2024-01-31T00:00","o":1.2692,"h":1.27002,"l":1.26702,"c":1.26749},{"t":"2024-01-31T04:00","o":1.26748,"h":1.2683,"l":1.26609,"c":1.26745},{"t":"2024-01-31T08:00","o":1.26757,"h":1.26972,"l":1.2666,"c":1.26842},{"t":"2024-01-31T12:00","o":1.26843,"h":1.27508,"l":1.26769,"c":1.27324},{"t":"2024-01-31T16:00","o":1.27326,"h":1.2739,"l":1.26827,"c":1.271},{"t":"2024-01-31T20:00","o":1.2712,"h":1.2713,"l":1.2657,"c":1.26774},{"t":"2024-02-01T00:00","o":1.26774,"h":1.26981,"l":1.26728,"c":1.26846},{"t":"2024-02-01T04:00","o":1.26848,"h":1.26862,"l":1.26422,"c":1.26544},{"t":"2024-02-01T08:00","o":1.26542,"h":1.2659,"l":1.26252,"c":1.26417},{"t":"2024-02-01T12:00","o":1.26416,"h":1.26858,"l":1.26357,"c":1.26815},{"t":"2024-02-01T16:00","o":1.26814,"h":1.2756,"l":1.26792,"c":1.27472},{"t":"2024-02-01T20:00","o":1.27469,"h":1.2752,"l":1.27386,"c":1.27457},{"t":"2024-02-02T00:00","o":1.2744,"h":1.2755,"l":1.27396,"c":1.27463},{"t":"2024-02-02T04:00","o":1.2748,"h":1.27572,"l":1.27412,"c":1.27508},{"t":"2024-02-02T08:00","o":1.27506,"h":1.27723,"l":1.2741,"c":1.27587},{"t":"2024-02-02T12:00","o":1.2759,"h":1.27693,"l":1.2632,"c":1.26564},{"t":"2024-02-02T16:00","o":1.26567,"h":1.2659,"l":1.2612,"c":1.26381},{"t":"2024-02-02T20:00","o":1.26381,"h":1.26439,"l":1.26251,"c":1.2631},{"t":"2024-02-04T20:00","o":1.26319,"h":1.26388,"l":1.26106,"c":1.2621},{"t":"2024-02-05T00:00","o":1.26206,"h":1.26258,"l":1.25974,"c":1.26103},{"t":"2024-02-05T04:00","o":1.2611,"h":1.26237,"l":1.26019,"c":1.26164},{"t":"2024-02-05T08:00","o":1.26164,"h":1.26295,"l":1.257,"c":1.25739},{"t":"2024-02-05T12:00","o":1.2574,"h":1.25762,"l":1.2517,"c":1.252},{"t":"2024-02-05T16:00","o":1.25201,"h":1.25441,"l":1.25187,"c":1.2534},{"t":"2024-02-05T20:00","o":1.2534,"h":1.254,"l":1.25158,"c":1.25329},{"t":"2024-02-06T00:00","o":1.2533,"h":1.2549,"l":1.25319,"c":1.25412},{"t":"2024-02-06T04:00","o":1.25399,"h":1.25653,"l":1.25397,"c":1.25551},{"t":"2024-02-06T08:00","o":1.25549,"h":1.25645,"l":1.2535,"c":1.25538},{"t":"2024-02-06T12:00","o":1.25541,"h":1.25841,"l":1.25399,"c":1.25769},{"t":"2024-02-06T16:00","o":1.25764,"h":1.26002,"l":1.2571,"c":1.25939},{"t":"2024-02-06T20:00","o":1.25939,"h":1.26052,"l":1.25835,"c":1.2603},{"t":"2024-02-07T00:00","o":1.26016,"h":1.2613,"l":1.25941,"c":1.26012},{"t":"2024-02-07T04:00","o":1.25989,"h":1.26283,"l":1.2596,"c":1.2628},{"t":"2024-02-07T08:00","o":1.26281,"h":1.2638,"l":1.2615,"c":1.26312},{"t":"2024-02-07T12:00","o":1.26306,"h":1.2642,"l":1.26187,"c":1.26312},{"t":"2024-02-07T16:00","o":1.26307,"h":1.26341,"l":1.2614,"c":1.2628},{"t":"2024-02-07T20:00","o":1.26279,"h":1.2633,"l":1.2617,"c":1.2626},{"t":"2024-02-08T00:00","o":1.26259,"h":1.2639,"l":1.2623,"c":1.26324},{"t":"2024-02-08T04:00","o":1.26323,"h":1.2638,"l":1.2622,"c":1.26277},{"t":"2024-02-08T08:00","o":1.26272,"h":1.2635,"l":1.25989,"c":1.26057},{"t":"2024-02-08T12:00","o":1.26054,"h":1.26118,"l":1.257,"c":1.26042},{"t":"2024-02-08T16:00","o":1.26047,"h":1.263,"l":1.26027,"c":1.26146},{"t":"2024-02-08T20:00","o":1.26148,"h":1.2628,"l":1.2605,"c":1.26198},{"t":"2024-02-09T00:00","o":1.26199,"h":1.2623,"l":1.2611,"c":1.26147},{"t":"2024-02-09T04:00","o":1.2615,"h":1.26344,"l":1.26099,"c":1.26321},{"t":"2024-02-09T08:00","o":1.26323,"h":1.26348,"l":1.26,"c":1.2608},{"t":"2024-02-09T12:00","o":1.26081,"h":1.2643,"l":1.2598,"c":1.26341},{"t":"2024-02-09T16:00","o":1.26342,"h":1.2638,"l":1.2619,"c":1.26281},{"t":"2024-02-09T20:00","o":1.26281,"h":1.2637,"l":1.2623,"c":1.2628},{"t":"2024-02-11T20:00","o":1.26269,"h":1.26367,"l":1.26225,"c":1.2636},{"t":"2024-02-12T00:00","o":1.26362,"h":1.26441,"l":1.26249,"c":1.26272},{"t":"2024-02-12T04:00","o":1.2629,"h":1.26547,"l":1.2625,"c":1.26466},{"t":"2024-02-12T08:00","o":1.26461,"h":1.26479,"l":1.2608,"c":1.2613},{"t":"2024-02-12T12:00","o":1.26153,"h":1.2626,"l":1.26049,"c":1.2613},{"t":"2024-02-12T16:00","o":1.26151,"h":1.26405,"l":1.2612,"c":1.26238},{"t":"2024-02-12T20:00","o":1.26238,"h":1.26311,"l":1.26151,"c":1.26262},{"t":"2024-02-13T00:00","o":1.26253,"h":1.2628,"l":1.26089,"c":1.26095},{"t":"2024-02-13T04:00","o":1.26093,"h":1.26557,"l":1.2607,"c":1.2652},{"t":"2024-02-13T08:00","o":1.2652,"h":1.2676,"l":1.2634,"c":1.26676},{"t":"2024-02-13T12:00","o":1.26684,"h":1.2684,"l":1.2574,"c":1.26011},{"t":"2024-02-13T16:00","o":1.26002,"h":1.26082,"l":1.2572,"c":1.2574},{"t":"2024-02-13T20:00","o":1.25738,"h":1.2598,"l":1.2572,"c":1.25878},{"t":"2024-02-14T00:00","o":1.25896,"h":1.2602,"l":1.2582,"c":1.25982},{"t":"2024-02-14T04:00","o":1.2598,"h":1.2611,"l":1.2554,"c":1.25639},{"t":"2024-02-14T08:00","o":1.25636,"h":1.2564,"l":1.2534,"c":1.25524},{"t":"2024-02-14T12:00","o":1.25521,"h":1.2568,"l":1.2538,"c":1.2549},{"t":"2024-02-14T16:00","o":1.25492,"h":1.25703,"l":1.2547,"c":1.25606},{"t":"2024-02-14T20:00","o":1.25605,"h":1.25691,"l":1.25364,"c":1.2568},{"t":"2024-02-15T00:00","o":1.25654,"h":1.2573,"l":1.2557,"c":1.25628},{"t":"2024-02-15T04:00","o":1.25627,"h":1.25731,"l":1.2541,"c":1.2545},{"t":"2024-02-15T08:00","o":1.2545,"h":1.25606,"l":1.254,"c":1.25495},{"t":"2024-02-15T12:00","o":1.25492,"h":1.25965,"l":1.25395,"c":1.25843},{"t":"2024-02-15T16:00","o":1.25834,"h":1.26005,"l":1.2572,"c":1.25957},{"t":"2024-02-15T20:00","o":1.25957,"h":1.2611,"l":1.25842,"c":1.25978},{"t":"2024-02-16T00:00","o":1.25969,"h":1.26011,"l":1.25769,"c":1.25809},{"t":"2024-02-16T04:00","o":1.2581,"h":1.26056,"l":1.25718,"c":1.259},{"t":"2024-02-16T08:00","o":1.25898,"h":1.26007,"l":1.2573,"c":1.25995},{"t":"2024-02-16T12:00","o":1.25992,"h":1.2601,"l":1.2549,"c":1.25834},{"t":"2024-02-16T16:00","o":1.25844,"h":1.26242,"l":1.2581,"c":1.2604},{"t":"2024-02-16T20:00","o":1.26057,"h":1.26061,"l":1.25908,"c":1.26009},{"t":"2024-02-18T20:00","o":1.2602,"h":1.26106,"l":1.25966,"c":1.26102},{"t":"2024-02-19T00:00","o":1.26102,"h":1.2627,"l":1.26099,"c":1.26106},{"t":"2024-02-19T04:00","o":1.26119,"h":1.263,"l":1.26097,"c":1.26198},{"t":"2024-02-19T08:00","o":1.262,"h":1.2628,"l":1.2606,"c":1.26108},{"t":"2024-02-19T12:00","o":1.26107,"h":1.26154,"l":1.2583,"c":1.25871},{"t":"2024-02-19T16:00","o":1.25867,"h":1.26,"l":1.2581,"c":1.25974},{"t":"2024-02-19T20:00","o":1.25974,"h":1.2601,"l":1.25829,"c":1.25869},{"t":"2024-02-20T00:00","o":1.25872,"h":1.25931,"l":1.25783,"c":1.25833},{"t":"2024-02-20T04:00","o":1.25844,"h":1.2594,"l":1.25771,"c":1.259},{"t":"2024-02-20T08:00","o":1.25899,"h":1.26159,"l":1.25799,"c":1.25905},{"t":"2024-02-20T12:00","o":1.25905,"h":1.26685,"l":1.25883,"c":1.2662},{"t":"2024-02-20T16:00","o":1.26621,"h":1.26625,"l":1.2615,"c":1.26184},{"t":"2024-02-20T20:00","o":1.26186,"h":1.2632,"l":1.2615,"c":1.26241},{"t":"2024-02-21T00:00","o":1.26242,"h":1.2637,"l":1.26179,"c":1.26358},{"t":"2024-02-21T04:00","o":1.2637,"h":1.26371,"l":1.26168,"c":1.26299},{"t":"2024-02-21T08:00","o":1.26299,"h":1.2633,"l":1.2601,"c":1.26155},{"t":"2024-02-21T12:00","o":1.26158,"h":1.26346,"l":1.2608,"c":1.26122},{"t":"2024-02-21T16:00","o":1.26122,"h":1.2642,"l":1.26039,"c":1.263},{"t":"2024-02-21T20:00","o":1.26314,"h":1.26411,"l":1.2623,"c":1.26374},{"t":"2024-02-22T00:00","o":1.26376,"h":1.26471,"l":1.2629,"c":1.26369},{"t":"2024-02-22T04:00","o":1.26369,"h":1.26756,"l":1.2632,"c":1.26737},{"t":"2024-02-22T08:00","o":1.26738,"h":1.27092,"l":1.2665,"c":1.26803},{"t":"2024-02-22T12:00","o":1.2679,"h":1.26828,"l":1.261,"c":1.26209},{"t":"2024-02-22T16:00","o":1.26214,"h":1.2665,"l":1.2619,"c":1.2659},{"t":"2024-02-22T20:00","o":1.26587,"h":1.26651,"l":1.26486,"c":1.26604},{"t":"2024-02-23T00:00","o":1.26602,"h":1.26662,"l":1.26465,"c":1.26625},{"t":"2024-02-23T04:00","o":1.26626,"h":1.26721,"l":1.2657,"c":1.26696},{"t":"2024-02-23T08:00","o":1.26701,"h":1.2685,"l":1.26469,"c":1.26801},{"t":"2024-02-23T12:00","o":1.2679,"h":1.27015,"l":1.2666,"c":1.26764},{"t":"2024-02-23T16:00","o":1.26772,"h":1.2686,"l":1.2664,"c":1.26742},{"t":"2024-02-23T20:00","o":1.26743,"h":1.2676,"l":1.26642,"c":1.2672},{"t":"2024-02-25T20:00","o":1.267,"h":1.26829,"l":1.26665,"c":1.26698},{"t":"2024-02-26T00:00","o":1.26695,"h":1.26724,"l":1.2655,"c":1.26573},{"t":"2024-02-26T04:00","o":1.26574,"h":1.26782,"l":1.26559,"c":1.26766},{"t":"2024-02-26T08:00","o":1.26766,"h":1.2697,"l":1.2665,"c":1.26943},{"t":"2024-02-26T12:00","o":1.26944,"h":1.27,"l":1.2671,"c":1.26833},{"t":"2024-02-26T16:00","o":1.26834,"h":1.2685,"l":1.2669,"c":1.2677},{"t":"2024-02-26T20:00","o":1.26771,"h":1.2694,"l":1.2669,"c":1.26833},{"t":"2024-02-27T00:00","o":1.26837,"h":1.2685,"l":1.26729,"c":1.26783},{"t":"2024-02-27T04:00","o":1.26795,"h":1.26953,"l":1.2675,"c":1.26902},{"t":"2024-02-27T08:00","o":1.26895,"h":1.26971,"l":1.267,"c":1.2685},{"t":"2024-02-27T12:00","o":1.26875,"h":1.2695,"l":1.2658,"c":1.26824},{"t":"2024-02-27T16:00","o":1.26823,"h":1.26951,"l":1.2676,"c":1.26796},{"t":"2024-02-27T20:00","o":1.26793,"h":1.2688,"l":1.2676,"c":1.26789},{"t":"2024-02-28T00:00","o":1.26788,"h":1.2684,"l":1.2664,"c":1.26669},{"t":"2024-02-28T04:00","o":1.26677,"h":1.267,"l":1.2643,"c":1.26597},{"t":"2024-02-28T08:00","o":1.26608,"h":1.26614,"l":1.2621,"c":1.26537},{"t":"2024-02-28T12:00","o":1.26527,"h":1.2658,"l":1.2628,"c":1.2653},{"t":"2024-02-28T16:00","o":1.26529,"h":1.26734,"l":1.2649,"c":1.26528},{"t":"2024-02-28T20:00","o":1.26531,"h":1.2664,"l":1.2648,"c":1.26595},{"t":"2024-02-29T00:00","o":1.2661,"h":1.26691,"l":1.2655,"c":1.26653},{"t":"2024-02-29T04:00","o":1.26652,"h":1.2671,"l":1.2651,"c":1.26535},{"t":"2024-02-29T08:00","o":1.26536,"h":1.26745,"l":1.2646,"c":1.26504},{"t":"2024-02-29T12:00","o":1.265,"h":1.2682,"l":1.2633,"c":1.26498},{"t":"2024-02-29T16:00","o":1.26498,"h":1.26511,"l":1.2611,"c":1.26129},{"t":"2024-02-29T20:00","o":1.26127,"h":1.26264,"l":1.2611,"c":1.26264},{"t":"2024-03-01T00:00","o":1.26263,"h":1.26361,"l":1.2621,"c":1.2631},{"t":"2024-03-01T04:00","o":1.26309,"h":1.26365,"l":1.26167,"c":1.26309},{"t":"2024-03-01T08:00","o":1.26312,"h":1.26463,"l":1.26161,"c":1.26427},{"t":"2024-03-01T12:00","o":1.26431,"h":1.26561,"l":1.2598,"c":1.26523},{"t":"2024-03-01T16:00","o":1.26524,"h":1.2664,"l":1.2634,"c":1.26621},{"t":"2024-03-01T20:00","o":1.2662,"h":1.26623,"l":1.26475,"c":1.2653},{"t":"2024-03-03T20:00","o":1.2645,"h":1.26618,"l":1.2645,"c":1.26599},{"t":"2024-03-04T00:00","o":1.26599,"h":1.26671,"l":1.2654,"c":1.26632},{"t":"2024-03-04T04:00","o":1.26633,"h":1.26783,"l":1.2659,"c":1.26783},{"t":"2024-03-04T08:00","o":1.26782,"h":1.268,"l":1.2664,"c":1.2676},{"t":"2024-03-04T12:00","o":1.26774,"h":1.27,"l":1.2664,"c":1.26977},{"t":"2024-03-04T16:00","o":1.26978,"h":1.27064,"l":1.26879,"c":1.26904},{"t":"2024-03-04T20:00","o":1.26902,"h":1.2694,"l":1.26812,"c":1.26885},{"t":"2024-03-05T00:00","o":1.26884,"h":1.2695,"l":1.26806,"c":1.26894},{"t":"2024-03-05T04:00","o":1.26884,"h":1.26911,"l":1.26709,"c":1.2676},{"t":"2024-03-05T08:00","o":1.2675,"h":1.26897,"l":1.267,"c":1.26779},{"t":"2024-03-05T12:00","o":1.2678,"h":1.27344,"l":1.2673,"c":1.27321},{"t":"2024-03-05T16:00","o":1.27314,"h":1.27329,"l":1.2698,"c":1.27018},{"t":"2024-03-05T20:00","o":1.27019,"h":1.271,"l":1.26929,"c":1.27038},{"t":"2024-03-06T00:00","o":1.2704,"h":1.2705,"l":1.2688,"c":1.26985},{"t":"2024-03-06T04:00","o":1.26989,"h":1.27155,"l":1.26959,"c":1.271},{"t":"2024-03-06T08:00","o":1.27096,"h":1.27314,"l":1.27088,"c":1.2723},{"t":"2024-03-06T12:00","o":1.27224,"h":1.2748,"l":1.27049,"c":1.27423},{"t":"2024-03-06T16:00","o":1.27421,"h":1.27612,"l":1.2735,"c":1.27406},{"t":"2024-03-06T20:00","o":1.27408,"h":1.27411,"l":1.2724,"c":1.27342},{"t":"2024-03-07T00:00","o":1.27341,"h":1.274,"l":1.2722,"c":1.27334},{"t":"2024-03-07T04:00","o":1.27334,"h":1.27439,"l":1.27299,"c":1.27353},{"t":"2024-03-07T08:00","o":1.27353,"h":1.27626,"l":1.2728,"c":1.27552},{"t":"2024-03-07T12:00","o":1.27546,"h":1.27911,"l":1.2743,"c":1.27884},{"t":"2024-03-07T16:00","o":1.27889,"h":1.28086,"l":1.2782,"c":1.28048},{"t":"2024-03-07T20:00","o":1.28045,"h":1.28131,"l":1.2798,"c":1.28124},{"t":"2024-03-08T00:00","o":1.28129,"h":1.28201,"l":1.2802,"c":1.28074},{"t":"2024-03-08T04:00","o":1.28073,"h":1.28134,"l":1.2799,"c":1.2804},{"t":"2024-03-08T08:00","o":1.28031,"h":1.28401,"l":1.28,"c":1.28296},{"t":"2024-03-08T12:00","o":1.28297,"h":1.28936,"l":1.28238,"c":1.28796},{"t":"2024-03-08T16:00","o":1.28804,"h":1.28812,"l":1.2839,"c":1.28563},{"t":"2024-03-08T20:00","o":1.28563,"h":1.286,"l":1.2847,"c":1.28581},{"t":"2024-03-10T20:00","o":1.28603,"h":1.28645,"l":1.28473,"c":1.28551},{"t":"2024-03-11T00:00","o":1.28551,"h":1.28617,"l":1.2844,"c":1.28502},{"t":"2024-03-11T04:00","o":1.285,"h":1.2858,"l":1.2842,"c":1.2845},{"t":"2024-03-11T08:00","o":1.2845,"h":1.28539,"l":1.28309,"c":1.28507},{"t":"2024-03-11T12:00","o":1.28507,"h":1.2851,"l":1.2793,"c":1.28048},{"t":"2024-03-11T16:00","o":1.2805,"h":1.28131,"l":1.2797,"c":1.28085},{"t":"2024-03-11T20:00","o":1.28092,"h":1.28192,"l":1.27955,"c":1.28179},{"t":"2024-03-12T00:00","o":1.2817,"h":1.28223,"l":1.2812,"c":1.28185},{"t":"2024-03-12T04:00","o":1.28184,"h":1.28231,"l":1.2788,"c":1.279},{"t":"2024-03-12T08:00","o":1.27902,"h":1.2799,"l":1.2775,"c":1.27916},{"t":"2024-03-12T12:00","o":1.27915,"h":1.2808,"l":1.2745,"c":1.27836},{"t":"2024-03-12T16:00","o":1.27836,"h":1.27936,"l":1.27689,"c":1.2792},{"t":"2024-03-12T20:00","o":1.27936,"h":1.2796,"l":1.2781,"c":1.27947},{"t":"2024-03-13T00:00","o":1.2793,"h":1.2799,"l":1.27899,"c":1.27942},{"t":"2024-03-13T04:00","o":1.27943,"h":1.27965,"l":1.27749,"c":1.27857},{"t":"2024-03-13T08:00","o":1.27857,"h":1.28087,"l":1.27729,"c":1.28081},{"t":"2024-03-13T12:00","o":1.28078,"h":1.28089,"l":1.2786,"c":1.27967},{"t":"2024-03-13T16:00","o":1.27967,"h":1.28113,"l":1.2789,"c":1.27958},{"t":"2024-03-13T20:00","o":1.27958,"h":1.2803,"l":1.27808,"c":1.28008},{"t":"2024-03-14T00:00","o":1.2801,"h":1.28043,"l":1.27869,"c":1.27893},{"t":"2024-03-14T04:00","o":1.27895,"h":1.28051,"l":1.2785,"c":1.2801},{"t":"2024-03-14T08:00","o":1.28035,"h":1.2823,"l":1.28009,"c":1.28096},{"t":"2024-03-14T12:00","o":1.28099,"h":1.2814,"l":1.27298,"c":1.2747},{"t":"2024-03-14T16:00","o":1.27468,"h":1.27572,"l":1.27419,"c":1.27551},{"t":"2024-03-14T20:00","o":1.27555,"h":1.27588,"l":1.27426,"c":1.27448},{"t":"2024-03-15T00:00","o":1.27449,"h":1.27471,"l":1.2728,"c":1.27364},{"t":"2024-03-15T04:00","o":1.27363,"h":1.27452,"l":1.27321,"c":1.2735},{"t":"2024-03-15T08:00","o":1.27353,"h":1.2759,"l":1.2732,"c":1.2755},{"t":"2024-03-15T12:00","o":1.27545,"h":1.27575,"l":1.27307,"c":1.27388},{"t":"2024-03-15T16:00","o":1.27391,"h":1.2741,"l":1.27239,"c":1.2736},{"t":"2024-03-15T20:00","o":1.27378,"h":1.27391,"l":1.2717,"c":1.273},{"t":"2024-03-17T20:00","o":1.27348,"h":1.27374,"l":1.27287,"c":1.27303},{"t":"2024-03-18T00:00","o":1.27305,"h":1.27377,"l":1.2724,"c":1.27263},{"t":"2024-03-18T04:00","o":1.2727,"h":1.27422,"l":1.2725,"c":1.27412},{"t":"2024-03-18T08:00","o":1.2741,"h":1.27468,"l":1.27259,"c":1.27426},{"t":"2024-03-18T12:00","o":1.27426,"h":1.27461,"l":1.272,"c":1.27321},{"t":"2024-03-18T16:00","o":1.2732,"h":1.27333,"l":1.2717,"c":1.27261},{"t":"2024-03-18T20:00","o":1.27265,"h":1.27312,"l":1.27219,"c":1.27259},{"t":"2024-03-19T00:00","o":1.2726,"h":1.2729,"l":1.2712,"c":1.27223},{"t":"2024-03-19T04:00","o":1.27227,"h":1.27252,"l":1.2693,"c":1.26989},{"t":"2024-03-19T08:00","o":1.2698,"h":1.27017,"l":1.26669,"c":1.2692},{"t":"2024-03-19T12:00","o":1.2692,"h":1.27165,"l":1.2689,"c":1.27108},{"t":"2024-03-19T16:00","o":1.27101,"h":1.2733,"l":1.2707,"c":1.27209},{"t":"2024-03-19T20:00","o":1.27209,"h":1.27231,"l":1.2716,"c":1.27171},{"t":"2024-03-20T00:00","o":1.27171,"h":1.2724,"l":1.27089,"c":1.27235},{"t":"2024-03-20T04:00","o":1.27235,"h":1.27298,"l":1.26978,"c":1.27139},{"t":"2024-03-20T08:00","o":1.27135,"h":1.27145,"l":1.2685,"c":1.26932},{"t":"2024-03-20T12:00","o":1.2694,"h":1.2713,"l":1.26829,"c":1.27096},{"t":"2024-03-20T16:00","o":1.27101,"h":1.2787,"l":1.2707,"c":1.27825},{"t":"2024-03-20T20:00","o":1.27823,"h":1.27981,"l":1.2779,"c":1.27974},{"t":"2024-03-21T00:00","o":1.27974,"h":1.2803,"l":1.2787,"c":1.2796},{"t":"2024-03-21T04:00","o":1.2796,"h":1.28033,"l":1.27819,"c":1.27846},{"t":"2024-03-21T08:00","o":1.27842,"h":1.27902,"l":1.27419,"c":1.27456},{"t":"2024-03-21T12:00","o":1.27427,"h":1.27483,"l":1.2657,"c":1.26672},{"t":"2024-03-21T16:00","o":1.2667,"h":1.2673,"l":1.2649,"c":1.26504},{"t":"2024-03-21T20:00","o":1.26504,"h":1.2664,"l":1.26462,"c":1.266},{"t":"2024-03-22T00:00","o":1.26598,"h":1.2675,"l":1.2632,"c":1.26421},{"t":"2024-03-22T04:00","o":1.26419,"h":1.26451,"l":1.2598,"c":1.26065},{"t":"2024-03-22T08:00","o":1.26067,"h":1.26086,"l":1.2574,"c":1.25826},{"t":"2024-03-22T12:00","o":1.25839,"h":1.2624,"l":1.25809,"c":1.26008},{"t":"2024-03-22T16:00","o":1.2601,"h":1.2606,"l":1.2584,"c":1.25939},{"t":"2024-03-22T20:00","o":1.2594,"h":1.2602,"l":1.259,"c":1.26001},{"t":"2024-03-24T20:00","o":1.25975,"h":1.2607,"l":1.25915,"c":1.25971},{"t":"2024-03-25T00:00","o":1.25973,"h":1.2617,"l":1.259,"c":1.26058},{"t":"2024-03-25T04:00","o":1.26057,"h":1.26142,"l":1.25979,"c":1.26024},{"t":"2024-03-25T08:00","o":1.26021,"h":1.264,"l":1.2593,"c":1.2634},{"t":"2024-03-25T12:00","o":1.26366,"h":1.26522,"l":1.2634,"c":1.26441},{"t":"2024-03-25T16:00","o":1.2644,"h":1.2645,"l":1.2633,"c":1.26377},{"t":"2024-03-25T20:00","o":1.26376,"h":1.2644,"l":1.26276,"c":1.26358},{"t":"2024-03-26T00:00","o":1.26358,"h":1.2647,"l":1.2632,"c":1.26369},{"t":"2024-03-26T04:00","o":1.2637,"h":1.26588,"l":1.26349,"c":1.26504},{"t":"2024-03-26T08:00","o":1.265,"h":1.2668,"l":1.26398,"c":1.26528},{"t":"2024-03-26T12:00","o":1.26529,"h":1.26562,"l":1.2622,"c":1.2628},{"t":"2024-03-26T16:00","o":1.26283,"h":1.26352,"l":1.2621,"c":1.26232},{"t":"2024-03-26T20:00","o":1.26232,"h":1.2635,"l":1.26201,"c":1.26275},{"t":"2024-03-27T00:00","o":1.26275,"h":1.2628,"l":1.2607,"c":1.26134},{"t":"2024-03-27T04:00","o":1.26132,"h":1.26318,"l":1.2611,"c":1.2628},{"t":"2024-03-27T08:00","o":1.26297,"h":1.26382,"l":1.261,"c":1.26153},{"t":"2024-03-27T12:00","o":1.26153,"h":1.263,"l":1.26039,"c":1.26288},{"t":"2024-03-27T16:00","o":1.26286,"h":1.26375,"l":1.26219,"c":1.2637},{"t":"2024-03-27T20:00","o":1.26369,"h":1.26411,"l":1.26129,"c":1.26164},{"t":"2024-03-28T00:00","o":1.26173,"h":1.26346,"l":1.261,"c":1.26274},{"t":"2024-03-28T04:00","o":1.26272,"h":1.26371,"l":1.261,"c":1.26161},{"t":"2024-03-28T08:00","o":1.26166,"h":1.2626,"l":1.2584,"c":1.26118},{"t":"2024-03-28T12:00","o":1.26117,"h":1.26541,"l":1.261,"c":1.26316},{"t":"2024-03-28T16:00","o":1.26316,"h":1.26451,"l":1.26139,"c":1.26203},{"t":"2024-03-28T20:00","o":1.26204,"h":1.2635,"l":1.26082,"c":1.26206},{"t":"2024-03-29T00:00","o":1.26195,"h":1.2631,"l":1.2614,"c":1.2622},{"t":"2024-03-29T04:00","o":1.26227,"h":1.2626,"l":1.2616,"c":1.26179},{"t":"2024-03-29T08:00","o":1.26181,"h":1.26271,"l":1.26073,"c":1.2614},{"t":"2024-03-29T12:00","o":1.26141,"h":1.2646,"l":1.26113,"c":1.2633},{"t":"2024-03-29T16:00","o":1.26356,"h":1.26357,"l":1.2614,"c":1.26177},{"t":"2024-03-29T20:00","o":1.26172,"h":1.26271,"l":1.26075,"c":1.2625},{"t":"2024-03-31T20:00","o":1.26229,"h":1.26418,"l":1.26229,"c":1.26371},{"t":"2024-04-01T00:00","o":1.26373,"h":1.2643,"l":1.2624,"c":1.2633},{"t":"2024-04-01T04:00","o":1.26341,"h":1.26353,"l":1.2616,"c":1.26198},{"t":"2024-04-01T08:00","o":1.26201,"h":1.2628,"l":1.2607,"c":1.26143},{"t":"2024-04-01T12:00","o":1.2614,"h":1.26164,"l":1.2538,"c":1.25419},{"t":"2024-04-01T16:00","o":1.2543,"h":1.25501,"l":1.254,"c":1.25469},{"t":"2024-04-01T20:00","o":1.25469,"h":1.2555,"l":1.25409,"c":1.25456},{"t":"2024-04-02T00:00","o":1.25457,"h":1.25491,"l":1.2539,"c":1.25412},{"t":"2024-04-02T04:00","o":1.25413,"h":1.2557,"l":1.2538,"c":1.25535},{"t":"2024-04-02T08:00","o":1.25535,"h":1.2576,"l":1.2547,"c":1.25732},{"t":"2024-04-02T12:00","o":1.25736,"h":1.25774,"l":1.2551,"c":1.25736},{"t":"2024-04-02T16:00","o":1.25737,"h":1.25771,"l":1.25649,"c":1.25764},{"t":"2024-04-02T20:00","o":1.25763,"h":1.2582,"l":1.2569,"c":1.25754},{"t":"2024-04-03T00:00","o":1.25753,"h":1.25806,"l":1.2566,"c":1.2578},{"t":"2024-04-03T04:00","o":1.25788,"h":1.2583,"l":1.25617,"c":1.25657},{"t":"2024-04-03T08:00","o":1.25655,"h":1.25884,"l":1.2563,"c":1.25778},{"t":"2024-04-03T12:00","o":1.25775,"h":1.26354,"l":1.2566,"c":1.26325},{"t":"2024-04-03T16:00","o":1.2633,"h":1.2656,"l":1.26242,"c":1.26488},{"t":"2024-04-03T20:00","o":1.2649,"h":1.26561,"l":1.2646,"c":1.2651},{"t":"2024-04-04T00:00","o":1.26504,"h":1.26544,"l":1.2643,"c":1.26523},{"t":"2024-04-04T04:00","o":1.26524,"h":1.267,"l":1.2649,"c":1.26626},{"t":"2024-04-04T08:00","o":1.26619,"h":1.26691,"l":1.2646,"c":1.26505},{"t":"2024-04-04T12:00","o":1.26499,"h":1.26834,"l":1.26469,"c":1.26662},{"t":"2024-04-04T16:00","o":1.26662,"h":1.2673,"l":1.2634,"c":1.26376},{"t":"2024-04-04T20:00","o":1.2638,"h":1.26451,"l":1.26325,"c":1.26388},{"t":"2024-04-05T00:00","o":1.26389,"h":1.26484,"l":1.262,"c":1.26256},{"t":"2024-04-05T04:00","o":1.26256,"h":1.26317,"l":1.2613,"c":1.26271},{"t":"2024-04-05T08:00","o":1.26258,"h":1.26406,"l":1.262,"c":1.2632},{"t":"2024-04-05T12:00","o":1.26321,"h":1.26449,"l":1.25732,"c":1.2629},{"t":"2024-04-05T16:00","o":1.26306,"h":1.26402,"l":1.2625,"c":1.2634},{"t":"2024-04-05T20:00","o":1.26338,"h":1.2649,"l":1.26275,"c":1.2637},{"t":"2024-04-07T20:00","o":1.26288,"h":1.26336,"l":1.262,"c":1.26235},{"t":"2024-04-08T00:00","o":1.2622,"h":1.264,"l":1.26129,"c":1.263},{"t":"2024-04-08T04:00","o":1.26301,"h":1.26346,"l":1.262,"c":1.2627},{"t":"2024-04-08T08:00","o":1.26269,"h":1.26361,"l":1.2614,"c":1.26187},{"t":"2024-04-08T12:00","o":1.26188,"h":1.2656,"l":1.2612,"c":1.26531},{"t":"2024-04-08T16:00","o":1.26527,"h":1.26642,"l":1.26419,"c":1.26545},{"t":"2024-04-08T20:00","o":1.26548,"h":1.266,"l":1.2645,"c":1.26572},{"t":"2024-04-09T00:00","o":1.26572,"h":1.26615,"l":1.26501,"c":1.26543},{"t":"2024-04-09T04:00","o":1.26541,"h":1.26643,"l":1.26469,"c":1.26536},{"t":"2024-04-09T08:00","o":1.26541,"h":1.2691,"l":1.2648,"c":1.268},{"t":"2024-04-09T12:00","o":1.26801,"h":1.27091,"l":1.26649,"c":1.26719},{"t":"2024-04-09T16:00","o":1.2672,"h":1.26751,"l":1.2661,"c":1.26746},{"t":"2024-04-09T20:00","o":1.26746,"h":1.2684,"l":1.2656,"c":1.26767},{"t":"2024-04-10T00:00","o":1.26762,"h":1.2679,"l":1.2668,"c":1.26759},{"t":"2024-04-10T04:00","o":1.26757,"h":1.26892,"l":1.2671,"c":1.26884},{"t":"2024-04-10T08:00","o":1.26884,"h":1.27048,"l":1.2682,"c":1.26942},{"t":"2024-04-10T12:00","o":1.26942,"h":1.27085,"l":1.2533,"c":1.2541},{"t":"2024-04-10T16:00","o":1.25421,"h":1.2554,"l":1.2518,"c":1.25411},{"t":"2024-04-10T20:00","o":1.25411,"h":1.2543,"l":1.2527,"c":1.25362},{"t":"2024-04-11T00:00","o":1.25364,"h":1.25493,"l":1.253,"c":1.25439},{"t":"2024-04-11T04:00","o":1.25449,"h":1.2562,"l":1.2531,"c":1.25605},{"t":"2024-04-11T08:00","o":1.25608,"h":1.257,"l":1.2529,"c":1.25387},{"t":"2024-04-11T12:00","o":1.25389,"h":1.25785,"l":1.2509,"c":1.25339},{"t":"2024-04-11T16:00","o":1.25343,"h":1.2564,"l":1.2528,"c":1.25593},{"t":"2024-04-11T20:00","o":1.25593,"h":1.25601,"l":1.25487,"c":1.2552},{"t":"2024-04-12T00:00","o":1.25543,"h":1.2559,"l":1.2542,"c":1.25448},{"t":"2024-04-12T04:00","o":1.25445,"h":1.25455,"l":1.2503,"c":1.252},{"t":"2024-04-12T08:00","o":1.25194,"h":1.25225,"l":1.24609,"c":1.2471},{"t":"2024-04-12T12:00","o":1.24713,"h":1.24755,"l":1.2425,"c":1.24557},{"t":"2024-04-12T16:00","o":1.24557,"h":1.24621,"l":1.24409,"c":1.24461},{"t":"2024-04-12T20:00","o":1.24461,"h":1.2462,"l":1.2444,"c":1.2456},{"t":"2024-04-14T20:00","o":1.24497,"h":1.24627,"l":1.24418,"c":1.24592},{"t":"2024-04-15T00:00","o":1.24591,"h":1.2466,"l":1.2439,"c":1.24597},{"t":"2024-04-15T04:00","o":1.24598,"h":1.24775,"l":1.24529,"c":1.24755},{"t":"2024-04-15T08:00","o":1.24754,"h":1.2499,"l":1.2473,"c":1.24783},{"t":"2024-04-15T12:00","o":1.24773,"h":1.24965,"l":1.2444,"c":1.24638},{"t":"2024-04-15T16:00","o":1.24638,"h":1.24685,"l":1.24339,"c":1.24479},{"t":"2024-04-15T20:00","o":1.2447,"h":1.245,"l":1.24363,"c":1.24455}],"zones":[{"created_idx":9,"top":1.276,"bottom":1.26723,"mid":1.27162,"is_buy":true,"kind":"flip","touch_idx":18,"exit_idx":19,"outcome":"loss"},{"created_idx":15,"top":1.26766,"bottom":1.26099,"mid":1.26432,"is_buy":true,"kind":"pullback","touch_idx":16,"exit_idx":17,"outcome":"win"},{"created_idx":16,"top":1.26766,"bottom":1.2653,"mid":1.26648,"is_buy":false,"kind":"pullback","touch_idx":17,"exit_idx":17,"outcome":"loss"},{"created_idx":20,"top":1.27297,"bottom":1.2663,"mid":1.26964,"is_buy":false,"kind":"pullback","touch_idx":21,"exit_idx":23,"outcome":"win"},{"created_idx":21,"top":1.2705,"bottom":1.2663,"mid":1.2684,"is_buy":true,"kind":"pullback","touch_idx":22,"exit_idx":23,"outcome":"loss"},{"created_idx":22,"top":1.2705,"bottom":1.26664,"mid":1.26857,"is_buy":false,"kind":"pullback","touch_idx":23,"exit_idx":23,"outcome":"win"},{"created_idx":23,"top":1.2696,"bottom":1.26664,"mid":1.26812,"is_buy":true,"kind":"pullback","touch_idx":24,"exit_idx":24,"outcome":"loss"},{"created_idx":27,"top":1.2696,"bottom":1.26099,"mid":1.2653,"is_buy":false,"kind":"flip","touch_idx":68,"exit_idx":73,"outcome":"win"},{"created_idx":30,"top":1.27551,"bottom":1.26969,"mid":1.2726,"is_buy":false,"kind":"pullback","touch_idx":31,"exit_idx":31,"outcome":"win"},{"created_idx":31,"top":1.272,"bottom":1.26969,"mid":1.27085,"is_buy":true,"kind":"pullback","touch_idx":32,"exit_idx":32,"outcome":"loss"},{"created_idx":34,"top":1.272,"bottom":1.2672,"mid":1.2696,"is_buy":false,"kind":"flip","touch_idx":39,"exit_idx":43,"outcome":"loss"},{"created_idx":40,"top":1.2767,"bottom":1.2689,"mid":1.2728,"is_buy":false,"kind":"pullback","touch_idx":41,"exit_idx":42,"outcome":"win"},{"created_idx":42,"top":1.27176,"bottom":1.2689,"mid":1.27033,"is_buy":true,"kind":"pullback","touch_idx":43,"exit_idx":43,"outcome":"win"},{"created_idx":49,"top":1.27176,"bottom":1.26849,"mid":1.27012,"is_buy":false,"kind":"flip","touch_idx":50,"exit_idx":50,"outcome":"loss"},{"created_idx":51,"top":1.2774,"bottom":1.2689,"mid":1.27315,"is_buy":false,"kind":"pullback","touch_idx":55,"exit_idx":55,"outcome":"loss"},{"created_idx":57,"top":1.27842,"bottom":1.2719,"mid":1.27516,"is_buy":false,"kind":"pullback","touch_idx":58,"exit_idx":62,"outcome":"win"},{"created_idx":58,"top":1.27689,"bottom":1.2719,"mid":1.2744,"is_buy":true,"kind":"pullback","touch_idx":59,"exit_idx":62,"outcome":"loss"},{"created_idx":61,"top":1.27689,"bottom":1.2728,"mid":1.27485,"is_buy":false,"kind":"pullback","touch_idx":62,"exit_idx":62,"outcome":"win"},{"created_idx":62,"top":1.276,"bottom":1.2728,"mid":1.2744,"is_buy":true,"kind":"pullback","touch_idx":98,"exit_idx":98,"outcome":"loss"},{"created_idx":64,"top":1.27394,"bottom":1.27119,"mid":1.27257,"is_buy":true,"kind":"pullback","touch_idx":65,"exit_idx":66,"outcome":"loss"},{"created_idx":71,"top":1.2679,"bottom":1.2619,"mid":1.2649,"is_buy":true,"kind":"pullback","touch_idx":73,"exit_idx":73,"outcome":"loss"},{"created_idx":75,"top":1.2679,"bottom":1.2595,"mid":1.2637,"is_buy":false,"kind":"flip","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":76,"top":1.2696,"bottom":1.2637,"mid":1.26665,"is_buy":false,"kind":"pullback","touch_idx":81,"exit_idx":82,"outcome":"loss"},{"created_idx":82,"top":1.2705,"bottom":1.26469,"mid":1.2676,"is_buy":false,"kind":"pullback","touch_idx":85,"exit_idx":85,"outcome":"loss"},{"created_idx":88,"top":1.2715,"bottom":1.26599,"mid":1.26875,"is_buy":false,"kind":"pullback","touch_idx":90,"exit_idx":91,"outcome":"loss"},{"created_idx":94,"top":1.2725,"bottom":1.26859,"mid":1.27055,"is_buy":false,"kind":"pullback","touch_idx":95,"exit_idx":95,"outcome":"loss"},{"created_idx":97,"top":1.2733,"bottom":1.26959,"mid":1.27144,"is_buy":false,"kind":"pullback","touch_idx":99,"exit_idx":99,"outcome":"loss"},{"created_idx":102,"top":1.2747,"bottom":1.26959,"mid":1.27215,"is_buy":true,"kind":"flip","touch_idx":105,"exit_idx":105,"outcome":"win"},{"created_idx":107,"top":1.2747,"bottom":1.26479,"mid":1.26974,"is_buy":false,"kind":"flip","touch_idx":112,"exit_idx":118,"outcome":"loss"},{"created_idx":108,"top":1.27746,"bottom":1.2711,"mid":1.27428,"is_buy":false,"kind":"pullback","touch_idx":109,"exit_idx":109,"outcome":"win"},{"created_idx":109,"top":1.2731,"bottom":1.2711,"mid":1.2721,"is_buy":true,"kind":"pullback","touch_idx":110,"exit_idx":110,"outcome":"loss"},{"created_idx":112,"top":1.2731,"bottom":1.27019,"mid":1.27164,"is_buy":false,"kind":"flip","touch_idx":113,"exit_idx":113,"outcome":"win"},{"created_idx":114,"top":1.2744,"bottom":1.27019,"mid":1.27229,"is_buy":true,"kind":"flip","touch_idx":117,"exit_idx":117,"outcome":"loss"},{"created_idx":116,"top":1.27161,"bottom":1.268,"mid":1.2698,"is_buy":true,"kind":"pullback","touch_idx":117,"exit_idx":117,"outcome":"loss"},{"created_idx":119,"top":1.27161,"bottom":1.2674,"mid":1.26951,"is_buy":false,"kind":"flip","touch_idx":121,"exit_idx":123,"outcome":"loss"},{"created_idx":120,"top":1.27585,"bottom":1.2697,"mid":1.27277,"is_buy":false,"kind":"pullback","touch_idx":121,"exit_idx":121,"outcome":"win"},{"created_idx":121,"top":1.271,"bottom":1.2697,"mid":1.27035,"is_buy":true,"kind":"pullback","touch_idx":122,"exit_idx":122,"outcome":"loss"},{"created_idx":124,"top":1.271,"bottom":1.269,"mid":1.27,"is_buy":false,"kind":"flip","touch_idx":125,"exit_idx":125,"outcome":"loss"},{"created_idx":126,"top":1.27189,"bottom":1.269,"mid":1.27045,"is_buy":true,"kind":"flip","touch_idx":127,"exit_idx":128,"outcome":"win"},{"created_idx":129,"top":1.27189,"bottom":1.2661,"mid":1.26899,"is_buy":false,"kind":"flip","touch_idx":130,"exit_idx":131,"outcome":"win"},{"created_idx":132,"top":1.2721,"bottom":1.2661,"mid":1.2691,"is_buy":true,"kind":"flip","touch_idx":133,"exit_idx":135,"outcome":"loss"},{"created_idx":134,"top":1.2702,"bottom":1.26394,"mid":1.26707,"is_buy":true,"kind":"pullback","touch_idx":135,"exit_idx":137,"outcome":"win"},{"created_idx":136,"top":1.2702,"bottom":1.26609,"mid":1.26815,"is_buy":false,"kind":"pullback","touch_idx":137,"exit_idx":137,"outcome":"loss"},{"created_idx":140,"top":1.27508,"bottom":1.26609,"mid":1.27059,"is_buy":true,"kind":"flip","touch_idx":144,"exit_idx":144,"outcome":"win"},{"created_idx":141,"top":1.26981,"bottom":1.2657,"mid":1.26776,"is_buy":true,"kind":"pullback","touch_idx":143,"exit_idx":143,"outcome":"loss"},{"created_idx":145,"top":1.26981,"bottom":1.26252,"mid":1.26616,"is_buy":false,"kind":"flip","touch_idx":149,"exit_idx":149,"outcome":"loss"},{"created_idx":146,"top":1.2756,"bottom":1.27386,"mid":1.27473,"is_buy":false,"kind":"pullback","touch_idx":147,"exit_idx":147,"outcome":"loss"},{"created_idx":151,"top":1.27723,"bottom":1.27386,"mid":1.27555,"is_buy":true,"kind":"flip","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":152,"top":1.26439,"bottom":1.2612,"mid":1.2628,"is_buy":true,"kind":"pullback","touch_idx":155,"exit_idx":155,"outcome":"loss"},{"created_idx":156,"top":1.26295,"bottom":1.25974,"mid":1.26134,"is_buy":true,"kind":"pullback","touch_idx":166,"exit_idx":166,"outcome":"loss"},{"created_idx":158,"top":1.25441,"bottom":1.2517,"mid":1.25306,"is_buy":true,"kind":"pullback","touch_idx":159,"exit_idx":159,"outcome":"win"},{"created_idx":161,"top":1.25441,"bottom":1.25158,"mid":1.25299,"is_buy":false,"kind":"flip","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":162,"top":1.25653,"bottom":1.2535,"mid":1.25501,"is_buy":false,"kind":"pullback","touch_idx":198,"exit_idx":198,"outcome":"win"},{"created_idx":170,"top":1.2642,"bottom":1.2614,"mid":1.2628,"is_buy":false,"kind":"pullback","touch_idx":171,"exit_idx":173,"outcome":"win"},{"created_idx":172,"top":1.2639,"bottom":1.2614,"mid":1.26265,"is_buy":true,"kind":"pullback","touch_idx":173,"exit_idx":173,"outcome":"loss"},{"created_idx":176,"top":1.263,"bottom":1.257,"mid":1.26,"is_buy":true,"kind":"pullback","touch_idx":177,"exit_idx":178,"outcome":"win"},{"created_idx":177,"top":1.263,"bottom":1.2605,"mid":1.26175,"is_buy":false,"kind":"pullback","touch_idx":178,"exit_idx":178,"outcome":"loss"},{"created_idx":182,"top":1.2643,"bottom":1.2619,"mid":1.2631,"is_buy":false,"kind":"pullback","touch_idx":183,"exit_idx":184,"outcome":"loss"},{"created_idx":183,"top":1.2637,"bottom":1.2619,"mid":1.2628,"is_buy":true,"kind":"pullback","touch_idx":184,"exit_idx":184,"outcome":"win"},{"created_idx":184,"top":1.2637,"bottom":1.26225,"mid":1.26297,"is_buy":false,"kind":"pullback","touch_idx":185,"exit_idx":185,"outcome":"loss"},{"created_idx":188,"top":1.26547,"bottom":1.26225,"mid":1.26386,"is_buy":true,"kind":"flip","touch_idx":191,"exit_idx":191,"outcome":"loss"},{"created_idx":189,"top":1.26405,"bottom":1.26049,"mid":1.26227,"is_buy":true,"kind":"pullback","touch_idx":190,"exit_idx":191,"outcome":"win"},{"created_idx":192,"top":1.26405,"bottom":1.2607,"mid":1.26238,"is_buy":false,"kind":"pullback","touch_idx":193,"exit_idx":193,"outcome":"loss"},{"created_idx":195,"top":1.2684,"bottom":1.2607,"mid":1.26455,"is_buy":true,"kind":"flip","touch_idx":224,"exit_idx":224,"outcome":"loss"},{"created_idx":198,"top":1.2611,"bottom":1.2572,"mid":1.25915,"is_buy":true,"kind":"pullback","touch_idx":205,"exit_idx":205,"outcome":"loss"},{"created_idx":201,"top":1.25703,"bottom":1.2534,"mid":1.25522,"is_buy":true,"kind":"pullback","touch_idx":202,"exit_idx":202,"outcome":"win"},{"created_idx":202,"top":1.25703,"bottom":1.25364,"mid":1.25534,"is_buy":false,"kind":"pullback","touch_idx":203,"exit_idx":203,"outcome":"loss"},{"created_idx":206,"top":1.25731,"bottom":1.25395,"mid":1.25563,"is_buy":false,"kind":"pullback","touch_idx":211,"exit_idx":211,"outcome":"loss"},{"created_idx":210,"top":1.2611,"bottom":1.25718,"mid":1.25914,"is_buy":false,"kind":"pullback","touch_idx":211,"exit_idx":211,"outcome":"win"},{"created_idx":214,"top":1.26242,"bottom":1.25908,"mid":1.26075,"is_buy":false,"kind":"pullback","touch_idx":217,"exit_idx":217,"outcome":"loss"},{"created_idx":220,"top":1.263,"bottom":1.25908,"mid":1.26104,"is_buy":true,"kind":"flip","touch_idx":223,"exit_idx":223,"outcome":"loss"},{"created_idx":221,"top":1.2601,"bottom":1.2581,"mid":1.2591,"is_buy":true,"kind":"pullback","touch_idx":222,"exit_idx":222,"outcome":"loss"},{"created_idx":225,"top":1.2601,"bottom":1.25771,"mid":1.2589,"is_buy":false,"kind":"flip","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":226,"top":1.26685,"bottom":1.2615,"mid":1.26418,"is_buy":false,"kind":"pullback","touch_idx":227,"exit_idx":229,"outcome":"win"},{"created_idx":229,"top":1.26371,"bottom":1.2615,"mid":1.26261,"is_buy":true,"kind":"pullback","touch_idx":230,"exit_idx":230,"outcome":"loss"},{"created_idx":232,"top":1.26371,"bottom":1.2601,"mid":1.26191,"is_buy":false,"kind":"flip","touch_idx":236,"exit_idx":236,"outcome":"loss"},{"created_idx":233,"top":1.2642,"bottom":1.2623,"mid":1.26325,"is_buy":false,"kind":"pullback","touch_idx":234,"exit_idx":234,"outcome":"loss"},{"created_idx":237,"top":1.27092,"bottom":1.2623,"mid":1.26661,"is_buy":true,"kind":"flip","touch_idx":239,"exit_idx":260,"outcome":"loss"},{"created_idx":243,"top":1.27015,"bottom":1.261,"mid":1.26557,"is_buy":true,"kind":"pullback","touch_idx":244,"exit_idx":273,"outcome":"loss"},{"created_idx":244,"top":1.27015,"bottom":1.2664,"mid":1.26828,"is_buy":false,"kind":"pullback","touch_idx":245,"exit_idx":246,"outcome":"win"},{"created_idx":246,"top":1.26829,"bottom":1.2664,"mid":1.26734,"is_buy":true,"kind":"pullback","touch_idx":247,"exit_idx":247,"outcome":"loss"},{"created_idx":250,"top":1.26829,"bottom":1.2655,"mid":1.26689,"is_buy":false,"kind":"flip","touch_idx":255,"exit_idx":255,"outcome":"loss"},{"created_idx":251,"top":1.27,"bottom":1.2669,"mid":1.26845,"is_buy":false,"kind":"pullback","touch_idx":252,"exit_idx":255,"outcome":"win"},{"created_idx":252,"top":1.2694,"bottom":1.2669,"mid":1.26815,"is_buy":true,"kind":"pullback","touch_idx":253,"exit_idx":253,"outcome":"win"},{"created_idx":253,"top":1.2694,"bottom":1.26729,"mid":1.26835,"is_buy":false,"kind":"pullback","touch_idx":254,"exit_idx":254,"outcome":"loss"},{"created_idx":256,"top":1.26971,"bottom":1.26729,"mid":1.2685,"is_buy":true,"kind":"flip","touch_idx":257,"exit_idx":258,"outcome":"loss"},{"created_idx":257,"top":1.26951,"bottom":1.2658,"mid":1.26765,"is_buy":true,"kind":"pullback","touch_idx":258,"exit_idx":259,"outcome":"loss"},{"created_idx":263,"top":1.26734,"bottom":1.2621,"mid":1.26472,"is_buy":true,"kind":"pullback","touch_idx":264,"exit_idx":266,"outcome":"win"},{"created_idx":264,"top":1.26734,"bottom":1.2648,"mid":1.26607,"is_buy":false,"kind":"pullback","touch_idx":265,"exit_idx":266,"outcome":"loss"},{"created_idx":269,"top":1.2682,"bottom":1.2648,"mid":1.2665,"is_buy":true,"kind":"flip","touch_idx":277,"exit_idx":280,"outcome":"win"},{"created_idx":275,"top":1.2664,"bottom":1.2611,"mid":1.26375,"is_buy":true,"kind":"pullback","touch_idx":276,"exit_idx":277,"outcome":"win"},{"created_idx":277,"top":1.2664,"bottom":1.2645,"mid":1.26545,"is_buy":false,"kind":"pullback","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":286,"top":1.27064,"bottom":1.267,"mid":1.26882,"is_buy":false,"kind":"pullback","touch_idx":289,"exit_idx":290,"outcome":"loss"},{"created_idx":290,"top":1.27344,"bottom":1.2688,"mid":1.27112,"is_buy":false,"kind":"pullback","touch_idx":291,"exit_idx":292,"outcome":"loss"},{"created_idx":296,"top":1.27612,"bottom":1.2722,"mid":1.27416,"is_buy":false,"kind":"pullback","touch_idx":297,"exit_idx":297,"outcome":"loss"},{"created_idx":303,"top":1.28201,"bottom":1.2799,"mid":1.28096,"is_buy":false,"kind":"pullback","touch_idx":311,"exit_idx":311,"outcome":"loss"},{"created_idx":306,"top":1.28936,"bottom":1.2839,"mid":1.28663,"is_buy":false,"kind":"pullback","touch_idx":307,"exit_idx":310,"outcome":"win"},{"created_idx":308,"top":1.28645,"bottom":1.2839,"mid":1.28518,"is_buy":true,"kind":"pullback","touch_idx":309,"exit_idx":310,"outcome":"loss"},{"created_idx":316,"top":1.28231,"bottom":1.2793,"mid":1.2808,"is_buy":true,"kind":"pullback","touch_idx":322,"exit_idx":322,"outcome":"loss"},{"created_idx":321,"top":1.2799,"bottom":1.2745,"mid":1.2772,"is_buy":true,"kind":"pullback","touch_idx":322,"exit_idx":322,"outcome":"win"},{"created_idx":323,"top":1.2799,"bottom":1.27729,"mid":1.2786,"is_buy":false,"kind":"pullback","touch_idx":325,"exit_idx":325,"outcome":"loss"},{"created_idx":326,"top":1.28113,"bottom":1.27808,"mid":1.27961,"is_buy":false,"kind":"pullback","touch_idx":327,"exit_idx":328,"outcome":"loss"},{"created_idx":330,"top":1.2823,"bottom":1.27808,"mid":1.28019,"is_buy":true,"kind":"flip","touch_idx":357,"exit_idx":359,"outcome":"loss"},{"created_idx":332,"top":1.27588,"bottom":1.27298,"mid":1.27443,"is_buy":true,"kind":"pullback","touch_idx":333,"exit_idx":334,"outcome":"win"},{"created_idx":335,"top":1.27588,"bottom":1.2728,"mid":1.27434,"is_buy":false,"kind":"flip","touch_idx":336,"exit_idx":336,"outcome":"win"},{"created_idx":338,"top":1.2759,"bottom":1.2728,"mid":1.27435,"is_buy":true,"kind":"flip","touch_idx":341,"exit_idx":341,"outcome":"loss"},{"created_idx":342,"top":1.27468,"bottom":1.2717,"mid":1.27319,"is_buy":true,"kind":"pullback","touch_idx":343,"exit_idx":343,"outcome":"loss"},{"created_idx":344,"top":1.27468,"bottom":1.2717,"mid":1.27319,"is_buy":false,"kind":"pullback","touch_idx":345,"exit_idx":345,"outcome":"win"},{"created_idx":345,"top":1.27312,"bottom":1.2717,"mid":1.27241,"is_buy":true,"kind":"pullback","touch_idx":346,"exit_idx":346,"outcome":"loss"},{"created_idx":350,"top":1.27312,"bottom":1.26669,"mid":1.26991,"is_buy":false,"kind":"flip","touch_idx":352,"exit_idx":355,"outcome":"loss"},{"created_idx":355,"top":1.2733,"bottom":1.26829,"mid":1.2708,"is_buy":false,"kind":"pullback","touch_idx":360,"exit_idx":360,"outcome":"loss"},{"created_idx":366,"top":1.28033,"bottom":1.26829,"mid":1.27431,"is_buy":true,"kind":"flip","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":367,"top":1.2624,"bottom":1.2574,"mid":1.2599,"is_buy":true,"kind":"pullback","touch_idx":368,"exit_idx":372,"outcome":"win"},{"created_idx":368,"top":1.2624,"bottom":1.2584,"mid":1.2604,"is_buy":false,"kind":"pullback","touch_idx":369,"exit_idx":372,"outcome":"loss"},{"created_idx":371,"top":1.2617,"bottom":1.2584,"mid":1.26005,"is_buy":true,"kind":"pullback","touch_idx":372,"exit_idx":372,"outcome":"win"},{"created_idx":373,"top":1.2617,"bottom":1.2593,"mid":1.2605,"is_buy":false,"kind":"pullback","touch_idx":385,"exit_idx":385,"outcome":"loss"},{"created_idx":376,"top":1.26522,"bottom":1.26276,"mid":1.26399,"is_buy":false,"kind":"pullback","touch_idx":377,"exit_idx":377,"outcome":"loss"},{"created_idx":383,"top":1.2668,"bottom":1.26276,"mid":1.26478,"is_buy":true,"kind":"flip","touch_idx":391,"exit_idx":391,"outcome":"loss"},{"created_idx":385,"top":1.26382,"bottom":1.2607,"mid":1.26226,"is_buy":true,"kind":"pullback","touch_idx":386,"exit_idx":387,"outcome":"win"},{"created_idx":388,"top":1.26382,"bottom":1.26039,"mid":1.26211,"is_buy":false,"kind":"flip","touch_idx":389,"exit_idx":390,"outcome":"win"},{"created_idx":389,"top":1.26411,"bottom":1.261,"mid":1.26255,"is_buy":false,"kind":"pullback","touch_idx":390,"exit_idx":390,"outcome":"win"},{"created_idx":390,"top":1.26371,"bottom":1.261,"mid":1.26235,"is_buy":true,"kind":"pullback","touch_idx":391,"exit_idx":391,"outcome":"loss"},{"created_idx":392,"top":1.26371,"bottom":1.2584,"mid":1.26106,"is_buy":false,"kind":"flip","touch_idx":393,"exit_idx":397,"outcome":"loss"},{"created_idx":394,"top":1.26541,"bottom":1.26082,"mid":1.26311,"is_buy":false,"kind":"pullback","touch_idx":395,"exit_idx":396,"outcome":"win"},{"created_idx":395,"top":1.2631,"bottom":1.26082,"mid":1.26196,"is_buy":true,"kind":"pullback","touch_idx":396,"exit_idx":396,"outcome":"loss"},{"created_idx":398,"top":1.2631,"bottom":1.26073,"mid":1.26191,"is_buy":false,"kind":"flip","touch_idx":399,"exit_idx":400,"outcome":"loss"},{"created_idx":400,"top":1.2646,"bottom":1.26075,"mid":1.26267,"is_buy":false,"kind":"pullback","touch_idx":401,"exit_idx":403,"outcome":"win"},{"created_idx":402,"top":1.2643,"bottom":1.26075,"mid":1.26253,"is_buy":true,"kind":"pullback","touch_idx":403,"exit_idx":403,"outcome":"loss"},{"created_idx":407,"top":1.2555,"bottom":1.2538,"mid":1.25465,"is_buy":true,"kind":"pullback","touch_idx":408,"exit_idx":408,"outcome":"loss"},{"created_idx":409,"top":1.2555,"bottom":1.2538,"mid":1.25465,"is_buy":false,"kind":"pullback","touch_idx":447,"exit_idx":447,"outcome":"loss"},{"created_idx":412,"top":1.25774,"bottom":1.25649,"mid":1.25712,"is_buy":false,"kind":"pullback","touch_idx":413,"exit_idx":413,"outcome":"loss"},{"created_idx":415,"top":1.2582,"bottom":1.25649,"mid":1.25734,"is_buy":true,"kind":"flip","touch_idx":416,"exit_idx":416,"outcome":"win"},{"created_idx":419,"top":1.2582,"bottom":1.25617,"mid":1.25718,"is_buy":false,"kind":"flip","touch_idx":447,"exit_idx":447,"outcome":"loss"},{"created_idx":420,"top":1.26561,"bottom":1.2643,"mid":1.26496,"is_buy":false,"kind":"pullback","touch_idx":421,"exit_idx":421,"outcome":"loss"},{"created_idx":422,"top":1.267,"bottom":1.2646,"mid":1.2658,"is_buy":false,"kind":"pullback","touch_idx":423,"exit_idx":423,"outcome":"loss"},{"created_idx":427,"top":1.26834,"bottom":1.2646,"mid":1.26647,"is_buy":true,"kind":"flip","touch_idx":440,"exit_idx":440,"outcome":"win"},{"created_idx":429,"top":1.26449,"bottom":1.2613,"mid":1.26289,"is_buy":true,"kind":"pullback","touch_idx":430,"exit_idx":430,"outcome":"win"},{"created_idx":430,"top":1.26449,"bottom":1.2625,"mid":1.26349,"is_buy":false,"kind":"pullback","touch_idx":431,"exit_idx":431,"outcome":"win"},{"created_idx":433,"top":1.2649,"bottom":1.2625,"mid":1.2637,"is_buy":true,"kind":"flip","touch_idx":435,"exit_idx":435,"outcome":"loss"},{"created_idx":437,"top":1.2649,"bottom":1.26129,"mid":1.26309,"is_buy":false,"kind":"flip","touch_idx":447,"exit_idx":447,"outcome":"loss"},{"created_idx":438,"top":1.26642,"bottom":1.2645,"mid":1.26546,"is_buy":false,"kind":"pullback","touch_idx":439,"exit_idx":439,"outcome":"loss"},{"created_idx":444,"top":1.27091,"bottom":1.2656,"mid":1.26825,"is_buy":false,"kind":"pullback","touch_idx":445,"exit_idx":447,"outcome":"win"},{"created_idx":448,"top":1.27085,"bottom":1.2656,"mid":1.26823,"is_buy":true,"kind":"pullback","touch_idx":null,"exit_idx":null,"outcome":"no_touch"},{"created_idx":454,"top":1.25785,"bottom":1.2518,"mid":1.25482,"is_buy":true,"kind":"pullback","touch_idx":455,"exit_idx":457,"outcome":"loss"},{"created_idx":455,"top":1.25785,"bottom":1.2528,"mid":1.25533,"is_buy":false,"kind":"pullback","touch_idx":456,"exit_idx":457,"outcome":"win"},{"created_idx":456,"top":1.25601,"bottom":1.2528,"mid":1.2544,"is_buy":true,"kind":"pullback","touch_idx":457,"exit_idx":457,"outcome":"loss"},{"created_idx":461,"top":1.24621,"bottom":1.2425,"mid":1.24436,"is_buy":true,"kind":"pullback","touch_idx":462,"exit_idx":462,"outcome":"win"},{"created_idx":464,"top":1.24621,"bottom":1.2439,"mid":1.24506,"is_buy":false,"kind":"pullback","touch_idx":466,"exit_idx":466,"outcome":"loss"},{"created_idx":468,"top":1.2499,"bottom":1.2439,"mid":1.2469,"is_buy":true,"kind":"flip","touch_idx":null,"exit_idx":null,"outcome":"no_touch"}]};
+  var bars = DATA.bars;
+  var zones = DATA.zones;
+  var N = bars.length;
+
+  var priceMin = Infinity, priceMax = -Infinity;
+  for (var i = 0; i < N; i++) {
+    if (bars[i].l < priceMin) priceMin = bars[i].l;
+    if (bars[i].h > priceMax) priceMax = bars[i].h;
+  }
+  var pad = (priceMax - priceMin) * 0.06;
+  priceMin -= pad; priceMax += pad;
+
+  var canvas = document.getElementById("chart");
+  var ctx = canvas.getContext("2d");
+  var tooltip = document.getElementById("tooltip");
+  var dpr = Math.max(window.devicePixelRatio || 1, 1);
+
+  var current = 0;
+  var playing = false;
+  var rafId = null;
+  var lastTick = 0;
+  var msPerBar = 240;
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function layout() {
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(380 * dpr);
+    canvas.style.height = "380px";
+  }
+
+  function xFor(i, w, leftPad, rightPad) {
+    var usable = w - leftPad - rightPad;
+    return leftPad + (usable * (N <= 1 ? 0 : i / (N - 1)));
+  }
+  function yFor(p, h, topPad, bottomPad) {
+    var usable = h - topPad - bottomPad;
+    var t = (p - priceMin) / (priceMax - priceMin);
+    return topPad + usable * (1 - t);
+  }
+
+  function draw() {
+    var w = canvas.width, h = canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    var leftPad = 8 * dpr, rightPad = 58 * dpr, topPad = 14 * dpr, bottomPad = 22 * dpr;
+    var barW = (w - leftPad - rightPad) / N;
+    var candleW = Math.max(1.4 * dpr, Math.min(barW * 0.62, 7 * dpr));
+
+    ctx.strokeStyle = css("--grid") || css("--line");
+    ctx.lineWidth = 1;
+    ctx.font = (11 * dpr) + "px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = css("--ink-faint");
+    ctx.textBaseline = "middle";
+    var steps = 5;
+    for (var s = 0; s <= steps; s++) {
+      var p = priceMin + (priceMax - priceMin) * (s / steps);
+      var y = yFor(p, h, topPad, bottomPad);
+      ctx.beginPath();
+      ctx.moveTo(leftPad, y);
+      ctx.lineTo(w - rightPad, y);
+      ctx.stroke();
+      ctx.fillText(p.toFixed(4), w - rightPad + 6 * dpr, y);
+    }
+
+    for (var zi = 0; zi < zones.length; zi++) {
+      var z = zones[zi];
+      if (z.created_idx > current) continue;
+      var endIdx = (z.exit_idx != null && z.exit_idx <= current) ? z.exit_idx : current;
+      var x0 = xFor(z.created_idx, w, leftPad, rightPad);
+      var x1 = xFor(Math.max(endIdx, z.created_idx), w, leftPad, rightPad) + candleW * 0.5;
+      var yTop = yFor(z.top, h, topPad, bottomPad);
+      var yBot = yFor(z.bottom, h, topPad, bottomPad);
+      var yMid = yFor(z.mid, h, topPad, bottomPad);
+      var resolved = z.exit_idx != null && z.exit_idx <= current;
+      var color = z.is_buy ? css("--buy") : css("--sell");
+      var fill = z.is_buy ? css("--buy-fill") : css("--sell-fill");
+      var isFlip = z.kind === "flip";
+
+      ctx.fillStyle = fill;
+      ctx.fillRect(x0, yTop, x1 - x0, yBot - yTop);
+      ctx.strokeStyle = isFlip ? css("--ink") : color;
+      ctx.lineWidth = (isFlip ? 2.4 : (resolved ? 1.6 : 1.1)) * dpr;
+      ctx.setLineDash(resolved || isFlip ? [] : [4 * dpr, 3 * dpr]);
+      ctx.strokeRect(x0, yTop, x1 - x0, yBot - yTop);
+      ctx.setLineDash([2 * dpr, 3 * dpr]);
+      ctx.beginPath();
+      ctx.moveTo(x0, yMid); ctx.lineTo(x1, yMid);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (z.touch_idx != null && z.touch_idx <= current) {
+        var ex = xFor(z.touch_idx, w, leftPad, rightPad);
+        ctx.fillStyle = css("--accent");
+        ctx.beginPath();
+        ctx.arc(ex, yMid, 4 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (resolved) {
+        var xx = xFor(z.exit_idx, w, leftPad, rightPad);
+        var yy = z.outcome === "win" ? (z.is_buy ? yTop : yBot) : (z.is_buy ? yBot : yTop);
+        ctx.fillStyle = z.outcome === "win" ? css("--buy-strong") : css("--sell-strong");
+        ctx.beginPath();
+        ctx.arc(xx, yy, 4.4 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (var i2 = 0; i2 <= current && i2 < N; i2++) {
+      var b = bars[i2];
+      var x = xFor(i2, w, leftPad, rightPad);
+      var yO = yFor(b.o, h, topPad, bottomPad);
+      var yC = yFor(b.c, h, topPad, bottomPad);
+      var yH = yFor(b.h, h, topPad, bottomPad);
+      var yL = yFor(b.l, h, topPad, bottomPad);
+      var up = b.c >= b.o;
+      ctx.strokeStyle = css("--wick") || css("--ink-faint");
+      ctx.lineWidth = 1 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(x, yH); ctx.lineTo(x, yL);
+      ctx.stroke();
+      ctx.fillStyle = up ? (css("--candle-up") || css("--buy")) : (css("--candle-down") || css("--sell"));
+      var top = Math.min(yO, yC), bh = Math.max(Math.abs(yC - yO), 1 * dpr);
+      ctx.fillRect(x - candleW / 2, top, candleW, bh);
+    }
+
+    if (current < N) {
+      var cx = xFor(current, w, leftPad, rightPad);
+      ctx.strokeStyle = css("--ink-faint");
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 1 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(cx, topPad); ctx.lineTo(cx, h - bottomPad);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function fmtTime(t) { return t.replace("T", " "); }
+
+  function updateHUD() {
+    document.getElementById("clockLabel").textContent = fmtTime(bars[Math.min(current, N - 1)].t);
+    document.getElementById("barCount").textContent = "bar " + current + " / " + (N - 1);
+    document.getElementById("scrubber").value = current;
+
+    var zonesSoFar = 0, touched = 0, wins = 0, losses = 0;
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      if (z.created_idx > current) continue;
+      zonesSoFar++;
+      if (z.touch_idx != null && z.touch_idx <= current) touched++;
+      if (z.exit_idx != null && z.exit_idx <= current) {
+        if (z.outcome === "win") wins++; else if (z.outcome === "loss") losses++;
+      }
+    }
+    document.getElementById("statZones").textContent = zonesSoFar;
+    document.getElementById("statTouched").textContent = touched;
+    document.getElementById("statWins").textContent = wins;
+    document.getElementById("statLosses").textContent = losses;
+    var decided = wins + losses;
+    document.getElementById("statWR").textContent = decided ? Math.round(100 * wins / decided) + "%" : "—";
+  }
+
+  function render() { draw(); updateHUD(); }
+
+  function setPlaying(p) {
+    playing = p;
+    document.getElementById("playBtn").textContent = playing ? "Pause" : "Play";
+    if (playing) { lastTick = performance.now(); rafId = requestAnimationFrame(tick); }
+    else if (rafId) { cancelAnimationFrame(rafId); }
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    var elapsed = now - lastTick;
+    if (elapsed >= msPerBar) {
+      lastTick = now;
+      current++;
+      if (current >= N - 1) { current = N - 1; render(); setPlaying(false); return; }
+      render();
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function nextEventBar() {
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      var candidates = [z.created_idx, z.touch_idx, z.exit_idx].filter(function (v) { return v != null; });
+      for (var c = 0; c < candidates.length; c++) {
+        if (candidates[c] > current) return candidates[c];
+      }
+    }
+    return N - 1;
+  }
+
+  document.getElementById("playBtn").addEventListener("click", function () {
+    if (current >= N - 1) current = 0;
+    setPlaying(!playing);
+  });
+  document.getElementById("stepBackBtn").addEventListener("click", function () {
+    setPlaying(false); current = Math.max(0, current - 1); render();
+  });
+  document.getElementById("stepFwdBtn").addEventListener("click", function () {
+    setPlaying(false); current = Math.min(N - 1, current + 1); render();
+  });
+  document.getElementById("nextEventBtn").addEventListener("click", function () {
+    setPlaying(false); current = nextEventBar(); render();
+  });
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    setPlaying(false); current = 0; render();
+  });
+  document.getElementById("speedSelect").addEventListener("change", function (e) {
+    msPerBar = parseFloat(e.target.value) * 60;
+  });
+  document.getElementById("scrubber").addEventListener("input", function (e) {
+    setPlaying(false); current = parseInt(e.target.value, 10); render();
+  });
+
+  canvas.addEventListener("mousemove", function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * dpr;
+    var w = canvas.width;
+    var leftPad = 8 * dpr, rightPad = 58 * dpr;
+    var frac = (mx - leftPad) / (w - leftPad - rightPad);
+    var idx = Math.round(frac * (N - 1));
+    if (idx < 0 || idx > current) { tooltip.style.opacity = 0; return; }
+    var b = bars[idx];
+    tooltip.innerHTML = fmtTime(b.t) + "<br>O " + b.o.toFixed(4) + " H " + b.h.toFixed(4) +
+      "<br>L " + b.l.toFixed(4) + " C " + b.c.toFixed(4);
+    tooltip.style.left = (e.clientX - rect.left) + "px";
+    tooltip.style.top = (e.clientY - rect.top) + "px";
+    tooltip.style.opacity = 1;
+  });
+  canvas.addEventListener("mouseleave", function () { tooltip.style.opacity = 0; });
+
+  window.addEventListener("resize", function () { layout(); render(); });
+
+  document.getElementById("scrubber").max = N - 1;
+  layout();
+  render();
+})();
+</script>

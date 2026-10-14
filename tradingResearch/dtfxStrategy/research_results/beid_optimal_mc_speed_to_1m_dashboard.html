@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimal BEID Configuration: Quickest Time to $1M in Monte Carlo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #121826;
+            --bg-card: #182234;
+            --accent-cyan: #00f2fe;
+            --accent-blue: #4facfe;
+            --accent-green: #00e676;
+            --accent-red: #ff5252;
+            --accent-purple: #9d4edd;
+            --accent-amber: #ffb703;
+            --text-main: #f0f4f8;
+            --text-dim: #94a3b8;
+            --border: #233044;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+        .header {
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--accent-cyan);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+        .champion-box {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(0, 230, 118, 0.05));
+            border: 1px solid rgba(0, 242, 254, 0.4);
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        }
+        .champ-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .champ-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+        .champ-item {
+            background: rgba(0,0,0,0.25);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .champ-item-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .champ-item-val {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 4px;
+        }
+        .text-green { color: var(--accent-green); }
+        .text-cyan { color: var(--accent-cyan); }
+        .text-red { color: var(--accent-red); }
+        .text-amber { color: var(--accent-amber); }
+        .text-purple { color: var(--accent-purple); }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 950px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+        .chart-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            height: 380px;
+        }
+        .chart-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .table-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background: rgba(255,255,255,0.03);
+            color: var(--text-dim);
+            text-align: left;
+            padding: 10px 14px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="badge">GLOBAL MONTE CARLO OPTIMIZATION</div>
+        <h1>BEID Strategy: Optimal Speed to Median $1,000,000</h1>
+        <div class="subtitle">
+            1,344 Parameter Configurations evaluated across 4 Forex pairs with flat 1.6-pip spread friction and $200 starting capital.
+        </div>
+    </div>
+
+    <div class="champion-box">
+        <div class="champ-title">
+            <span>&#127942;</span> GLOBAL OPTIMAL CHAMPION CONFIGURATION (FASTEST TO $1M)
+        </div>
+        <div class="champ-grid">
+            <div class="champ-item">
+                <div class="champ-item-label">Optimal Timeframe</div>
+                <div class="champ-item-val text-cyan">3-Minute (3M)</div>
+            </div>
+            <div class="champ-item">
+                <div class="champ-item-label">Multi-Zone Touches</div>
+                <div class="champ-item-val text-green">Up to 5 Touches (Re-arm)</div>
+            </div>
+            <div class="champ-item">
+                <div class="champ-item-label">Min Zone Size</div>
+                <div class="champ-item-val text-purple">&ge; 10.0 Pips</div>
+            </div>
+            <div class="champ-item">
+                <div class="champ-item-label">Optimal Risk %</div>
+                <div class="champ-item-val text-amber">6.0% / Trade (or 5.0%)</div>
+            </div>
+            <div class="champ-item">
+                <div class="champ-item-label">Median Time to $1M</div>
+                <div class="champ-item-val text-green">29.3 Months (2.4 yrs)</div>
+            </div>
+            <div class="champ-item">
+                <div class="champ-item-label">Win Rate / PF</div>
+                <div class="champ-item-val text-cyan">67.3% / 1.32 PF</div>
+            </div>
+            <div class="champ-item">
+                <div class="champ-item-label">Probability of $1M</div>
+                <div class="champ-item-val text-green">100.0% (0.0% Ruin)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-box">
+            <div class="chart-title">Timeframe Speed Comparison (Best Months to $1M by Bar Size)</div>
+            <canvas id="tfChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">Risk % vs Speed to $1M & Drawdown (3M, 5 Touches, 10 Pips)</div>
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+
+    <div class="table-box">
+        <div class="chart-title">Top 15 Fastest Parameter Configurations to Median $1,000,000 ($200 Start)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Timeframe</th>
+                    <th>Max Touches</th>
+                    <th>Min Pip Filter</th>
+                    <th>Risk %</th>
+                    <th>Win Rate</th>
+                    <th>Profit Factor</th>
+                    <th>Trades / Year</th>
+                    <th>Median Months to $1M</th>
+                    <th>Median Max DD</th>
+                    <th>Prob of $1M</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong class="text-cyan">#1</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 10.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">67.3%</span></td>
+                    <td>1.32</td>
+                    <td>454</td>
+                    <td><strong class="text-green">29.3 mo (2.44 yr)</strong></td>
+                    <td>69.1%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#2</strong></td>
+                    <td><strong>2M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 10.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">66.9%</span></td>
+                    <td>1.23</td>
+                    <td>484</td>
+                    <td><strong class="text-green">32.6 mo (2.72 yr)</strong></td>
+                    <td>73.0%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#3</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 8.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">67.1%</span></td>
+                    <td>1.29</td>
+                    <td>528</td>
+                    <td><strong class="text-green">33.1 mo (2.76 yr)</strong></td>
+                    <td>76.4%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#4</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 10.0 pips</td>
+                    <td><strong class="text-amber">5.0%</strong></td>
+                    <td><span class="text-green">67.3%</span></td>
+                    <td>1.32</td>
+                    <td>454</td>
+                    <td><strong class="text-green">34.1 mo (2.84 yr)</strong></td>
+                    <td>61.4%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#5</strong></td>
+                    <td><strong>1M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 10.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">67.2%</span></td>
+                    <td>1.25</td>
+                    <td>544</td>
+                    <td><strong class="text-green">34.4 mo (2.87 yr)</strong></td>
+                    <td>78.0%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#6</strong></td>
+                    <td><strong>1M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 8.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">67.6%</span></td>
+                    <td>1.21</td>
+                    <td>738</td>
+                    <td><strong class="text-green">35.9 mo (2.99 yr)</strong></td>
+                    <td>86.2%</td>
+                    <td><strong class="text-green">99.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#7</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 4.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">68.8%</span></td>
+                    <td>1.27</td>
+                    <td>642</td>
+                    <td><strong class="text-green">36.0 mo (3.00 yr)</strong></td>
+                    <td>81.9%</td>
+                    <td><strong class="text-green">99.9%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#8</strong></td>
+                    <td><strong>2M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 8.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">66.8%</span></td>
+                    <td>1.20</td>
+                    <td>588</td>
+                    <td><strong class="text-green">37.7 mo (3.14 yr)</strong></td>
+                    <td>82.5%</td>
+                    <td><strong class="text-green">99.9%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#9</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 8.0 pips</td>
+                    <td><strong class="text-amber">5.0%</strong></td>
+                    <td><span class="text-green">67.1%</span></td>
+                    <td>1.29</td>
+                    <td>528</td>
+                    <td><strong class="text-green">37.9 mo (3.16 yr)</strong></td>
+                    <td>68.8%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#10</strong></td>
+                    <td><strong>2M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 10.0 pips</td>
+                    <td><strong class="text-amber">5.0%</strong></td>
+                    <td><span class="text-green">66.9%</span></td>
+                    <td>1.23</td>
+                    <td>484</td>
+                    <td><strong class="text-green">37.9 mo (3.16 yr)</strong></td>
+                    <td>65.4%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#11</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 6.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">67.2%</span></td>
+                    <td>1.27</td>
+                    <td>584</td>
+                    <td><strong class="text-green">38.3 mo (3.20 yr)</strong></td>
+                    <td>81.8%</td>
+                    <td><strong class="text-green">99.9%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#12</strong></td>
+                    <td><strong>1M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 10.0 pips</td>
+                    <td><strong class="text-amber">5.0%</strong></td>
+                    <td><span class="text-green">67.2%</span></td>
+                    <td>1.25</td>
+                    <td>544</td>
+                    <td><strong class="text-green">39.7 mo (3.31 yr)</strong></td>
+                    <td>70.5%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#13</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 0.0 pips</td>
+                    <td><strong class="text-amber">6.0%</strong></td>
+                    <td><span class="text-green">68.8%</span></td>
+                    <td>1.26</td>
+                    <td>651</td>
+                    <td><strong class="text-green">40.3 mo (3.36 yr)</strong></td>
+                    <td>85.6%</td>
+                    <td><strong class="text-green">99.3%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#14</strong></td>
+                    <td><strong>3M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 4.0 pips</td>
+                    <td><strong class="text-amber">5.0%</strong></td>
+                    <td><span class="text-green">68.8%</span></td>
+                    <td>1.27</td>
+                    <td>642</td>
+                    <td><strong class="text-green">40.7 mo (3.39 yr)</strong></td>
+                    <td>74.6%</td>
+                    <td><strong class="text-green">100.0%</strong></td>
+                </tr>
+
+                <tr>
+                    <td><strong class="text-main">#15</strong></td>
+                    <td><strong>1M Bars</strong></td>
+                    <td><span class="text-green">5 Touches</span></td>
+                    <td>&ge; 8.0 pips</td>
+                    <td><strong class="text-amber">5.0%</strong></td>
+                    <td><span class="text-green">67.6%</span></td>
+                    <td>1.21</td>
+                    <td>738</td>
+                    <td><strong class="text-green">40.8 mo (3.40 yr)</strong></td>
+                    <td>79.3%</td>
+                    <td><strong class="text-green">99.7%</strong></td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // TF Chart
+        const ctxTF = document.getElementById('tfChart').getContext('2d');
+        const tfData = [{"timeframe_min": 1.0, "max_touches": 5.0, "min_pip_range": 10.0, "risk_pct": 0.06, "total_trades": 726.0, "trades_per_year": 543.6, "raw_win_rate": 67.2, "profit_factor": 1.25, "net_pips": 620.8, "med_days_to_1m": 1047.2, "med_months_to_1m": 34.43, "prob_reach_1m": 100.0, "med_max_dd": 78.0, "ruin_rate": 0.0}, {"timeframe_min": 2.0, "max_touches": 5.0, "min_pip_range": 10.0, "risk_pct": 0.06, "total_trades": 647.0, "trades_per_year": 484.4, "raw_win_rate": 66.9, "profit_factor": 1.23, "net_pips": 634.4, "med_days_to_1m": 992.3, "med_months_to_1m": 32.62, "prob_reach_1m": 100.0, "med_max_dd": 73.0, "ruin_rate": 0.0}, {"timeframe_min": 3.0, "max_touches": 5.0, "min_pip_range": 10.0, "risk_pct": 0.06, "total_trades": 606.0, "trades_per_year": 453.7, "raw_win_rate": 67.3, "profit_factor": 1.32, "net_pips": 889.7, "med_days_to_1m": 890.3, "med_months_to_1m": 29.27, "prob_reach_1m": 100.0, "med_max_dd": 69.1, "ruin_rate": 0.0}, {"timeframe_min": 5.0, "max_touches": 5.0, "min_pip_range": 6.0, "risk_pct": 0.06, "total_trades": 859.0, "trades_per_year": 643.2, "raw_win_rate": 65.1, "profit_factor": 1.16, "net_pips": 690.5, "med_days_to_1m": 1576.5, "med_months_to_1m": 51.82, "prob_reach_1m": 97.6, "med_max_dd": 89.3, "ruin_rate": 2.0}, {"timeframe_min": 10.0, "max_touches": 5.0, "min_pip_range": 0.0, "risk_pct": 0.06, "total_trades": 512.0, "trades_per_year": 383.3, "raw_win_rate": 62.1, "profit_factor": 1.28, "net_pips": 1110.7, "med_days_to_1m": 2225.7, "med_months_to_1m": 73.17, "prob_reach_1m": 89.1, "med_max_dd": 84.6, "ruin_rate": 1.3}, {"timeframe_min": 15.0, "max_touches": 5.0, "min_pip_range": 4.0, "risk_pct": 0.06, "total_trades": 620.0, "trades_per_year": 464.2, "raw_win_rate": 61.3, "profit_factor": 1.25, "net_pips": 1433.1, "med_days_to_1m": 1740.4, "med_months_to_1m": 57.21, "prob_reach_1m": 98.6, "med_max_dd": 84.6, "ruin_rate": 0.6}, {"timeframe_min": 30.0, "max_touches": 5.0, "min_pip_range": 15.0, "risk_pct": 0.06, "total_trades": 223.0, "trades_per_year": 167.0, "raw_win_rate": 60.5, "profit_factor": 1.36, "net_pips": 1318.6, "med_days_to_1m": 2633.8, "med_months_to_1m": 86.58, "prob_reach_1m": 87.1, "med_max_dd": 65.7, "ruin_rate": 0.0}];
+        new Chart(ctxTF, {
+            type: 'bar',
+            data: {
+                labels: tfData.map(d => d.timeframe_min + 'M Bars'),
+                datasets: [
+                    {
+                        label: 'Median Months to $1M (Lower is Faster)',
+                        data: tfData.map(d => d.med_months_to_1m),
+                        backgroundColor: tfData.map(d => d.timeframe_min === 3 ? '#00e676' : '#4facfe'),
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94a3b8' } } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                    y: { grid: { color: '#233044' }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+
+        // Risk Chart
+        const ctxRisk = document.getElementById('riskChart').getContext('2d');
+        const riskData = [{"risk_pct": 1.0, "med_months": 118.7, "med_max_dd": 15.9, "prob_1m": 0.3, "ruin_rate": 0.0}, {"risk_pct": 1.5, "med_months": 102.6, "med_max_dd": 23.1, "prob_1m": 94.2, "ruin_rate": 0.0}, {"risk_pct": 2.0, "med_months": 78.5, "med_max_dd": 29.9, "prob_1m": 100.0, "ruin_rate": 0.0}, {"risk_pct": 2.5, "med_months": 63.2, "med_max_dd": 36.1, "prob_1m": 100.0, "ruin_rate": 0.0}, {"risk_pct": 3.0, "med_months": 53.7, "med_max_dd": 41.9, "prob_1m": 100.0, "ruin_rate": 0.0}, {"risk_pct": 4.0, "med_months": 41.3, "med_max_dd": 52.4, "prob_1m": 100.0, "ruin_rate": 0.0}, {"risk_pct": 5.0, "med_months": 34.1, "med_max_dd": 61.4, "prob_1m": 100.0, "ruin_rate": 0.0}, {"risk_pct": 6.0, "med_months": 29.3, "med_max_dd": 69.1, "prob_1m": 100.0, "ruin_rate": 0.0}];
+        new Chart(ctxRisk, {
+            type: 'line',
+            data: {
+                labels: riskData.map(d => d.risk_pct + '%'),
+                datasets: [
+                    {
+                        label: 'Median Months to $1M',
+                        data: riskData.map(d => d.med_months),
+                        borderColor: '#00f2fe',
+                        yAxisID: 'y',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Median Max Drawdown %',
+                        data: riskData.map(d => d.med_max_dd),
+                        borderColor: '#ff5252',
+                        yAxisID: 'y1',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94a3b8' } } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: '#233044' },
+                        ticks: { color: '#00f2fe' },
+                        title: { display: true, text: 'Months to $1M', color: '#00f2fe' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#ff5252' },
+                        title: { display: true, text: 'Max Drawdown %', color: '#ff5252' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
