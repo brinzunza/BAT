@@ -1,4 +1,4 @@
-"""Pull a consistent snapshot of PRODLIVETRADING's trades.db into analytics/prodlive/data/.
+"""Pull a consistent snapshot of PRODLIVETRADING's trades.db into src/analytics/prodlive/data/.
 
 Source (first match wins):
   --src / PRODLIVE_DB       local path to a trades.db (e.g. ../PRODLIVETRADING/logs/practice/trades.db, or a copy you scp'd)

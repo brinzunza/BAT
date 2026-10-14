@@ -81,14 +81,14 @@ Choose between backtesting, research, and live trading with custom parameters.
 `tradingResearch/` (strategy research, `quant_engine`, BEID/DTFX studies; merged here with its full git history) lives alongside the BAT engine.
 The old path `~/Documents/GitHub/tradingResearch` is a symlink to `BAT/tradingResearch` so hard-coded absolute paths keep working.
 
-`analytics/prodlive/` queries the live bot (**PRODLIVETRADING**, separate repo/VM) through a read-only snapshot of its SQLite store:
+`src/analytics/prodlive/` queries the live bot (**PRODLIVETRADING**, separate repo/VM) through a read-only snapshot of its SQLite store:
 ```bash
 export PRODLIVE_SSH="user@vm-host:/home/user/PRODLIVETRADING/logs/practice/trades.db"   # or PRODLIVE_DB=/local/path/trades.db
-python3 -m analytics.prodlive sync                      # consistent sqlite-backup copy of the bot DB -> analytics/prodlive/data/latest.db
-python3 -m analytics.prodlive summary [--symbol EUR_USD --since 2026-09-01 --json]
-python3 -m analytics.prodlive by symbol|side|entry_hour_utc|outcome|weekday|month
-python3 -m analytics.prodlive weekly | equity | trades | events | open | plot
-python3 -m analytics.prodlive expect --win-rate 0.45 --avg-r 0.1     # live vs backtest expectation (z / t)
-python3 -m analytics.prodlive sql "select symbol,count(*) from trades group by 1"
+python3 -m src.analytics.prodlive sync                      # consistent sqlite-backup copy of the bot DB -> src/analytics/prodlive/data/latest.db
+python3 -m src.analytics.prodlive summary [--symbol EUR_USD --since 2026-09-01 --json]
+python3 -m src.analytics.prodlive by symbol|side|entry_hour_utc|outcome|weekday|month
+python3 -m src.analytics.prodlive weekly | equity | trades | events | open | plot
+python3 -m src.analytics.prodlive expect --win-rate 0.45 --avg-r 0.1     # live vs backtest expectation (z / t)
+python3 -m src.analytics.prodlive sql "select symbol,count(*) from trades group by 1"
 ```
-In Python: `from analytics.prodlive import queries as Q; Q.summary(); Q.breakdown("symbol")`.
+In Python: `from src.analytics.prodlive import queries as Q; Q.summary(); Q.breakdown("symbol")`.
