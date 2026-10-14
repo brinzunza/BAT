@@ -584,13 +584,13 @@ class TradingCLI:
         print("📊 OANDA Configuration:")
         print("-" * 30)
 
-        oanda_token = input("OANDA Access Token (or press Enter for default): ").strip()
+        oanda_token = input("OANDA Access Token (Enter = $OANDA_ACCESS_TOKEN): ").strip()
         if not oanda_token:
-            oanda_token = "***REMOVED***"
+            oanda_token = os.getenv("OANDA_ACCESS_TOKEN", "")
 
-        oanda_account = input("OANDA Account ID (or press Enter for default): ").strip()
+        oanda_account = input("OANDA Account ID (Enter = $OANDA_ACCOUNT_ID): ").strip()
         if not oanda_account:
-            oanda_account = "***REMOVED***"
+            oanda_account = os.getenv("OANDA_ACCOUNT_ID", "")
 
         oanda_env = input("Environment (practice/live, default: practice): ").strip().lower() or "practice"
 

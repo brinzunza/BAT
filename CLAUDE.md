@@ -23,7 +23,7 @@ ALPACA_SECRET_KEY=your_alpaca_secret_key
 OANDA_ACCESS_TOKEN=your_oanda_token
 OANDA_ACCOUNT_ID=your_oanda_account_id
 SYNTH_BASE_URL=http://35.209.219.174:8000
-SYNTH_API_KEY=bruno
+SYNTH_API_KEY=your_synth_api_key
 ```
 
 ### Installing Dependencies
