@@ -1,0 +1,12 @@
+epochs: 30
+lr: 0.001
+weight_decay: 0.0001
+loss: bce                # bce (direction) | mse | huber (return)
+optimizer: adamw         # adam | adamw | sgd
+scheduler: cosine        # none | cosine | step | plateau
+patience: 6              # early stopping on validation loss
+grad_clip: 1.0
+seed: 42
+device: auto             # auto | cpu | cuda | mps
+checkpoint_dir: checkpoints
+run_dir: runs

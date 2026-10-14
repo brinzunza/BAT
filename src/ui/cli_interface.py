@@ -1,0 +1,1979 @@
+import os
+import sys
+import tempfile
+import pandas as pd
+from typing import Dict, Any, Optional
+from datetime import datetime, timedelta
+import subprocess
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append('research')
+from experiments.research.optimization.find_best import find_best_main
+
+from src.strategies.mean_reversion import MeanReversionExtremeStrategy
+from src.strategies.moving_average import MovingAverageStrategy
+from src.strategies.rsi_strategy import RSIStrategy
+from src.strategies.macd_strategy import MACDStrategy
+from src.strategies.bollinger_bands_strategy import BollingerBandsStrategy
+from src.strategies.candlestick_strategy import CandlestickPatternsStrategy
+from src.strategies.smart_money_concepts import SmartMoneyConceptsStrategy
+from src.data.providers.polygon_provider import PolygonDataProvider
+from src.data.providers.alpaca_provider import AlpacaDataProvider, AlpacaBroker
+from src.data.providers.oanda_provider import OandaProvider
+from src.data.providers.synth_provider import SynthDataProvider
+from src.evaluation.backtest import BacktestEngine
+from src.execution.live_engine import LiveTradingEngine
+from src.execution.brokers import SimulatedBroker
+from src.execution.ib_broker import IBBroker
+from src.ui.live_trading_chart import LiveTradingChart
+from src.core.adapters.legacy import LegacyDataProviderAdapter
+
+
+class TradingCLI:
+    """Command Line Interface for the trading system"""
+
+    def __init__(self):
+        self.strategies = {
+            '1': ('Mean Reversion', MeanReversionExtremeStrategy),
+            '2': ('Moving Average', MovingAverageStrategy),
+            '3': ('RSI', RSIStrategy),
+            '4': ('MACD', MACDStrategy),
+            '5': ('Bollinger Bands', BollingerBandsStrategy),
+            '6': ('Candlestick Patterns', CandlestickPatternsStrategy),
+            '7': ('Smart Money Concepts (SMC)', SmartMoneyConceptsStrategy),
+        }
+
+        # Current active provider
+        self.data_provider = None
+        self.broker = None
+
+        # Cached data providers (login once, reuse)
+        self.polygon_data_provider = None
+        self.synth_data_provider = None
+        self.alpaca_data_provider = None
+        self.oanda_provider = None
+
+        # Cached brokers
+        self.alpaca_broker = None
+        self.ib_broker = None
+
+    def get_validated_int(self, prompt, default=None, min_val=None, max_val=None, allow_cancel=False):
+        """Get validated integer input from user with retry logic
+
+        Args:
+            prompt: The input prompt to display
+            default: Default value if user presses Enter
+            min_val: Minimum acceptable value
+            max_val: Maximum acceptable value
+            allow_cancel: If True, allows user to type 'cancel' to return None
+
+        Returns:
+            int value or None if cancelled
+        """
+        while True:
+            try:
+                if default is not None:
+                    user_input = input(f"{prompt} (default {default}): ").strip()
+                else:
+                    user_input = input(f"{prompt}: ").strip()
+
+                # Allow cancellation
+                if allow_cancel and user_input.lower() in ['cancel', 'c', 'back']:
+                    return None
+
+                # Use default if provided
+                if not user_input and default is not None:
+                    value = int(default)
+                elif not user_input:
+                    print("✗ Input cannot be empty. Please enter a value.")
+                    continue
+                else:
+                    value = int(user_input)
+
+                # Validate range
+                if min_val is not None and value < min_val:
+                    print(f"✗ Value must be at least {min_val}. Please try again.")
+                    continue
+                if max_val is not None and value > max_val:
+                    print(f"✗ Value must be at most {max_val}. Please try again.")
+                    continue
+
+                return value
+
+            except ValueError:
+                print("✗ Invalid input. Please enter a valid integer number.")
+                if allow_cancel:
+                    print("  (Type 'cancel' to go back)")
+            except KeyboardInterrupt:
+                print("\n✗ Input cancelled.")
+                return None
+
+    def get_validated_float(self, prompt, default=None, min_val=None, max_val=None, allow_cancel=False):
+        """Get validated float input from user with retry logic
+
+        Args:
+            prompt: The input prompt to display
+            default: Default value if user presses Enter
+            min_val: Minimum acceptable value
+            max_val: Maximum acceptable value
+            allow_cancel: If True, allows user to type 'cancel' to return None
+
+        Returns:
+            float value or None if cancelled
+        """
+        while True:
+            try:
+                if default is not None:
+                    user_input = input(f"{prompt} (default {default}): ").strip()
+                else:
+                    user_input = input(f"{prompt}: ").strip()
+
+                # Allow cancellation
+                if allow_cancel and user_input.lower() in ['cancel', 'c', 'back']:
+                    return None
+
+                # Use default if provided
+                if not user_input and default is not None:
+                    value = float(default)
+                elif not user_input:
+                    print("✗ Input cannot be empty. Please enter a value.")
+                    continue
+                else:
+                    value = float(user_input)
+
+                # Validate range
+                if min_val is not None and value < min_val:
+                    print(f"✗ Value must be at least {min_val}. Please try again.")
+                    continue
+                if max_val is not None and value > max_val:
+                    print(f"✗ Value must be at most {max_val}. Please try again.")
+                    continue
+
+                return value
+
+            except ValueError:
+                print("✗ Invalid input. Please enter a valid number.")
+                if allow_cancel:
+                    print("  (Type 'cancel' to go back)")
+            except KeyboardInterrupt:
+                print("\n✗ Input cancelled.")
+                return None
+
+    def get_validated_choice(self, prompt, valid_choices, allow_cancel=False):
+        """Get validated choice from user with retry logic
+
+        Args:
+            prompt: The input prompt to display
+            valid_choices: List or set of valid choice strings
+            allow_cancel: If True, allows user to type 'cancel' to return None
+
+        Returns:
+            The validated choice string or None if cancelled
+        """
+        while True:
+            try:
+                user_input = input(f"{prompt}: ").strip()
+
+                # Allow cancellation
+                if allow_cancel and user_input.lower() in ['cancel', 'c', 'back']:
+                    return None
+
+                if user_input in valid_choices:
+                    return user_input
+                else:
+                    valid_str = ', '.join(str(c) for c in sorted(valid_choices))
+                    print(f"✗ Invalid choice. Please select from: {valid_str}")
+                    if allow_cancel:
+                        print("  (Type 'cancel' to go back)")
+
+            except KeyboardInterrupt:
+                print("\n✗ Input cancelled.")
+                return None
+
+    def get_yes_no(self, prompt, default='n'):
+        """Get yes/no input from user
+
+        Args:
+            prompt: The input prompt to display
+            default: Default value ('y' or 'n')
+
+        Returns:
+            True for yes, False for no
+        """
+        default_str = "Y/n" if default.lower() == 'y' else "y/N"
+        while True:
+            try:
+                user_input = input(f"{prompt} ({default_str}): ").strip().lower()
+
+                if not user_input:
+                    return default.lower() == 'y'
+
+                if user_input in ['y', 'yes']:
+                    return True
+                elif user_input in ['n', 'no']:
+                    return False
+                else:
+                    print("✗ Please enter 'y' for yes or 'n' for no.")
+
+            except KeyboardInterrupt:
+                print("\n✗ Input cancelled. Using default.")
+                return default.lower() == 'y'
+
+    def get_validated_date(self, prompt, default=None, allow_cancel=False):
+        """Get validated date input in YYYY-MM-DD format
+
+        Args:
+            prompt: The input prompt to display
+            default: Default date string
+            allow_cancel: If True, allows user to type 'cancel' to return None
+
+        Returns:
+            Date string in YYYY-MM-DD format or None if cancelled
+        """
+        while True:
+            try:
+                if default:
+                    user_input = input(f"{prompt} (YYYY-MM-DD, default {default}): ").strip()
+                else:
+                    user_input = input(f"{prompt} (YYYY-MM-DD): ").strip()
+
+                # Allow cancellation
+                if allow_cancel and user_input.lower() in ['cancel', 'c', 'back']:
+                    return None
+
+                # Use default
+                if not user_input and default:
+                    return default
+
+                # Validate date format
+                try:
+                    datetime.strptime(user_input, '%Y-%m-%d')
+                    return user_input
+                except ValueError:
+                    print("✗ Invalid date format. Please use YYYY-MM-DD (e.g., 2025-01-15)")
+                    if allow_cancel:
+                        print("  (Type 'cancel' to go back)")
+
+            except KeyboardInterrupt:
+                print("\n✗ Input cancelled.")
+                return None
+        
+    def display_banner(self):
+        """Display application banner"""
+        print("\n" + "=" * 50)
+        print("            BAT - Backtesting & Automated Trading")
+        print("=" * 50)
+        print()
+    
+    def setup_data_provider(self):
+        """Setup data provider with API key validation"""
+        while True:
+            print("\nData Provider Setup")
+            print("-" * 20)
+            print("Select a data provider:")
+            print("1. Polygon.io")
+            print("2. Synth (Synthetic Market Data)")
+            print("3. Return to main menu")
+
+            provider_choice = input("\nSelect provider (1-3): ").strip()
+
+            if provider_choice == '3':
+                return False
+
+            # Setup Polygon provider
+            if provider_choice == '1':
+                api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
+                if not api_key:
+                    api_key = "your-api-key-here"  # Default placeholder
+
+                try:
+                    # Create data provider instance and cache it
+                    polygon_provider = PolygonDataProvider(api_key)
+
+                    # Test the connection
+                    print("Testing API key...")
+                    success, message = polygon_provider.test_connection()
+
+                    if success:
+                        print(f"✓ {message}")
+                        print("✓ Polygon data provider configured successfully")
+                        # Cache the provider and set as active
+                        self.polygon_data_provider = polygon_provider
+                        self.data_provider = self.polygon_data_provider
+                        return True
+                    else:
+                        # API key validation failed
+                        print(f"✗ {message}")
+                        print("\nWhat would you like to do?")
+                        print("1. Retry with a different provider")
+                        print("2. Return to main menu")
+
+                        choice = input("\nSelect option (1-2): ").strip()
+
+                        if choice == '2':
+                            return False
+                        # If choice is '1' or anything else, loop continues
+
+                except Exception as e:
+                    print(f"✗ Error setting up data provider: {e}")
+                    print("\nWhat would you like to do?")
+                    print("1. Retry with a different provider")
+                    print("2. Return to main menu")
+
+                    choice = input("\nSelect option (1-2): ").strip()
+
+                    if choice == '2':
+                        return False
+                    # If choice is '1' or anything else, loop continues
+
+            # Setup Synth provider
+            elif provider_choice == '2':
+                base_url = input("Enter Synth API base URL (or press Enter for default): ").strip()
+                if not base_url:
+                    base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
+
+                api_key = input("Enter Synth API key: ").strip()
+                if not api_key:
+                    print("✗ API key is required for Synth provider")
+                    continue
+
+                try:
+                    # Create synth data provider instance and cache it
+                    synth_provider = SynthDataProvider(base_url, api_key)
+
+                    # Test the connection
+                    print("Testing Synth API connection...")
+                    success, message = synth_provider.test_connection()
+
+                    if success:
+                        print(f"✓ {message}")
+                        print("✓ Synth data provider configured successfully")
+                        # Cache the provider and set as active
+                        self.synth_data_provider = synth_provider
+                        self.data_provider = self.synth_data_provider
+                        return True
+                    else:
+                        # Connection test failed
+                        print(f"✗ {message}")
+                        print("\nWhat would you like to do?")
+                        print("1. Retry with a different provider")
+                        print("2. Return to main menu")
+
+                        choice = input("\nSelect option (1-2): ").strip()
+
+                        if choice == '2':
+                            return False
+                        # If choice is '1' or anything else, loop continues
+
+                except Exception as e:
+                    print(f"✗ Error setting up Synth provider: {e}")
+                    print("\nWhat would you like to do?")
+                    print("1. Retry with a different provider")
+                    print("2. Return to main menu")
+
+                    choice = input("\nSelect option (1-2): ").strip()
+
+                    if choice == '2':
+                        return False
+                    # If choice is '1' or anything else, loop continues
+
+            else:
+                print("Invalid choice. Please select 1, 2, or 3.")
+                continue
+
+    def select_data_provider(self):
+        """Select data provider from cached providers or setup new one"""
+        while True:
+            print("\n" + "=" * 50)
+            print("           DATA PROVIDER SELECTION")
+            print("=" * 50)
+
+            # Show available cached providers
+            available_providers = []
+            if self.polygon_data_provider:
+                available_providers.append(("1", "Polygon.io (configured)"))
+            if self.synth_data_provider:
+                available_providers.append(("2", "Synth (configured)"))
+
+            # Build menu
+            print("\nConfigured Providers:")
+            if available_providers:
+                for key, name in available_providers:
+                    print(f"  {key}. {name}")
+            else:
+                print("  (None configured yet)")
+
+            print("\nSetup New Provider:")
+            polygon_key = "3" if not self.polygon_data_provider else None
+            synth_key = "4" if not self.synth_data_provider else None
+
+            if not self.polygon_data_provider:
+                print(f"  3. Setup Polygon.io")
+            if not self.synth_data_provider:
+                print(f"  4. Setup Synth")
+
+            print("\n  0. Cancel")
+
+            choice = input("\nSelect provider: ").strip()
+
+            # Use configured providers
+            if choice == "1" and self.polygon_data_provider:
+                self.data_provider = self.polygon_data_provider
+                print(f"✓ Using Polygon.io provider")
+                return True
+            elif choice == "2" and self.synth_data_provider:
+                self.data_provider = self.synth_data_provider
+                print(f"✓ Using Synth provider")
+                return True
+
+            # Setup new providers
+            elif choice == "3" and not self.polygon_data_provider:
+                # Temporarily switch to setup mode
+                if self.setup_polygon_provider():
+                    return True
+            elif choice == "4" and not self.synth_data_provider:
+                # Temporarily switch to setup mode
+                if self.setup_synth_provider():
+                    return True
+
+            # Cancel
+            elif choice == "0":
+                return False
+
+            else:
+                print("Invalid choice. Please try again.")
+
+    def setup_polygon_provider(self):
+        """Setup Polygon provider only"""
+        api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
+        if not api_key:
+            api_key = "your-api-key-here"
+
+        try:
+            polygon_provider = PolygonDataProvider(api_key)
+            print("Testing API key...")
+            success, message = polygon_provider.test_connection()
+
+            if success:
+                print(f"✓ {message}")
+                print("✓ Polygon data provider configured successfully")
+                self.polygon_data_provider = polygon_provider
+                self.data_provider = self.polygon_data_provider
+                return True
+            else:
+                print(f"✗ {message}")
+                return False
+        except Exception as e:
+            print(f"✗ Error setting up Polygon provider: {e}")
+            return False
+
+    def setup_synth_provider(self):
+        """Setup Synth provider only"""
+        base_url = input("Enter Synth API base URL (or press Enter for default): ").strip()
+        if not base_url:
+            base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
+
+        api_key = input("Enter Synth API key: ").strip()
+        if not api_key:
+            print("✗ API key is required for Synth provider")
+            return False
+
+        try:
+            synth_provider = SynthDataProvider(base_url, api_key)
+            print("Testing Synth API connection...")
+            success, message = synth_provider.test_connection()
+
+            if success:
+                print(f"✓ {message}")
+                print("✓ Synth data provider configured successfully")
+                self.synth_data_provider = synth_provider
+                self.data_provider = self.synth_data_provider
+                return True
+            else:
+                print(f"✗ {message}")
+                return False
+        except Exception as e:
+            print(f"✗ Error setting up Synth provider: {e}")
+            return False
+
+    def setup_broker(self):
+        """Setup broker interface"""
+        print("\nBroker Setup")
+        print("-" * 20)
+        print("1. Simulated Broker (for testing)")
+        print("2. Alpaca Broker (live trading)")
+        
+        choice = input("Select broker (1-2): ").strip()
+        
+        if choice == '1':
+            initial_balance = float(input("Enter initial balance (default 10000): ") or "10000")
+            self.broker = SimulatedBroker(initial_balance)
+            print("✓ Simulated broker configured")
+        
+        elif choice == '2':
+            print("Enter Alpaca credentials:")
+            api_key = input("API Key: ").strip()
+            secret_key = input("Secret Key: ").strip()
+            base_url = input("Base URL (default: paper-api.alpaca.markets): ").strip()
+            
+            if not base_url:
+                base_url = "https://paper-api.alpaca.markets/"
+            
+            try:
+                self.broker = AlpacaBroker(api_key, secret_key, base_url)
+                print("✓ Alpaca broker configured")
+            except Exception as e:
+                print(f"✗ Error setting up Alpaca broker: {e}")
+                return False
+        else:
+            print("Invalid choice")
+            return False
+        
+        return True
+
+    def setup_alpaca_credentials(self):
+        """Setup Alpaca credentials for live trading"""
+        print("\nAlpaca Setup for Live Trading")
+        print("-" * 30)
+        print("Enter your Alpaca API credentials:")
+        print("(You can get these from https://alpaca.markets/)")
+
+        api_key = input("Alpaca API Key: ").strip()
+        secret_key = input("Alpaca Secret Key: ").strip()
+
+        if not api_key or not secret_key:
+            print(" API credentials are required for live trading")
+            return False
+
+        # Ask about paper trading
+        paper_trading = input("Use paper trading? (y/n, recommended: y): ").strip().lower()
+        paper_trading = paper_trading != 'n'  # Default to paper trading
+
+        try:
+            # Test connection
+            self.alpaca_data_provider = AlpacaDataProvider(api_key, secret_key)
+            self.alpaca_broker = AlpacaBroker(api_key, secret_key, paper_trading)
+
+            # Test account access
+            account_info = self.alpaca_broker.get_account()
+            if account_info:
+                trading_mode = "Paper Trading" if paper_trading else "Live Trading"
+                print(f" Connected to Alpaca ({trading_mode})")
+                print(f"Account Status: {account_info.get('status', 'Unknown')}")
+                if 'buying_power' in account_info:
+                    print(f"Buying Power: ${float(account_info['buying_power']):.2f}")
+                return True
+            else:
+                print(" Failed to connect to Alpaca account")
+                return False
+
+        except Exception as e:
+            print(f" Error connecting to Alpaca: {e}")
+            return False
+
+    def setup_forex_credentials(self):
+        """Setup OANDA and Interactive Brokers for forex trading"""
+        print("\n💱 Forex Trading Setup (OANDA + Interactive Brokers)")
+        print("=" * 60)
+        print("This setup requires:")
+        print("  1. OANDA account for live forex data")
+        print("  2. Interactive Brokers TWS/Gateway for trade execution")
+        print()
+
+        # OANDA Setup
+        print("📊 OANDA Configuration:")
+        print("-" * 30)
+
+        oanda_token = input("OANDA Access Token (or press Enter for default): ").strip()
+        if not oanda_token:
+            oanda_token = "***REMOVED***"
+
+        oanda_account = input("OANDA Account ID (or press Enter for default): ").strip()
+        if not oanda_account:
+            oanda_account = "***REMOVED***"
+
+        oanda_env = input("Environment (practice/live, default: practice): ").strip().lower() or "practice"
+
+        try:
+            # Test OANDA connection
+            self.oanda_provider = OandaProvider(
+                access_token=oanda_token,
+                account_id=oanda_account,
+                environment=oanda_env
+            )
+
+            # Test by fetching latest candle
+            test_candle = self.oanda_provider.get_latest_candle("EURUSD")
+            if test_candle:
+                print(f"✓ Connected to OANDA ({oanda_env})")
+                print(f"  Latest EUR/USD: {test_candle['close']:.5f}")
+            else:
+                print("✗ Failed to fetch data from OANDA")
+                return False
+
+        except Exception as e:
+            print(f"✗ OANDA connection failed: {e}")
+            return False
+
+        # Interactive Brokers Setup
+        print("\n🏦 Interactive Brokers Configuration:")
+        print("-" * 30)
+        print("Make sure TWS or IB Gateway is running with API enabled")
+        print()
+
+        ib_host = input("IB Host (default: 127.0.0.1): ").strip() or "127.0.0.1"
+        ib_port = input("IB Port (7497=paper, 7496=live, default: 7497): ").strip()
+        ib_port = int(ib_port) if ib_port else 7497
+        ib_client_id = input("IB Client ID (default: 1): ").strip()
+        ib_client_id = int(ib_client_id) if ib_client_id else 1
+
+        try:
+            # Test IB connection
+            self.ib_broker = IBBroker()
+            if self.ib_broker.connect_to_tws(ib_host, ib_port, ib_client_id):
+                print(f"✓ Connected to IB TWS")
+
+                # Get account info
+                account = self.ib_broker.get_account()
+                print(f"  Account Equity: ${account['equity']:,.2f}")
+                print(f"  Buying Power: ${account['buying_power']:,.2f}")
+                return True
+            else:
+                print("✗ Failed to connect to IB TWS")
+                print("  Make sure TWS/Gateway is running and API is enabled")
+                return False
+
+        except Exception as e:
+            print(f"✗ IB connection failed: {e}")
+            return False
+
+    def select_strategy(self):
+        """Strategy selection menu"""
+        while True:
+            print("\nAvailable Strategies:")
+            print("-" * 50)
+
+            for key, (name, _) in self.strategies.items():
+                print(f"{key}. {name}")
+            print("0. Cancel and return to menu")
+
+            choice = self.get_validated_choice("\nSelect strategy (0-7)", ['0', '1', '2', '3', '4', '5', '6', '7'])
+
+            if choice is None or choice == '0':
+                return None
+
+            strategy_name, strategy_class = self.strategies[choice]
+            print(f"\nConfiguring {strategy_name} strategy...")
+            print("(Type 'cancel' at any prompt to go back)\n")
+
+            try:
+                # Get strategy parameters
+                if choice == '1':  # Mean Reversion
+                    window = self.get_validated_int("Enter window size", default=20, min_val=1, allow_cancel=True)
+                    if window is None:
+                        continue
+                    num_std = self.get_validated_float("Enter standard deviations", default=2.0, min_val=0.1, allow_cancel=True)
+                    if num_std is None:
+                        continue
+                    return strategy_class(window=window, num_std=num_std)
+
+                elif choice == '2':  # Moving Average
+                    short = self.get_validated_int("Enter short window", default=1, min_val=1, allow_cancel=True)
+                    if short is None:
+                        continue
+                    medium = self.get_validated_int("Enter medium window", default=5, min_val=1, allow_cancel=True)
+                    if medium is None:
+                        continue
+                    long_win = self.get_validated_int("Enter long window", default=25, min_val=1, allow_cancel=True)
+                    if long_win is None:
+                        continue
+
+                    # Validate that windows are in increasing order
+                    if not (short <= medium <= long_win):
+                        print("✗ Warning: Windows should be in increasing order (short <= medium <= long)")
+                        if not self.get_yes_no("Continue anyway?", default='n'):
+                            continue
+
+                    return strategy_class(short_window=short, medium_window=medium, long_window=long_win)
+
+                elif choice == '3':  # RSI
+                    window = self.get_validated_int("Enter RSI window", default=14, min_val=2, allow_cancel=True)
+                    if window is None:
+                        continue
+                    oversold = self.get_validated_float("Enter oversold threshold", default=30, min_val=0, max_val=100, allow_cancel=True)
+                    if oversold is None:
+                        continue
+                    overbought = self.get_validated_float("Enter overbought threshold", default=70, min_val=0, max_val=100, allow_cancel=True)
+                    if overbought is None:
+                        continue
+
+                    # Validate thresholds
+                    if oversold >= overbought:
+                        print(f"✗ Error: Oversold threshold ({oversold}) must be less than overbought threshold ({overbought})")
+                        continue
+
+                    return strategy_class(window=window, oversold_threshold=oversold, overbought_threshold=overbought)
+
+                elif choice == '4':  # MACD
+                    fast = self.get_validated_int("Enter fast EMA period", default=12, min_val=1, allow_cancel=True)
+                    if fast is None:
+                        continue
+                    slow = self.get_validated_int("Enter slow EMA period", default=26, min_val=1, allow_cancel=True)
+                    if slow is None:
+                        continue
+                    signal = self.get_validated_int("Enter signal line period", default=9, min_val=1, allow_cancel=True)
+                    if signal is None:
+                        continue
+
+                    # Validate MACD parameters
+                    if fast >= slow:
+                        print(f"✗ Error: Fast period ({fast}) must be less than slow period ({slow})")
+                        continue
+
+                    return strategy_class(fast=fast, slow=slow, signal=signal)
+
+                elif choice == '5':  # Bollinger Bands
+                    window = self.get_validated_int("Enter window size", default=20, min_val=2, allow_cancel=True)
+                    if window is None:
+                        continue
+                    num_std = self.get_validated_float("Enter standard deviations", default=2, min_val=0.1, allow_cancel=True)
+                    if num_std is None:
+                        continue
+                    return strategy_class(window=window, num_std=num_std)
+
+                elif choice == '6':  # Candlestick Patterns
+                    return strategy_class()
+
+                elif choice == '7':  # Smart Money Concepts
+                    swing_window = self.get_validated_int("Enter swing confirmation window", default=2, min_val=1, allow_cancel=True)
+                    if swing_window is None:
+                        continue
+                    liquidity_lookback = self.get_validated_int("Enter liquidity lookback bars", default=60, min_val=2, allow_cancel=True)
+                    if liquidity_lookback is None:
+                        continue
+                    poi_expiry = self.get_validated_int("Enter POI expiry bars", default=60, min_val=1, allow_cancel=True)
+                    if poi_expiry is None:
+                        continue
+                    return strategy_class(
+                        structure_timeframe="15min",
+                        swing_window=swing_window,
+                        liquidity_lookback=liquidity_lookback,
+                        poi_expiry_bars=poi_expiry,
+                    )
+
+            except Exception as e:
+                print(f"✗ Error configuring strategy: {e}")
+                if self.get_yes_no("Try again?", default='y'):
+                    continue
+                else:
+                    return None
+
+    def select_trading_mode(self):
+        """Let user select trading mode"""
+        print("\nTrading Mode Selection:")
+        print("==========================")
+        print("1. Buy & Close Only (Long-only trading)")
+        print("   - Buy signals → Buy positions")
+        print("   - Sell signals → Close positions")
+        print("   - No short selling")
+        print()
+        print("2. Buy & Short Trading (Long/Short trading)")
+        print("   - Buy signals → Buy positions (or close short)")
+        print("   - Sell signals → Short positions (or close long)")
+        print("   - Allows short selling for advanced strategies")
+        print()
+        print("0. Cancel")
+        print()
+
+        choice = self.get_validated_choice("Select trading mode (0-2)", ['0', '1', '2'])
+
+        if choice is None or choice == '0':
+            return None
+        elif choice == "1":
+            return "long_only"
+        elif choice == "2":
+            return "long_short"
+
+    def show_available_tickers(self):
+        """Display available tickers based on the data provider"""
+        print("\n" + "=" * 60)
+        print("           AVAILABLE TICKERS BY TYPE")
+        print("=" * 60)
+
+        # Polygon provider examples
+        if isinstance(self.data_provider, PolygonDataProvider):
+            print("\nPOLYGON API TICKER FORMATS:")
+            print("-" * 60)
+
+            # Stocks
+            print("\n📈 STOCKS (No prefix):")
+            print("   Examples: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META")
+            print("   Format:   [SYMBOL]")
+
+            # Crypto
+            print("\n₿ CRYPTOCURRENCY (X: prefix):")
+            print("   Examples: X:BTCUSD, X:ETHUSD, X:DOGEUSD, X:LTCUSD")
+            print("   Format:   X:[CRYPTO]USD")
+
+            # Forex
+            print("\n💱 FOREX (C: prefix):")
+            if hasattr(self.data_provider, 'get_available_forex_pairs'):
+                try:
+                    forex_pairs = self.data_provider.get_available_forex_pairs()
+                    print("   Available pairs:")
+                    for i, pair in enumerate(forex_pairs):
+                        if i % 5 == 0 and i > 0:
+                            print()
+                        print(f"   {pair:<12}", end="")
+                    print()
+                except:
+                    print("   Examples: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF")
+                    print("   Format:   C:[CURRENCY_PAIR]")
+            else:
+                print("   Examples: C:EURUSD, C:GBPUSD, C:USDJPY, C:USDCHF")
+                print("   Format:   C:[CURRENCY_PAIR]")
+
+        # Synth provider
+        elif isinstance(self.data_provider, SynthDataProvider):
+            print("\nSYNTH API TICKER FORMATS:")
+            print("-" * 60)
+            print("   Default: SYNTH")
+            print("   Format:  Any custom ticker name")
+
+        # Generic fallback
+        else:
+            print("\nTICKER FORMATS:")
+            print("-" * 60)
+            print("   Stocks:  AAPL, MSFT, GOOGL, etc.")
+            print("   Crypto:  X:BTCUSD, X:ETHUSD, etc. (Polygon)")
+            print("   Forex:   C:EURUSD, C:GBPUSD, etc. (Polygon)")
+
+        print("\n" + "=" * 60)
+
+    def configure_data_parameters(self):
+        """Configure data parameters with direct ticker input"""
+        print("\nData Configuration:")
+        print("-" * 20)
+
+        # Show ticker format guidance
+        print("\nTICKER FORMAT GUIDE:")
+        print("  Stocks:         AAPL, MSFT, GOOGL")
+        print("  Cryptocurrency: X:BTCUSD, X:ETHUSD")
+        print("  Forex:          C:EURUSD, C:GBPUSD")
+        print()
+        print("(Type 'cancel' at any prompt to return to menu)")
+        print()
+
+        # Ask if user wants to see available tickers
+        if self.get_yes_no("Show available tickers?", default='n'):
+            self.show_available_tickers()
+
+        # Get ticker input
+        print("\nEnter ticker symbol:")
+        ticker_input = input("Ticker (or press Enter for X:BTCUSD, 'cancel' to go back): ").strip()
+
+        if ticker_input.lower() in ['cancel', 'c', 'back']:
+            return None
+
+        ticker = ticker_input or "X:BTCUSD"
+
+        # Basic ticker validation
+        if not ticker or len(ticker) < 1:
+            print("✗ Invalid ticker. Ticker cannot be empty.")
+            if self.get_yes_no("Try again?", default='y'):
+                return self.configure_data_parameters()
+            return None
+
+        print(f"✓ Selected ticker: {ticker}")
+
+        # Configure timespan (Polygon API only)
+        timespan_choice = self.get_validated_choice(
+            "Enter timespan (minute/hour/day)",
+            ['minute', 'hour', 'day', 'cancel'],
+            allow_cancel=False
+        )
+
+        if timespan_choice == 'cancel':
+            return None
+
+        timespan = timespan_choice or "minute"
+
+        # Date configuration
+        if self.get_yes_no("Use default date range? (last 30 days)", default='y'):
+            # Default: last 30 days
+            to_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            from_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        else:
+            from_date = self.get_validated_date("Enter from date", allow_cancel=True)
+            if from_date is None:
+                return None
+
+            to_date = self.get_validated_date("Enter to date", allow_cancel=True)
+            if to_date is None:
+                return None
+
+            # Validate date range
+            try:
+                from_dt = datetime.strptime(from_date, '%Y-%m-%d')
+                to_dt = datetime.strptime(to_date, '%Y-%m-%d')
+                if from_dt > to_dt:
+                    print("✗ Error: From date must be before to date")
+                    if self.get_yes_no("Try again?", default='y'):
+                        return self.configure_data_parameters()
+                    return None
+            except ValueError:
+                print("✗ Error validating dates")
+                return None
+
+        # Get data limit with error handling
+        limit = self.get_validated_int("Enter data limit", default=50000, min_val=1, max_val=500000, allow_cancel=True)
+        if limit is None:
+            return None
+
+        print(f"\n✓ Configuration complete:")
+        print(f"  Ticker: {ticker}")
+        print(f"  Timespan: {timespan}")
+        print(f"  Date range: {from_date} to {to_date}")
+        print(f"  Limit: {limit}")
+
+        return {
+            'ticker': ticker,
+            'timespan': timespan,
+            'from_date': from_date,
+            'to_date': to_date,
+            'limit': limit
+        }
+    
+    def run_backtest(self):
+        """Run backtesting workflow"""
+        print("\n" + "=" * 40)
+        print("           BACKTESTING MODE")
+        print("=" * 40)
+
+        # Select strategy
+        strategy = self.select_strategy()
+        if strategy is None:
+            print("✗ Backtest cancelled - no strategy selected")
+            return
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+        if trading_mode is None:
+            print("✗ Backtest cancelled - no trading mode selected")
+            return
+
+        # Configure data
+        data_params = self.configure_data_parameters()
+        if data_params is None:
+            print("✗ Backtest cancelled - data configuration incomplete")
+            return
+
+        # Get initial balance with error handling
+        initial_balance = self.get_validated_float(
+            "Enter initial balance",
+            default=10000,
+            min_val=1,
+            allow_cancel=True
+        )
+        if initial_balance is None:
+            print("✗ Backtest cancelled")
+            return
+
+        # Get position sizing percentage with error handling
+        position_percentage = self.get_validated_float(
+            "Enter percentage of account to use per trade",
+            default=100,
+            min_val=1,
+            max_val=100,
+            allow_cancel=True
+        )
+        if position_percentage is None:
+            print("✗ Backtest cancelled")
+            return
+
+        # Get spread in pips for forex with error handling
+        print("\nSpread Configuration:")
+        print("Typical spreads: 0.5-3 points")
+        spread_pips = self.get_validated_float(
+            "Enter spread in pips",
+            default=1.0,
+            min_val=0,
+            max_val=10000,
+            allow_cancel=True
+        )
+        if spread_pips is None:
+            print("✗ Backtest cancelled")
+            return
+
+        print(f"\n Running backtest for {strategy.name}...")
+        print(f" Ticker: {data_params['ticker']}")
+        print(f"Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+        print(f"Timespan: {data_params['timespan']}")
+        print(f"From: {data_params['from_date']} To: {data_params['to_date']}")
+        print(f"Spread: {spread_pips} points")
+
+        try:
+            print("Fetching data...")
+
+            if not self.data_provider:
+                print(" Polygon data provider not configured. Please configure it first.")
+                return
+            # The CLI is an inbound adapter. Provider SDK shapes cross the
+            # boundary through the legacy market-data adapter.
+            df = LegacyDataProviderAdapter(self.data_provider).historical_bars(
+                data_params['ticker'],
+                timespan=data_params['timespan'],
+                from_date=data_params['from_date'],
+                to_date=data_params['to_date'],
+                limit=data_params.get('limit', 50000),
+            )
+
+            print(f"✓ Retrieved {len(df)} data points")
+
+            if df.empty:
+                print(f" No data available for {data_params['ticker']} in the specified period.")
+                print("Please try a different ticker or time period.")
+                return
+
+            print("Running backtest...")
+            engine = BacktestEngine(initial_balance, trading_mode, data_params['ticker'], position_percentage, spread_pips)
+            results = engine.backtest(df, strategy)
+            
+            print("\n" + "=" * 40)
+            print("           BACKTEST RESULTS")
+            print("=" * 40)
+            
+            if len(results) > 0:
+                engine.print_analysis(results)
+                
+                show_details = input("\nShow detailed trade results? (y/n): ").strip().lower() == 'y'
+                if show_details:
+                    print("\nDetailed Trade Overview:")
+                    self._print_detailed_trade_results(results)
+
+                    want_to_export = input("Want to export trade results to CSV? (y/n): ").strip().lower() == 'y'
+                    if want_to_export:
+                        self._export_trade_results_to_csv(results, strategy)
+
+                want_to_plot = input("Want to see balance plot? (y/n): ").strip().lower() == 'y'
+                if want_to_plot:
+                    engine.plot_balance_chart(results)
+
+                want_to_interactive_chart = input("Want to see interactive bar chart? (y/n): ").strip().lower() == 'y'
+                if want_to_interactive_chart:
+                    engine.plot_interactive_chart(results)
+            else:
+                print("No trades generated by this strategy with the given data.")
+        
+        except Exception as e:
+            print(f"✗ Backtest failed: {e}")
+    
+    def run_forex_live_trading(self):
+        """Run forex live trading with OANDA data + IB execution"""
+        print("\n" + "=" * 60)
+        print("       💱 FOREX LIVE TRADING")
+        print("          OANDA Data + Interactive Brokers Execution")
+        print("=" * 60)
+
+        # Setup credentials if not already configured
+        if not self.oanda_provider or not self.ib_broker:
+            print("\n🔑 Forex trading requires OANDA + IB credentials")
+            if not self.setup_forex_credentials():
+                return
+
+        # Select strategy
+        strategy = self.select_strategy()
+        if not strategy:
+            return
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
+        # Configure trading parameters
+        print("\n⚙️  Forex Trading Configuration:")
+        print("-" * 30)
+
+        # Forex pair selection
+        forex_pair = input("Enter forex pair (default EURUSD): ").strip().upper() or "EURUSD"
+
+        # Historical lookback
+        lookback = int(input("Historical candles to fetch (default 200): ") or "200")
+
+        # Position sizing
+        print("\nPosition Sizing:")
+        print("1. Percentage of account")
+        print("2. Fixed quantity (base currency units)")
+
+        sizing_choice = input("Select method (1-2, default 1): ").strip() or "1"
+
+        if sizing_choice == "2":
+            quantity = float(input(f"Enter {forex_pair[:3]} quantity (e.g., 20000 = 20K): ") or "20000")
+            position_percentage = None
+        else:
+            position_percentage = float(input("Position size as % of account (1-100, default 100): ") or "100")
+            if position_percentage < 1 or position_percentage > 100:
+                print("Invalid percentage. Using 100%.")
+                position_percentage = 100
+            quantity = None
+
+        # Update interval
+        update_interval = int(input("Update interval in seconds (default 60): ") or "60")
+
+        print(f"\n📋 Configuration Summary:")
+        print(f"   Strategy: {strategy.name}")
+        print(f"   Symbol: {forex_pair}")
+        print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+        print(f"   Historical Lookback: {lookback} candles")
+        if position_percentage:
+            print(f"   Position Size: {position_percentage}% of account")
+        else:
+            print(f"   Position Size: {quantity:,.0f} {forex_pair[:3]}")
+        print(f"   Update Interval: {update_interval}s")
+
+        confirm = input("\nStart forex live trading? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Forex trading cancelled.")
+            return
+
+        try:
+            # Get account info
+            initial_balance = self.ib_broker.get_account()['equity']
+
+            print(f"\n🚀 Initializing live trading chart...")
+            print(f"Chart will open in a new window")
+            print(f"Data updates every {update_interval} seconds")
+            print(f"All trades will be logged to console")
+            print(f"  Press Ctrl+C or close chart window to stop")
+            print(f"\n{'='*60}")
+
+            # Create live trading chart with forex support
+            forex_chart = LiveTradingChart(
+                strategy=strategy,
+                symbol=forex_pair,
+                trading_mode=trading_mode,
+                position_percentage=position_percentage if position_percentage else 100,
+                quantity=quantity,
+                data_provider=self.oanda_provider,
+                broker_interface=self.ib_broker,
+                lookback=lookback
+            )
+
+            print("✓ Trading engine ready")
+            print("✓ Live chart ready")
+            print("\n" + "=" * 60)
+            print(" 🟢 LIVE TRADING STARTED")
+            print("=" * 60)
+            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Symbol: {forex_pair}")
+            print("Chart will show: Price candles | Strategy indicators | Buy/Sell signals")
+            print("Terminal shows: Price | Position | Unrealized P&L | Realized P&L\n")
+
+            # Start live chart with animation (this will block until chart closed)
+            forex_chart.start_live_trading(update_interval * 1000)  # Convert to milliseconds
+
+        except KeyboardInterrupt:
+            print("\n\n" + "=" * 60)
+            print(" 🛑 STOPPING FOREX LIVE TRADING")
+            print("=" * 60)
+
+        finally:
+            # Print final summary
+            if 'forex_chart' in locals():
+                print("\n" + "=" * 60)
+                print(" 📊 FOREX TRADING SESSION SUMMARY")
+                print("=" * 60)
+
+                performance = forex_chart.get_performance_summary()
+                trade_history = forex_chart.get_trade_history()
+
+                print(f"\nStrategy: {strategy.name}")
+                print(f"Symbol: {forex_pair}")
+                print(f"Total Trades: {performance['total_trades']}")
+                print(f"Profitable Trades: {performance['profitable_trades']}")
+                print(f"Losing Trades: {performance['losing_trades']}")
+                print(f"Win Rate: {performance['win_rate']:.1f}%")
+                print(f"Final Balance: ${performance['current_balance']:,.2f}")
+                print(f"Total Return: ${performance['total_return']:,.2f}")
+                print(f"Percent Return: {performance['percent_return']:.2f}%")
+
+                if len(trade_history) > 0:
+                    print(f"\n📝 Recent Trades:")
+                    self._print_detailed_trade_results(trade_history.tail(10))
+
+                print("\n" + "=" * 60)
+
+    def run_live_trading(self):
+        """Run live trading workflow with real-time charting - routes to live trading menu"""
+        # This method is kept for backward compatibility
+        # Routes to the consolidated menu
+        self.run_live_trading_menu()
+
+    def run_alpaca_live_trading(self):
+        """Run live trading with Alpaca data provider"""
+        print("\n" + "=" * 50)
+        print("       ALPACA LIVE TRADING")
+        print("=" * 50)
+
+        # Setup Alpaca credentials if not already configured
+        if not self.alpaca_data_provider or not self.alpaca_broker:
+            print("🔑 Alpaca credentials required for live trading.")
+            print(" Live trading uses Alpaca for both data and execution.")
+            if not self.setup_alpaca_credentials():
+                return
+
+        # Select strategy
+        strategy = self.select_strategy()
+        if not strategy:
+            return
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
+        # Configure trading parameters
+        print("\n Live Trading Configuration:")
+        print("-" * 30)
+
+        # Select asset type for live trading
+        print(" Asset Selection for Live Trading:")
+        print("===================================")
+        print("1. Cryptocurrency - BTC/USD")
+        print("2. Cryptocurrency - ETH/USD")
+        print("3. Cryptocurrency - DOGE/USD")
+        print("4. Cryptocurrency - Custom Crypto")
+        print("5. Stock - AAPL")
+        print("6. Stock - MSFT")
+        print("7. Stock - GOOGL")
+        print("8. Stock - TSLA")
+        print("9. Stock - Custom Stock")
+        print()
+
+        asset_symbols = {
+            "1": ("BTC/USD", 0.01, "crypto"),
+            "2": ("ETH/USD", 0.1, "crypto"),
+            "3": ("DOGE/USD", 100, "crypto"),
+            "4": ("CUSTOM_CRYPTO", 1.0, "crypto"),
+            "5": ("AAPL", 1, "stock"),
+            "6": ("MSFT", 1, "stock"),
+            "7": ("GOOGL", 1, "stock"),
+            "8": ("TSLA", 1, "stock"),
+            "9": ("CUSTOM_STOCK", 1, "stock")
+        }
+
+        while True:
+            choice = input("Select asset (1-9): ").strip()
+            if choice in asset_symbols:
+                symbol, default_quantity, asset_type = asset_symbols[choice]
+
+                if choice == "4":  # Custom crypto
+                    symbol = input("Enter crypto pair (e.g., LTC/USD): ").strip().upper()
+                    if "/" not in symbol:
+                        symbol += "/USD"
+                elif choice == "9":  # Custom stock
+                    symbol = input("Enter stock ticker (e.g., AMZN): ").strip().upper()
+                    asset_type = "stock"
+
+                break
+            print(" Invalid choice. Please enter 1-9.")
+
+        print(f"Selected: {symbol}")
+
+        # Configure position sizing method
+        print("\nPosition Sizing Options:")
+        print("1. Fixed quantity (shares/units)")
+        print("2. Percentage of account")
+
+        sizing_choice = input("Select position sizing method (1-2, default 2): ").strip() or "2"
+
+        if sizing_choice == "1":
+            # Fixed quantity method
+            if asset_type == "crypto":
+                unit = symbol.split("/")[0] if "/" in symbol else "units"
+                quantity = float(input(f"Enter {unit} position size (default {default_quantity}): ") or str(default_quantity))
+            else:  # stock
+                quantity = int(input(f"Enter number of shares (default {default_quantity}): ") or str(default_quantity))
+            position_percentage = None
+        else:
+            # Percentage method
+            position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 20): ") or "20")
+            if position_percentage < 1 or position_percentage > 100:
+                print("Invalid percentage. Using 20% of account.")
+                position_percentage = 20
+            quantity = None  # Will be calculated dynamically
+
+        # Update interval
+        update_interval = int(input("Chart update interval in seconds (default 60): ") or "60")
+
+        # Select broker type
+        print("\n🏦 Broker Selection:")
+        print("====================")
+        print("1. Alpaca Paper Trading")
+        print("2. Simulated Broker")
+        print()
+
+        while True:
+            broker_choice = input("Select broker (1-2): ").strip()
+            if broker_choice == "1":
+                use_simulated_broker = False
+                break
+            elif broker_choice == "2":
+                use_simulated_broker = True
+                break
+            print(" Invalid choice. Please enter 1 or 2.")
+
+        print(f"\n  Configuration Summary:")
+        print(f"   Asset Type: {'Cryptocurrency' if asset_type == 'crypto' else 'Stock'}")
+        print(f"   Strategy: {strategy.name}")
+        print(f"   Symbol: {symbol}")
+        print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+
+        if position_percentage is not None:
+            print(f"   Position Size: {position_percentage}% of account per trade")
+        else:
+            if asset_type == "crypto":
+                unit = symbol.split("/")[0] if "/" in symbol else "units"
+                print(f"   Position Size: {quantity} {unit}")
+            else:
+                print(f"   Position Size: {quantity} shares")
+
+        print(f"   Update Interval: {update_interval} seconds")
+        print(f"   Broker Type: {'SimulatedBroker' if use_simulated_broker else 'Alpaca Paper Trading'}")
+
+        if use_simulated_broker:
+            print(f"   Initial Balance: $10,000 (simulated)")
+        else:
+            print(f"   Account Balance: Will be retrieved from Alpaca")
+
+        print(f"\n Features:")
+        print(f"    Real-time candlestick chart")
+        print(f"    Strategy indicators overlay")
+        print(f"    Buy/sell signals on chart")
+        print(f"    Live P&L tracking")
+        print(f"    Automated trade execution")
+        print(f"    Console trade logging")
+
+        confirm = input(f"\nStart live trading? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Live trading cancelled.")
+            return
+
+        try:
+            # Create live trading chart
+            live_chart = LiveTradingChart(
+                strategy=strategy,
+                api_key=self.alpaca_data_provider.api_key,
+                secret_key=self.alpaca_data_provider.secret_key,
+                symbol=symbol,
+                paper_trading=self.alpaca_broker.paper_trading,
+                quantity=quantity,
+                trading_mode=trading_mode,
+                use_simulated_broker=use_simulated_broker,
+                initial_balance=10000,
+                position_percentage=position_percentage
+            )
+
+            print(f"\nStarting live trading with charts...")
+            print(f"Chart will open in a new window")
+            print(f"Data updates every {update_interval} seconds")
+            print(f"All trades will be logged to console")
+            print(f"  Press Ctrl+C to stop")
+            print(f"\n{'='*50}")
+
+            # Start live trading with charts
+            animation = live_chart.start_live_trading(update_interval * 1000)  # Convert to milliseconds
+
+        except KeyboardInterrupt:
+            print(f"\n\n  Live trading stopped by user")
+
+            # Show final performance
+            if 'live_chart' in locals():
+                performance = live_chart.get_performance_summary()
+                trade_history = live_chart.get_trade_history()
+
+                print(f"\n" + "=" * 40)
+                print(f"         FINAL TRADING SUMMARY")
+                print(f"=" * 40)
+                print(f"Strategy: {strategy.name}")
+                print(f"Total Trades: {performance['total_trades']}")
+                print(f"Profitable Trades: {performance['profitable_trades']}")
+                print(f"Losing Trades: {performance['losing_trades']}")
+                print(f"Win Rate: {performance['win_rate']:.1f}%")
+                print(f"Final Balance: ${performance['current_balance']:.2f}")
+                print(f"Total Return: ${performance['total_return']:.2f}")
+                print(f"Percent Return: {performance['percent_return']:.2f}%")
+                print(f"Current Position: {performance['current_position']}")
+
+                if len(trade_history) > 0:
+                    print(f"\n Recent Trades:")
+                    # Show last 5 trades with detailed format
+                    recent_trades = trade_history.tail()
+                    self._print_detailed_trade_results(recent_trades)
+                else:
+                    print(f"\n No trades executed during this session")
+
+        except Exception as e:
+            print(f"\n Live trading error: {e}")
+            print(f"Please check your Alpaca credentials and internet connection.")
+
+    def run_synth_live_trading(self):
+        """Run live trading with Synth synthetic market data provider"""
+        print("\n" + "=" * 50)
+        print("       SYNTH LIVE TRADING (SYNTHETIC DATA)")
+        print("=" * 50)
+
+        # Get Synth API configuration
+        print("\n🔑 Synth API Configuration")
+        print("-" * 30)
+
+        base_url = input("Enter Synth API base URL (press Enter for default): ").strip()
+        if not base_url:
+            base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
+
+        api_key = input("Enter Synth API key: ").strip()
+
+        if not api_key:
+            print("✗ API key is required for Synth provider")
+            return
+
+        # Select candle interval
+        print("\n⏱️  Candle Interval Selection:")
+        print("=" * 30)
+        print("1. 1 second (1s)  - High-frequency, updates every second")
+        print("2. 1 minute (1m)  - Standard, updates every minute")
+        print()
+
+        interval_choice = input("Select candle interval (1-2, default 2): ").strip() or "2"
+
+        interval_map = {
+            "1": "1s",
+            "2": "1m"
+        }
+
+        interval = interval_map.get(interval_choice, "1m")
+        interval_display = "1 second" if interval == "1s" else "1 minute"
+
+        print(f"Selected interval: {interval_display} ({interval})")
+
+        # Create and test Synth provider
+        try:
+            synth_provider = SynthDataProvider(base_url, api_key, interval)
+            print("\nTesting Synth API connection...")
+            success, message = synth_provider.test_connection()
+
+            if not success:
+                print(f"✗ {message}")
+                return
+
+            print(f"✓ {message}")
+        except Exception as e:
+            print(f"✗ Error connecting to Synth API: {e}")
+            return
+
+        # Select strategy
+        strategy = self.select_strategy()
+        if not strategy:
+            return
+
+        # Select trading mode
+        trading_mode = self.select_trading_mode()
+
+        # Select output mode
+        print("\n📟 Terminal Output Mode:")
+        print("1. Regular - Clean output (price, position, P&L, win rate)")
+        print("2. Verbose - Debug mode (all trade details, signals, validation)")
+        output_choice = input("Select output mode (1-2, default 1): ").strip() or "1"
+        verbose_mode = (output_choice == "2")
+
+        # Configure trading parameters
+        print("\n📊 Synth Live Trading Configuration:")
+        print("-" * 30)
+
+        # Ticker selection
+        ticker = input("Enter ticker symbol (default: SYNTH): ").strip().upper() or "SYNTH"
+        print(f"Selected ticker: {ticker}")
+
+        # Position sizing
+        print("\n💰 Position Sizing Options:")
+        print("1. Fixed quantity (shares/units)")
+        print("2. Percentage of account")
+
+        sizing_choice = input("Select position sizing method (1-2, default 2): ").strip() or "2"
+
+        if sizing_choice == "1":
+            quantity = float(input("Enter position size (default 1.0): ") or "1.0")
+            position_percentage = None
+        else:
+            position_percentage = float(input("Enter percentage of account to use per trade (1-100, default 20): ") or "20")
+            if position_percentage < 1 or position_percentage > 100:
+                print("Invalid percentage. Using 20% of account.")
+                position_percentage = 20
+            quantity = None
+
+        # Update interval - should match or be multiple of candle interval
+        print("\n⏱️  Chart Update Interval:")
+        if interval == "1s":
+            print("   Note: Using 1-second candles - chart will update every second")
+            default_update = 1
+            recommended_range = "1-5"
+        else:
+            print("   Note: Using 1-minute candles - chart will update every minute")
+            default_update = 60
+            recommended_range = "60-300"
+
+        update_interval = int(input(f"Chart update interval in seconds (default {default_update}, recommended {recommended_range}): ") or str(default_update))
+
+        if update_interval < 1:
+            print("⚠️  Minimum interval is 1 second. Using 1 second.")
+            update_interval = 1
+
+        # Initial balance for simulated broker
+        initial_balance = float(input("\n💵 Initial balance for simulated trading (default 10000): ") or "10000")
+
+        # Summary
+        print(f"\n✅ Configuration Summary:")
+        print(f"   Data Provider: Synth Synthetic Market Data")
+        print(f"   API URL: {base_url}")
+        print(f"   Candle Interval: {interval_display} ({interval})")
+        print(f"   Strategy: {strategy.name}")
+        print(f"   Ticker: {ticker}")
+        print(f"   Trading Mode: {'Long-only' if trading_mode == 'long_only' else 'Long/Short'}")
+
+        if position_percentage is not None:
+            print(f"   Position Size: {position_percentage}% of account per trade")
+        else:
+            print(f"   Position Size: {quantity} units")
+
+        print(f"   Update Interval: {update_interval} second(s)")
+        print(f"   Broker: SimulatedBroker (paper trading)")
+        print(f"   Initial Balance: ${initial_balance:,.2f}")
+
+        print(f"\n📈 Features:")
+        print(f"    ✓ Real-time candlestick chart ({interval} candles)")
+        print(f"    ✓ Strategy indicators overlay")
+        print(f"    ✓ Buy/sell signals on chart")
+        print(f"    ✓ Live P&L tracking")
+        print(f"    ✓ Automated trade execution (simulated)")
+        print(f"    ✓ Console trade logging")
+        if interval == "1s":
+            print(f"    ✓ High-frequency updates (1 candle/second)")
+        else:
+            print(f"    ✓ Standard updates (1 candle/minute)")
+
+        confirm = input(f"\nStart Synth live trading? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Synth live trading cancelled.")
+            return
+
+        try:
+            # Create simulated broker
+            simulated_broker = SimulatedBroker(initial_balance)
+
+            # Create live trading chart with Synth provider
+            live_chart = LiveTradingChart(
+                strategy=strategy,
+                symbol=ticker,
+                trading_mode=trading_mode,
+                position_percentage=position_percentage,
+                use_simulated_broker=True,
+                initial_balance=initial_balance,
+                data_provider=synth_provider,
+                broker_interface=simulated_broker,
+                verbose_mode=verbose_mode
+            )
+
+            # Override quantity if fixed sizing
+            if quantity is not None:
+                live_chart.quantity = quantity
+
+            print(f"\n🚀 Starting Synth live trading with charts...")
+            print(f"📊 Chart will open in a new window")
+            print(f"⏱️  Data updates every {update_interval} second(s)")
+            print(f"📝 All trades will be logged to console")
+            print(f"⚠️  Press Ctrl+C to stop")
+            print(f"\n{'='*50}")
+
+            # Start live trading with charts (convert to milliseconds)
+            animation = live_chart.start_live_trading(update_interval * 1000)
+
+        except KeyboardInterrupt:
+            print(f"\n\n✋ Synth live trading stopped by user")
+
+            # Show final performance
+            if 'live_chart' in locals():
+                performance = live_chart.get_performance_summary()
+                trade_history = live_chart.get_trade_history()
+
+                print(f"\n" + "=" * 40)
+                print(f"    FINAL SYNTH TRADING SUMMARY")
+                print(f"=" * 40)
+                print(f"Strategy: {strategy.name}")
+                print(f"Ticker: {ticker}")
+                print(f"Total Trades: {performance['total_trades']}")
+                print(f"Profitable Trades: {performance['profitable_trades']}")
+                print(f"Losing Trades: {performance['losing_trades']}")
+                print(f"Win Rate: {performance['win_rate']:.1f}%")
+                print(f"Final Balance: ${performance['current_balance']:.2f}")
+                print(f"Total Return: ${performance['total_return']:.2f}")
+                print(f"Percent Return: {performance['percent_return']:.2f}%")
+                print(f"Current Position: {performance['current_position']}")
+
+                if len(trade_history) > 0:
+                    print(f"\n📊 Recent Trades:")
+                    recent_trades = trade_history.tail(10)
+                    self._print_detailed_trade_results(recent_trades)
+                else:
+                    print(f"\n⚠️  No trades executed during this session")
+
+        except Exception as e:
+            print(f"\n❌ Synth live trading error: {e}")
+            print(f"Please check your Synth API configuration and connection.")
+            import traceback
+            traceback.print_exc()
+
+    def _print_detailed_trade_results(self, results):
+        """Print detailed trade overview with enhanced formatting"""
+        if len(results) == 0:
+            print("No trades executed.")
+            return
+
+        print("=" * 170)
+        print(f"{'#':<3} {'Time':<19} {'Price':<10} {'Position':<8} {'Action':<12} {'Shares':<12} {'Cost/Proceeds':<15} {'Last Trade P&L':<15} {'Cash Balance':<15} {'Total Worth*':<15} {'Total Profit*':<15} {'Result':<8}")
+        print("=" * 170)
+        print("=" * 170)
+
+        for i, (idx, trade) in enumerate(results.iterrows(), 1):
+            # Format values
+            time_str = trade['Time'].strftime('%Y-%m-%d %H:%M:%S') if hasattr(trade['Time'], 'strftime') else str(trade['Time'])
+            price = f"${trade['Price']:.4f}"
+            position = "LONG" if trade['Position'] == 1 else ("SHORT" if trade['Position'] == -1 else "FLAT")
+            action = trade['Action']
+            shares = f"{trade['Shares']:.6f}" if 'Shares' in trade else "N/A"
+
+            # Cost/Proceeds
+            if 'Cost' in trade and pd.notna(trade['Cost']):
+                cost_proceeds = f"${trade['Cost']:.2f}"
+            elif 'Proceeds' in trade and pd.notna(trade['Proceeds']):
+                cost_proceeds = f"${trade['Proceeds']:.2f}"
+            else:
+                cost_proceeds = "N/A"
+
+            # Last trade realized P&L
+            last_trade_pnl = f"${trade['Last_Trade_Realized']:.2f}" if 'Last_Trade_Realized' in trade and pd.notna(trade['Last_Trade_Realized']) else "N/A"
+
+            # Cash balance
+            cash_balance = f"${trade['Balance']:.2f}" if 'Balance' in trade else "N/A"
+
+            # Total account worth
+            total_worth = f"${trade['Total_Account_Worth']:.2f}" if 'Total_Account_Worth' in trade else "N/A"
+
+            # Total profit
+            total_profit = f"${trade['Total_Profit']:.2f}" if 'Total_Profit' in trade else "N/A"
+
+            # Trade result
+            trade_result = trade.get('Trade_Result', trade.get('Result', 'N/A'))
+
+            print(f"{i:<3} {time_str:<19} {price:<10} {position:<8} {action:<12} {shares:<12} {cost_proceeds:<15} {last_trade_pnl:<15} {cash_balance:<15} {total_worth:<15} {total_profit:<15} {trade_result:<8}")
+
+        print("=" * 170)
+        print(f"Total Trades: {len(results)}")
+        print("\nNote: This display shows account worth based on realized gains/losses only.")
+        print("Open positions do not affect the total worth until they are closed.")
+
+    def _export_trade_results_to_csv(self, results, strategy):
+        """Export detailed trade results to CSV file in a temporary folder"""
+        try:
+            # Create a temporary directory for CSV exports
+            temp_dir = tempfile.mkdtemp(prefix="bat_exports_")
+
+            # Generate filename with timestamp and strategy name
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            strategy_name = getattr(strategy, 'name', 'UnknownStrategy').replace(' ', '_')
+            filename = f"backtest_results_{strategy_name}_{timestamp}.csv"
+            filepath = os.path.join(temp_dir, filename)
+
+            # Export to CSV
+            results.to_csv(filepath, index=False)
+
+            print(f"\n Trade results exported to CSV:")
+            print(f"   File: {filename}")
+            print(f"   Location: {temp_dir}")
+            print(f"   Full path: {filepath}")
+            print(f"   Records: {len(results)} trades")
+
+        except Exception as e:
+            print(f" Error exporting to CSV: {e}")
+
+    def run_live_trading_menu(self):
+        """Consolidated live trading menu"""
+        while True:
+            try:
+                print("\n" + "=" * 50)
+                print("           LIVE TRADING")
+                print("=" * 50)
+                print("\nSelect market type:")
+                print("1. Stocks/Crypto (Alpaca)")
+                print("2. Forex (OANDA + Interactive Brokers)")
+                print("3. Synthetic Data (Synth)")
+                print("4. Back to Main Menu")
+
+                choice = self.get_validated_choice("\nSelect option (1-4)", ['1', '2', '3', '4'])
+
+                if choice is None or choice == '4':
+                    return
+                elif choice == '1':
+                    self.run_alpaca_live_trading()
+                    return
+                elif choice == '2':
+                    self.run_forex_live_trading()
+                    return
+                elif choice == '3':
+                    self.run_synth_live_trading()
+                    return
+
+            except KeyboardInterrupt:
+                print("\n✗ Operation cancelled by user")
+                return
+            except Exception as e:
+                print(f"\n✗ Unexpected error in live trading menu: {e}")
+                if not self.get_yes_no("Return to main menu?", default='y'):
+                    continue
+                return
+
+    def download_dataset(self, ticker, start, end, timeframe, limit=50000):
+
+    
+        print("Downloading dataset...")
+        try:
+            df = self.data_provider.get_data(
+                ticker=ticker,
+                timespan=timeframe,
+                from_date=start,
+                to_date=end,
+                limit=limit
+            )
+
+            clean_ticker = ticker.replace(':', '_').replace('/', '_')
+            filename = f"{clean_ticker}_{timeframe}_{start}_to_{end}.csv"
+
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            datasets_dir = os.path.join(script_dir, 'research', 'datasets')
+
+            os.makedirs(datasets_dir, exist_ok=True)
+
+            filepath = os.path.join(datasets_dir, filename)
+
+            df.to_csv(filepath, index=False)
+
+            print(f"✓ Dataset successfully downloaded")
+
+        except Exception as e:
+            print(f"✗ Dataset download failed: {e}")
+
+    def optimize_strategy(self):
+        """Run strategy optimization with error handling"""
+        print("\n" + "=" * 50)
+        print("         STRATEGY OPTIMIZATION")
+        print("=" * 50)
+        print("\nAvailable Strategies:")
+        print("1. Mean Reversion")
+        print("0. Cancel")
+
+        strategy = self.get_validated_choice("Choose Strategy to optimize (0-1)", ['0', '1'])
+
+        if strategy is None or strategy == '0':
+            print("✗ Optimization cancelled")
+            return
+
+        if strategy == '1':
+            # Mean Reversion optimization
+            print("\nMean Reversion Strategy Optimization")
+            print("-" * 40)
+
+            dataset_path_input = input("Enter path to dataset CSV (or press Enter for default): ").strip()
+
+            if not dataset_path_input:
+                dataset_path = "/Users/brunoinzunza/Documents/GitHub/BAT/research/datasets/X_BTCUSD_minute_2025-01-01_to_2025-09-01.csv"
+                print(f"Using default dataset: {dataset_path}")
+            else:
+                dataset_path = dataset_path_input
+
+            # Check if file exists
+            if not os.path.exists(dataset_path):
+                print(f"\n✗ Error: Dataset file not found: {dataset_path}")
+                print("\nPlease check the file path and try again.")
+                return
+
+            print(f"\nDataset: {dataset_path}")
+            print(f"File size: {os.path.getsize(dataset_path) / (1024*1024):.2f} MB")
+
+            if not self.get_yes_no("\nProceed with optimization? (This may take several minutes)", default='y'):
+                print("✗ Optimization cancelled")
+                return
+
+            try:
+                print(f"\nStarting optimization...")
+                print("Note: The optimization module will be built automatically if needed.")
+                print("-" * 50)
+                find_best_main(dataset_path)
+                print("\n✓ Optimization completed successfully!")
+
+            except ImportError as e:
+                print(f"\n✗ Import Error: {e}")
+                print("\nThe optimization requires additional dependencies.")
+                print("Please install them with:")
+                print("  pip install cython numpy pandas")
+
+            except FileNotFoundError as e:
+                print(f"\n✗ File Error: {e}")
+                print("\nPlease check that the dataset file exists and is accessible.")
+
+            except KeyboardInterrupt:
+                print("\n\n✗ Optimization interrupted by user")
+
+            except Exception as e:
+                print(f"\n✗ Optimization Error: {e}")
+                print("\nThe optimization encountered an error.")
+                import traceback
+                if self.get_yes_no("Show detailed error trace?", default='n'):
+                    traceback.print_exc()
+
+        return
+
+    def main_menu(self):
+        """Main application menu"""
+        while True:
+            try:
+                self.display_banner()
+
+                print("Main Menu:")
+                print("-" * 10)
+                print("1. Backtest")
+                print("2. Live Trading")
+                print("3. Research/Optimization")
+                print("4. Exit")
+
+                choice = self.get_validated_choice("\nSelect option (1-4)", ['1', '2', '3', '4'])
+
+                if choice is None:
+                    print("\n✗ Input cancelled")
+                    continue
+
+                if choice == '1':
+                    try:
+                        # Always ask which provider to use (but only login once per provider)
+                        if not self.select_data_provider():
+                            continue
+                        self.run_backtest()
+                    except KeyboardInterrupt:
+                        print("\n✗ Backtest cancelled by user")
+                    except Exception as e:
+                        print(f"\n✗ Backtest error: {e}")
+                        print("Returning to main menu...")
+                    input("\nPress Enter to continue...")
+
+                elif choice == '2':
+                    try:
+                        self.run_live_trading_menu()
+                    except KeyboardInterrupt:
+                        print("\n✗ Live trading cancelled by user")
+                    except Exception as e:
+                        print(f"\n✗ Live trading error: {e}")
+                        print("Returning to main menu...")
+                    input("\nPress Enter to continue...")
+
+                elif choice == '3':
+                    try:
+                        print("\n" + "=" * 50)
+                        print("           RESEARCH & OPTIMIZATION")
+                        print("=" * 50)
+                        print()
+                        print("1. New dataset")
+                        print("2. Existing dataset")
+                        print("3. Cancel")
+
+                        dataset_choice = self.get_validated_choice("Select option (1-3)", ['1', '2', '3'])
+
+                        if dataset_choice is None or dataset_choice == '3':
+                            continue
+
+                        if dataset_choice == '1':
+                            if not self.select_data_provider():
+                                continue
+
+                            ticker_input = input("Choose a ticker (or 'cancel' to go back): ").strip()
+                            if ticker_input.lower() in ['cancel', 'c', 'back']:
+                                continue
+                            ticker = ticker_input
+
+                            start = self.get_validated_date("Choose a start date", allow_cancel=True)
+                            if start is None:
+                                continue
+
+                            end = self.get_validated_date("Choose an end date", allow_cancel=True)
+                            if end is None:
+                                continue
+
+                            timeframe_choice = self.get_validated_choice(
+                                "Choose a timeframe (minute/hour/day)",
+                                ['minute', 'hour', 'day'],
+                                allow_cancel=True
+                            )
+                            if timeframe_choice is None:
+                                continue
+                            timeframe = timeframe_choice
+
+                            limit = self.get_validated_int("Choose a limit", default=50000, min_val=1, allow_cancel=True)
+                            if limit is None:
+                                continue
+
+                            self.download_dataset(ticker, start, end, timeframe, limit)
+                            self.optimize_strategy()
+
+                        elif dataset_choice == '2':
+                            self.optimize_strategy()
+
+                    except KeyboardInterrupt:
+                        print("\n✗ Research/optimization cancelled by user")
+                    except Exception as e:
+                        print(f"\n✗ Research/optimization error: {e}")
+                        print("Returning to main menu...")
+
+                    input("\nPress Enter to continue...")
+
+                elif choice == '4':
+                    print("\nThank you for using BAT!")
+                    # Disconnect IB if connected
+                    if self.ib_broker and hasattr(self.ib_broker, 'connected') and self.ib_broker.connected:
+                        print("Disconnecting from IB TWS...")
+                        try:
+                            self.ib_broker.disconnect_from_tws()
+                        except:
+                            pass
+                    break
+
+            except KeyboardInterrupt:
+                print("\n\n✗ Ctrl+C detected. Exiting...")
+                break
+            except Exception as e:
+                print(f"\n✗ Unexpected error in main menu: {e}")
+                if not self.get_yes_no("Continue?", default='y'):
+                    break
+
+
+def main():
+    """Main entry point with error handling"""
+    try:
+        cli = TradingCLI()
+        cli.main_menu()
+    except KeyboardInterrupt:
+        print("\n\n✗ Application interrupted by user. Goodbye!")
+    except Exception as e:
+        print(f"\n✗ Critical error: {e}")
+        print("The application encountered an unexpected error and must exit.")
+        import traceback
+        print("\nError details:")
+        traceback.print_exc()
+        print("\nPlease report this issue if it persists.")
+
+
+if __name__ == "__main__":
+    main()

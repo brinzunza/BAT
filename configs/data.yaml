@@ -1,0 +1,8 @@
+path: data/raw/X_BTCUSD_minute_2025-01-01_to_2025-09-01.csv   # CSV with timestamp, Open, High, Low, Close, Volume
+resample: 15min          # null = keep raw bars
+seq_len: 64              # bars per sample window
+horizon: 4               # predict the log return over the next N bars
+target: direction        # direction (up=1/down=0) | return
+split: {train: 0.7, val: 0.15, test: 0.15}   # chronological; windows never straddle a split
+embargo: 4               # bars dropped between splits (>= horizon) to avoid label overlap leakage
+batch_size: 256

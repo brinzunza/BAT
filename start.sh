@@ -8,4 +8,4 @@ echo "Starting BAT Trading System..."
 echo ""
 
 # Run the CLI interface
-python3 ui/cli_interface.py
+python3 main.py

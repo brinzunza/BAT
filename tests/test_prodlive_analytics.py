@@ -1,5 +1,5 @@
 import sqlite3, numpy as np, pandas as pd, pytest
-from analytics.prodlive import queries as Q, sync as S
+from src.analytics.prodlive import queries as Q, sync as S
 SCHEMA = """CREATE TABLE trades(id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT, side TEXT, oanda_trade_id TEXT, symbol TEXT, entry_time TEXT, entry_price REAL, stop_price REAL, backstop_price REAL, target_price REAL, qty REAL, exit_time TEXT, exit_price REAL, realized_pnl REAL, financing REAL, commission REAL, entry_slippage_cost REAL, exit_slippage_cost REAL, outcome TEXT, r_multiple REAL, pnl_pct_equity REAL, zone_top REAL, zone_bottom REAL, zone_mid REAL, zone_created_at TEXT, zone_age_minutes REAL, entry_hour_utc INTEGER, combined_balance_at_entry REAL, risk_pct_configured REAL, holding_duration_seconds REAL, created_at TEXT, updated_at TEXT);
 CREATE TABLE active_positions(id INTEGER PRIMARY KEY, symbol TEXT, opened_at TEXT, entry_time TEXT); CREATE TABLE pending_orders(id INTEGER PRIMARY KEY, status TEXT);
 CREATE TABLE account_snapshots(id INTEGER PRIMARY KEY, timestamp TEXT, combined_balance REAL, combined_nav REAL, open_positions_count INTEGER); CREATE TABLE system_events(id INTEGER PRIMARY KEY, timestamp TEXT, event_type TEXT, symbol TEXT, details_json TEXT);"""

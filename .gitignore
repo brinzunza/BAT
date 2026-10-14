@@ -18,4 +18,15 @@ dist/
 *.o
 *.obj
 # prodlive analytics snapshots (copies of the bot DB)
-analytics/prodlive/data/
+src/analytics/prodlive/data/
+htmlcov/
+.coverage
+checkpoints/*
+!checkpoints/.gitkeep
+runs/*
+!runs/.gitkeep
+!runs/legacy_results/
+data/raw/*
+data/processed/*
+data/external/*
+!data/*/.gitkeep

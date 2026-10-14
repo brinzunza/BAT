@@ -1,0 +1,6 @@
+name: lstm               # mlp | cnn | lstm | transformer
+hidden: 64
+layers: 2
+dropout: 0.2
+heads: 4                 # transformer only
+kernel: 5                # cnn only

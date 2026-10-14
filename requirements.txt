@@ -8,4 +8,7 @@ python-dotenv>=0.19.0
 alpaca-trade-api>=2.0.0
 torch>=2.0.0
 scikit-learn>=1.0.0
-langgraph>=0.0.20
+langgraph>=0.0.20pyyaml>=6.0
+scipy>=1.10
+fastapi>=0.110
+uvicorn>=0.29
