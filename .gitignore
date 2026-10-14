@@ -17,3 +17,5 @@ dist/
 *.html
 *.o
 *.obj
+# prodlive analytics snapshots (copies of the bot DB)
+analytics/prodlive/data/
