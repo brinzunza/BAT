@@ -76,6 +76,28 @@ def detect_candlestick_patterns(open_prices, high_prices, low_prices, close_pric
 
     return patterns.fillna('none')
 
+def candlestick_flags(open_prices, high_prices, low_prices, close_prices, trend_bars=3):
+    """Boolean per-bar candlestick pattern flags (causal: bar t uses bars <= t only).
+    Columns: hammer, hanging_man, shooting_star, bullish_engulfing, bearish_engulfing.
+    hammer / hanging_man share a shape (small body, long lower shadow, tiny upper shadow); it is a hammer after a down move
+    (close below the close `trend_bars` earlier) and a hanging man after an up move. shooting_star = inverted shape after an up move."""
+    o, h, l, c = open_prices, high_prices, low_prices, close_prices
+    body = (c - o).abs(); upper = h - np.maximum(o, c); lower = np.minimum(o, c) - l
+    rng = h - l
+    hammer_shape = (rng > 0) & (lower > body * 2) & (upper <= body * 0.5)       # NB: the older detect_candlestick_patterns also required body < 2*upper, which contradicts upper < 0.5*body and never fires
+    star_shape = (rng > 0) & (upper > body * 2) & (lower <= body * 0.5)
+    prior = c.shift(trend_bars); down, up = c < prior, c > prior
+    po, pc = o.shift(1), c.shift(1)
+    out = pd.DataFrame({
+        'hammer': hammer_shape & down,
+        'hanging_man': hammer_shape & up,
+        'shooting_star': star_shape & up,
+        'bullish_engulfing': (pc < po) & (c > o) & (o <= pc) & (c >= po),
+        'bearish_engulfing': (pc > po) & (c < o) & (o >= pc) & (c <= po),
+    }, index=c.index)
+    return out.fillna(False).astype(bool)
+
+
 def build_features(df):
     """Causal per-bar feature frame from an OHLCV DataFrame (columns Open/High/Low/Close/Volume, DatetimeIndex).
     Every column at row t uses only bars <= t. Returns a float32 frame (NaN warm-up rows dropped by the caller)."""

@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Dict, Any, Optional
-from src.data.features import detect_candlestick_patterns
+from src.data.features import candlestick_flags
 
 
 class CandlestickPatternsStrategy:
@@ -21,8 +21,8 @@ class CandlestickPatternsStrategy:
 
         df = df.copy()
 
-        # Detect candlestick patterns
-        patterns = detect_candlestick_patterns(df['Open'], df['High'], df['Low'], df['Close'])
+        # Detect candlestick patterns (boolean columns: hammer, hanging_man, shooting_star, bullish_engulfing, bearish_engulfing)
+        patterns = candlestick_flags(df['Open'], df['High'], df['Low'], df['Close'])
 
         # Add pattern columns to main dataframe
         for pattern in patterns.columns:

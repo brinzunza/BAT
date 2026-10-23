@@ -28,7 +28,8 @@ class BollingerBandsStrategy:
         df = df.copy()
 
         # Calculate Bollinger Bands
-        df['bb_upper'], df['bb_middle'], df['bb_lower'] = bollinger_bands(df['Close'], self.window, self.num_std)
+        bands = bollinger_bands(df['Close'], self.window, self.num_std)   # dict of Series: upper / middle / lower
+        df['bb_upper'], df['bb_middle'], df['bb_lower'] = bands['upper'], bands['middle'], bands['lower']
 
         # Generate signals
         # Buy when price touches or goes below lower band
