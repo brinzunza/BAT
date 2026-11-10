@@ -25,7 +25,7 @@ from src.tui.datasets import (DatasetInfo, dataset_stats, human_size, resample_b
                               short_name)
 from src.tui.services.optimizer import MAX_COMBOS, OBJECTIVES, build_grid, parse_range, run_grid
 from src.tui.strategies import STRATEGIES, ParamSpec, StrategySpec, strategy_options
-from src.tui.widgets.common import LabeledInput, LabeledSelect, Plot, Section, select_value
+from src.tui.widgets.common import LabeledInput, LabeledSelect, Plot, Section, select_value, GuardedTabs, switch_tab
 from src.tui.widgets.modals import FormModal
 from src.tui.widgets.price import PriceChart
 
@@ -91,7 +91,7 @@ class ResearchPage(Widget):
     # ----------------------------------------------------------------- layout
     def compose(self) -> ComposeResult:
         first = STRATEGIES["mean_reversion"]
-        with TabbedContent(id="rs-tabs"):
+        with GuardedTabs(id="rs-tabs"):
             with TabPane("Datasets", id="rs-tab-data"):
                 with Horizontal():
                     with Vertical(id="rs-left"):
@@ -257,7 +257,7 @@ class ResearchPage(Widget):
         info = self._selected_dataset()
         if info:
             self.query_one("#op-dataset", Select).value = str(info.path)
-            self.query_one("#rs-tabs", TabbedContent).active = "rs-tab-opt"
+            switch_tab(self, "#rs-tabs", "rs-tab-opt", focus="#op-run")
 
     @on(Button.Pressed, "#rs-resample")
     def _resample(self) -> None:

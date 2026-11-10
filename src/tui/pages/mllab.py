@@ -21,7 +21,7 @@ from textual.widgets import (Button, DataTable, Input, ProgressBar, RichLog, Sel
 from src.tui import charts as C
 from src.tui.datasets import human_size, scan_datasets, short_name
 from src.tui.services import mlops
-from src.tui.widgets.common import LabeledInput, LabeledSelect, Plot, Section, select_value
+from src.tui.widgets.common import LabeledInput, LabeledSelect, Plot, Section, select_value, GuardedTabs, switch_tab
 
 ROOT = mlops.ROOT
 RESAMPLE = [("Raw bars", "none"), ("5 min", "5min"), ("15 min", "15min"), ("30 min", "30min"), ("1 hour", "1h")]
@@ -48,7 +48,7 @@ class MLPage(Widget):
     # ----------------------------------------------------------------- layout
     def compose(self) -> ComposeResult:
         d, m, t = self.ml_base["data"], self.ml_base["model"], self.ml_base["train"]
-        with TabbedContent(id="ml-tabs"):
+        with GuardedTabs(id="ml-tabs"):
             with TabPane("Train", id="ml-tab-train"):
                 with Horizontal():
                     with VerticalScroll(classes="config"):
@@ -382,7 +382,7 @@ class MLPage(Widget):
             self.app.notify_err(f"No checkpoint named {name}.pt")
             return
         self.query_one("#ev-ckpt", Select).value = str(ck)
-        self.query_one("#ml-tabs", TabbedContent).active = "ml-tab-eval"
+        switch_tab(self, "#ml-tabs", "ml-tab-eval", focus="#ev-run")
 
     # ------------------------------------------------------------- checkpoints
     def _refresh_ckpts(self) -> None:
