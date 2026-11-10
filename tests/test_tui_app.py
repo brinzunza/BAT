@@ -371,3 +371,84 @@ def test_primary_action_buttons_are_visible_without_scrolling(workspace, size):
                 # status bar + footer occupy the last two rows
                 assert region.height >= 1 and region.y >= 1 and region.bottom <= size[1] - 2, (page_id, region)
     run(go())
+
+
+# --- buttons that switch tabs from inside a tab -------------------------------------------------
+# Regression: a click focuses the button and TabbedContent then re-activates the button's own tab,
+# which silently undid the switch ("the Optimize button does nothing").
+
+def test_research_optimize_button_opens_the_optimizer_for_that_dataset(workspace):
+    async def go():
+        app = BatApp()
+        async with app.run_test(size=SIZE) as pilot:
+            await pilot.press("4")
+            page = app.query_one("#research")
+            await wait_for(pilot, lambda: page._selected_dataset() is not None)
+            tabs = app.query_one("#rs-tabs", TabbedContent)
+            assert tabs.active == "rs-tab-data"
+            expected = str(page._selected_dataset().path)
+            await pilot.click("#rs-opt")                                    # real click on the real button
+            await wait_for(pilot, lambda: tabs.active == "rs-tab-opt")
+            await pilot.pause(0.5)                                           # ...and it must stay there
+            assert tabs.active == "rs-tab-opt"
+            assert app.query_one("#op-dataset", Select).value == expected
+            assert app.focused is not None and app.focused.id == "op-run"
+    run(go())
+
+
+def test_mllab_evaluate_this_run_button_opens_evaluate_tab(workspace, monkeypatch):
+    from src.tui.pages import mllab
+    from src.tui.services import mlops
+    run_dir = workspace / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "metrics.jsonl").write_text('{"epoch":0,"train_loss":0.7,"val_loss":0.69}\n')
+    (workspace / "checkpoints").mkdir()
+    (workspace / "checkpoints" / "r1.pt").write_bytes(b"x")
+    monkeypatch.setattr(mlops, "ROOT", workspace)
+    monkeypatch.setattr(mllab, "ROOT", workspace)
+
+    async def go():
+        app = BatApp()
+        async with app.run_test(size=SIZE) as pilot:
+            await pilot.press("5")
+            await pilot.pause(0.5)
+            tabs = app.query_one("#ml-tabs", TabbedContent)
+            tabs.active = "ml-tab-runs"
+            await wait_for(pilot, lambda: app.query_one("#ml-runs", DataTable).row_count == 1)
+            await pilot.pause(0.5)                                           # let the newly shown tab lay out
+            await pilot.click("#ml-runs-eval")
+            await wait_for(pilot, lambda: tabs.active == "ml-tab-eval")
+            await pilot.pause(0.4)
+            assert tabs.active == "ml-tab-eval"
+            assert str(app.query_one("#ev-ckpt", Select).value).endswith("r1.pt")
+    run(go())
+
+
+def test_backtest_history_open_and_trade_jump_switch_tabs(workspace):
+    async def go():
+        app = BatApp()
+        async with app.run_test(size=SIZE) as pilot:
+            await pilot.press("2")
+            page = app.query_one("#backtest")
+            await wait_for(pilot, lambda: select_has_value(app, "#bt-dataset"))
+            app.query_one("#bt-replay", Select).value = "0"
+            await pilot.pause(0.2)
+            await pilot.click("#bt-run")
+            await wait_for(pilot, lambda: len(app.bat.backtests) == 1)
+            tabs = app.query_one("#bt-tabs", TabbedContent)
+            # History -> Open (button inside the History tab)
+            tabs.active = "tab-history"
+            await pilot.pause(0.4)
+            await pilot.click("#bt-open")
+            await wait_for(pilot, lambda: tabs.active == "tab-overview")
+            await pilot.pause(0.4)
+            assert tabs.active == "tab-overview"
+            # Trades -> Enter on a row jumps to the chart
+            tabs.active = "tab-trades"
+            await pilot.pause(0.4)
+            app.query_one("#bt-trips", DataTable).focus()
+            await pilot.press("enter")
+            await wait_for(pilot, lambda: tabs.active == "tab-price")
+            await pilot.pause(0.4)
+            assert tabs.active == "tab-price" and app.focused is app.query_one("#bt-price")
+    run(go())

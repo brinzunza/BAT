@@ -30,7 +30,7 @@ from src.tui.diagnostics import (Finding, check_config, check_data, check_result
 from src.tui.report import BacktestReport, build_report
 from src.tui.state import BacktestRecord
 from src.tui.strategies import STRATEGIES, strategy_options
-from src.tui.widgets.common import (CardGrid, EventLog, LabeledInput, LabeledSelect, ParamForm, Plot, Section, fmt_td,
+from src.tui.widgets.common import (CardGrid, EventLog, LabeledInput, GuardedTabs, switch_tab, LabeledSelect, ParamForm, Plot, Section, fmt_td,
                                     pnl_text, select_value)
 from src.tui.widgets.price import PriceChart
 
@@ -135,7 +135,7 @@ class BacktestPage(Widget):
                         yield ProgressBar(total=100, show_eta=False, id="bt-progress")
                         yield Button("Skip ⏭", id="bt-skip", compact=True, disabled=True)
                     yield EventLog(id="bt-runlog")
-                with TabbedContent(id="bt-tabs"):
+                with GuardedTabs(id="bt-tabs"):
                     with TabPane("Overview", id="tab-overview"):
                         with VerticalScroll():
                             yield CardGrid(CARDS, columns=4, id="bt-cards")
@@ -660,10 +660,9 @@ class BacktestPage(Widget):
             bar = int(ev.row_key.value)
         except (TypeError, ValueError):
             return
-        self.query_one("#bt-tabs", TabbedContent).active = "tab-price"
         chart = self.query_one("#bt-price", PriceChart)
         chart.focus_bar(bar, 120)
-        chart.focus()
+        switch_tab(self, "#bt-tabs", "tab-price", focus="#bt-price")
 
     # -- analysis ---------------------------------------------------------------
     def _fill_analysis(self, rec: BacktestRecord) -> None:
@@ -737,7 +736,7 @@ class BacktestPage(Widget):
         rec = self._selected_record()
         if rec:
             self.show(rec)
-            self.query_one("#bt-tabs", TabbedContent).active = "tab-overview"
+            switch_tab(self, "#bt-tabs", "tab-overview")
 
     @on(Button.Pressed, "#bt-load")
     async def _load_settings(self) -> None:

@@ -1,6 +1,7 @@
 """Small building blocks shared by every page."""
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -12,7 +13,7 @@ from textual.containers import Grid, Horizontal, Vertical
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
-from textual.widgets import Input, Label, RichLog, Select, Static, Switch
+from textual.widgets import Input, Label, RichLog, Select, Static, Switch, TabbedContent
 
 from src.tui import charts as C
 from src.tui.strategies import ParamSpec, StrategySpec
@@ -272,3 +273,35 @@ def fmt_td(td) -> str:
     if s >= 60:
         return f"{s // 60}m {s % 60}s"
     return f"{s}s"
+
+
+class GuardedTabs(TabbedContent):
+    """``TabbedContent`` that can briefly ignore *focus-driven* tab changes.
+
+    By default a tab re-activates itself whenever a widget inside it receives focus. After a click handler switches
+    tabs, two such focus events arrive late (the click focusing the button, and Textual moving focus off the
+    now-hidden button) and flip the tab straight back. ``guard()`` makes the tab bar ignore them for a moment.
+    Clicking a tab header is unaffected.
+    """
+
+    _guard_until = 0.0
+
+    def guard(self, seconds: float = 1.0) -> None:
+        self._guard_until = time.monotonic() + seconds
+
+    def _on_tab_pane_focused(self, event) -> None:
+        if time.monotonic() < self._guard_until:
+            event.prevent_default()           # skip TabbedContent's own handler
+            event.stop()
+
+
+def switch_tab(owner: Widget, tabs_selector: str, tab_id: str, focus: Optional[str] = None) -> None:
+    """Activate a tab from inside an event handler and keep it active (see :class:`GuardedTabs`)."""
+    tabs = owner.query_one(tabs_selector, TabbedContent)
+    if isinstance(tabs, GuardedTabs):
+        tabs.guard()
+    tabs.active = tab_id
+    if focus:
+        owner.call_after_refresh(lambda: owner.query_one(focus).focus())
+    else:
+        owner.screen.set_focus(None)          # do not leave focus on a widget inside the tab we just left
