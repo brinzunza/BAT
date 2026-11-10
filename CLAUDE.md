@@ -10,9 +10,12 @@ BAT (Bruninvestor Algorithmic Trading) is a comprehensive Python-based algorithm
 
 ### Main Application
 ```bash
-python3 main.py
+python3 main.py            # full-screen terminal UI (Textual) - src/tui/, see docs/tui.md
+python3 main.py --classic  # original prompt-based CLI (src/ui/cli_interface.py)
 ```
-This launches the CLI menu with options for backtesting, live trading, and research/optimization.
+The terminal UI covers backtesting, live trading, research/optimization, ML training/evaluation and production
+analytics. It calls the same engines as the classic CLI (it does not modify them); strategies are exposed to it through
+the registry in `src/tui/strategies.py` (add one `StrategySpec` per new strategy). UI tests: `tests/test_tui_*.py`.
 
 ### Environment Setup
 Create a `.env` file in the root directory with:
