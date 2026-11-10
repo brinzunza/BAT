@@ -24,12 +24,13 @@ src/
   strategies/   rule-based strategies (MA, RSI, MACD, Bollinger, SMC, ...)
   core/         hexagonal domain/ports/adapters/application (see docs/architecture)
   analytics/    prodlive/  queries over the PRODLIVETRADING bot database
-  ui/           CLI + live chart
+  ui/           classic prompt-based CLI + matplotlib live chart (python3 main.py --classic)
+  tui/          full-screen terminal UI (Textual): charts, tables, backtest/live/research/ML/analytics pages
   utils/        device  checkpoint  logging  seed
 experiments/    notebooks, scripts/, research/ (parameter optimisation, zone analysis)
 tests/  checkpoints/  runs/  docs/
 tradingResearch/  strategy research workspace (kept in place; ~23 GB of data, hard-coded paths)
-train.py  evaluate.py  predict.py  main.py (trading CLI)
+train.py  evaluate.py  predict.py  main.py (terminal UI; --classic for the old CLI)
 ```
 
 ```bash
@@ -37,7 +38,8 @@ python3 train.py --name run1 --override model.name=transformer      # trains, wr
 python3 evaluate.py --ckpt checkpoints/run1.pt                      # held-out test split
 python3 evaluate.py --walk-forward --cost 0.0001                    # expanding-window walk-forward
 python3 predict.py --ckpt checkpoints/run1.pt --bars recent.csv
-python3 main.py                                                     # trading CLI (backtest / live / research)
+python3 main.py                                                     # terminal UI (backtest / live / research / ML / analytics)
+python3 main.py --classic                                           # the original prompt-based CLI
 ```
 
 ## Trading Modes
@@ -73,9 +75,16 @@ python3 main.py                                                     # trading CL
 
 ### Main Application 
 ```bash
-python3 main.py
+pip install -r requirements.txt
+python3 main.py            # full-screen terminal UI
+python3 main.py --classic  # original prompt-based CLI
 ```
-Choose between backtesting, research, and live trading with custom parameters.
+The terminal UI covers the whole project from one window: backtesting with interactive charts and risk metrics,
+live trading (offline demo market, simulated broker, Alpaca / OANDA / IB), dataset management and parameter
+optimisation, model training / evaluation, and production analytics. See [docs/tui.md](docs/tui.md) for the page
+guide, keyboard shortcuts and how to extend it. It falls back to the classic CLI automatically when there is no
+interactive terminal or `textual` is missing.
+
 ## Monorepo layout & live-bot analytics
 
 `tradingResearch/` (strategy research, `quant_engine`, BEID/DTFX studies; merged here with its full git history) lives alongside the BAT engine.

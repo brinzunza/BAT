@@ -1,0 +1,182 @@
+/* BAT terminal UI — layout & theme. Colours come from the active Textual theme. */
+
+Screen { background: $background; }
+.muted { color: $text-muted; }
+.hidden { display: none; }
+
+/* ---------------------------------------------------------------- chrome */
+#shell { height: 1fr; }
+
+#nav {
+    width: 22;
+    background: $surface;
+    border-right: tall $panel;
+    padding: 1 0;
+}
+#nav.collapsed { display: none; }
+#nav-brand { padding: 0 2 1 2; color: $primary; text-style: bold; }
+NavItem {
+    height: 1;
+    padding: 0 2;
+    color: $text-muted;
+}
+NavItem:hover { background: $boost; color: $text; }
+NavItem:focus { background: $boost; }
+NavItem.-active { background: $primary 25%; color: $text; text-style: bold; border-left: tall $primary; padding-left: 1; }
+#nav-sep { height: 1; }
+#nav-foot { dock: bottom; padding: 0 2; color: $text-muted; height: 3; }
+
+#pages { width: 1fr; height: 1fr; }
+.page { width: 1fr; height: 1fr; }
+
+StatusBar {
+    height: 1;
+    background: $panel;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+/* ----------------------------------------------------------------- forms */
+.config {
+    width: 44;
+    min-width: 36;
+    height: 1fr;
+    padding: 0 2 0 1;
+    background: $surface;
+    border-right: tall $panel;
+}
+.config Select, .config Input { margin: 0; }
+.section {
+    color: $accent;
+    text-style: bold;
+    margin: 1 0 1 0;
+    border-bottom: solid $panel;
+}
+.config .section:first-child { margin-top: 0; }
+.row { height: auto; }
+.row > * { width: 1fr; }
+.row > *:first-child { margin-right: 1; }
+.btn-row { height: 3; margin-top: 1; }
+.btn-row Button { margin-right: 1; min-width: 12; }
+
+.results { width: 1fr; height: 1fr; padding: 0 1; }
+.status-line { height: 1; color: $text-muted; padding: 0 1; }
+.status-line.busy { color: $warning; }
+.status-line.error { color: $error; }
+.status-line.ok { color: $success; }
+
+TabbedContent { height: 1fr; }
+TabPane { padding: 1 1 0 1; height: 1fr; }
+TabbedContent > ContentSwitcher { height: 1fr; }
+Tabs { background: $surface; }
+
+DataTable { height: 1fr; background: $surface; }
+DataTable > .datatable--header { background: $panel; text-style: bold; }
+DataTable:focus > .datatable--cursor { background: $primary 40%; }
+
+Plot { background: $surface; padding: 0 1; margin-bottom: 1; }
+PriceChart { background: $surface; padding: 0 1; margin-bottom: 1; }
+
+RichLog { background: $surface; border: round $panel; padding: 0 1; }
+.panel { border: round $panel; background: $surface; padding: 0 1; }
+.panel-title { color: $text-muted; text-style: bold; }
+
+ProgressBar { padding: 0 1; }
+Bar > .bar--bar { color: $primary; }
+
+/* ---------------------------------------------------------------- modals */
+ModalScreen { align: center middle; background: $background 70%; }
+#modal {
+    width: 64;
+    max-width: 90%;
+    height: auto;
+    max-height: 90%;
+    background: $surface;
+    border: thick $primary;
+    padding: 1 2;
+}
+#modal.wide { width: 96; }
+#modal.danger { border: thick $error; }
+#modal-title { text-style: bold; margin-bottom: 1; }
+#modal-body { margin-bottom: 1; }
+#modal-form { height: auto; max-height: 24; }
+#modal-buttons { height: 3; align-horizontal: right; margin-top: 1; }
+#modal-buttons Button { margin-left: 1; }
+.switch-row { height: 3; }
+.switch-row Label { padding: 1 1; }
+
+/* ------------------------------------------------------------------ home */
+#home-top { height: 9; }
+#home-logo { width: 32; padding: 1 2; }
+#home-intro { padding: 1 2; }
+#home-actions { height: 3; margin-top: 1; }
+#home-actions Button { margin-right: 1; }
+#home-cols { height: 1fr; }
+#home-left { width: 1fr; padding: 0 1; }
+#home-right { width: 46; padding: 0 1; }
+#home-left DataTable { height: 1fr; max-height: 14; margin-bottom: 1; }
+#home-activity { height: 1fr; min-height: 6; }
+
+/* ------------------------------------------------------------ connections */
+ConnCard { height: auto; margin: 0 1 1 0; padding: 1 2; border: round $panel; background: $surface; width: 1fr; }
+ConnCard.-connected { border: round $success; }
+ConnCard Button { margin-top: 1; }
+#conn-grid { grid-size: 2; grid-gutter: 0 1; height: auto; padding: 1; }
+
+/* ------------------------------------------------------------------ live */
+#live-dash-top { height: 1fr; }
+#live-main { width: 1fr; }
+#live-side { width: 36; padding-left: 1; }
+#live-bottom { height: 14; }
+#live-trades { width: 1fr; margin-right: 1; }
+#live-events { width: 1fr; }
+#live-bar { height: 3; margin-bottom: 1; }
+#live-bar Button { margin-left: 1; min-width: 10; }
+.live-badge { width: auto; min-width: 24; height: 3; padding: 0 2; text-style: bold; content-align: center middle; }
+#lv-title { width: 1fr; height: 3; padding: 0 1; content-align: left middle; }
+.live-badge.running { background: $success; color: $background; }
+.live-badge.stopped { background: $panel; }
+.live-badge.error { background: $error; color: $background; }
+.live-badge.starting { background: $warning; color: $background; }
+
+/* ------------------------------------------------------------- analytics */
+#an-empty { padding: 4 6; }
+
+/* analytics filter bar */
+#an-info { width: 1fr; height: 3; content-align: left middle; }
+#an-symbol { width: 28; margin-right: 1; }
+#an-since { width: 24; margin-right: 1; }
+
+/* ------------------------------------------------------- responsive layout */
+Screen.-narrow #nav { display: none; }
+Screen.-narrow #nav.collapsed { display: none; }
+Screen.-narrow .config { width: 34; min-width: 30; padding: 0 1; }
+Screen.-narrow CardGrid { grid-size: 2; }
+Screen.-narrow #live-side { width: 30; }
+Screen.-narrow #home-right { display: none; }
+Screen.-narrow #home-logo { display: none; }
+Screen.-wide .config { width: 48; }
+Screen.-wide CardGrid { grid-size: 4; }
+Screen.-wide #live-side { width: 42; }
+
+#bt-local-box, #bt-provider-box { height: auto; }
+Screen.-narrow #nav.open { display: block; width: 22; }
+Screen.-narrow #live-bottom { height: 9; }
+Screen.-narrow #live-bar Button { min-width: 8; }
+
+/* backtest run panel */
+#bt-runpanel { height: auto; margin-bottom: 1; }
+#bt-runbar { height: 1; }
+#bt-progress { width: 1fr; }
+#bt-skip { width: 10; margin-left: 1; }
+#bt-runlog { height: 9; }
+Screen.-narrow #bt-runlog { height: 6; }
+
+/* action buttons stay visible at the bottom of long forms */
+.config .actions {
+    dock: bottom;
+    height: 3;
+    margin: 0;
+    padding: 0;
+    background: $surface;
+}
