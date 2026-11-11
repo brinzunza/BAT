@@ -115,8 +115,8 @@ Signals are validated before execution:
 
 ### Order Management
 - **Market orders**: Immediate execution (default)
-- **Limit orders**: Execute at specific price, with 1-minute timeout in long-only mode
-- LiveTradingEngine tracks pending orders and cancels expired ones
+- **Limit orders**: supported by the broker interfaces and `LiveTradingEngine.execute_*_order`, which track and cancel
+  expired ones (1 minute), but the signal handlers currently always send market orders, so that path is not exercised
 
 ## Research & Optimization
 
@@ -161,6 +161,15 @@ Hidden Markov Model for detecting market regime changes (bull ↔ bear):
 2. Implement required methods: `generate_signals()`, `get_signal_names()`, `get_indicators()`, `get_required_lookback()`, `validate_data()`
 3. Add to `TradingCLI.strategies` dict in `src/ui/cli_interface.py`
 4. Strategy receives OHLCV DataFrame, returns same DataFrame with signal columns added
+
+### Running a backtest programmatically (engine API)
+Use the single facade, not the legacy `BacktestEngine` (see `docs/engine_api.md`):
+```python
+from src.core.api import run_backtest, BacktestConfig
+outcome = run_backtest(bars, strategy, BacktestConfig(initial_cash=10_000, trading_mode="long_short"))
+outcome.summary, outcome.trades, outcome.equity, outcome.to_dict()   # to_dict() is JSON-safe and size-capped
+```
+The engine (`src/core/`) is pure: no I/O, no env vars, no UI. It must never import `src.tui`.
 
 ### Adding a New Data Provider
 1. Inherit from `BaseDataProvider` in `src/data/providers/base_provider.py`

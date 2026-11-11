@@ -35,8 +35,7 @@ class BacktestService:
 
         signal_data = strategy.generate_signals(bars.copy())
         names = strategy.get_signal_names()
-        if not {"buy", "sell"}.issubset(names) or not {names["buy"], names["sell"]}.issubset(signal_data.columns):
-            raise ValueError("strategy must produce declared buy and sell signal columns")
+        signal_data = self._validated_signals(bars, signal_data, names)
 
         portfolio = Portfolio(config.initial_cash)
         records: list[TradeRecord] = []
@@ -51,6 +50,28 @@ class BacktestService:
 
         return BacktestResult(self._to_dataframe(records, config.initial_cash), signal_data, portfolio)
 
+    @classmethod
+    def _validated_signals(cls, bars: pd.DataFrame, signal_data: Any, names: Any) -> pd.DataFrame:
+        """Check the strategy's output contract and normalise signal columns to plain booleans.
+
+        Strategies may be machine-authored, so the engine does not trust them: the output must be a frame with one row
+        per input bar that still carries ``Close``/``timestamp``, and a missing value (NaN/None) is "no signal".
+        """
+        if not isinstance(signal_data, pd.DataFrame):
+            raise ValueError(f"strategy.generate_signals must return a DataFrame, got {type(signal_data).__name__}")
+        if not isinstance(names, dict) or not {"buy", "sell"}.issubset(names) \
+                or not {names["buy"], names["sell"]}.issubset(signal_data.columns):
+            raise ValueError("strategy must produce declared buy and sell signal columns")
+        if len(signal_data) != len(bars):
+            raise ValueError(f"strategy returned {len(signal_data)} rows for {len(bars)} input bars; "
+                             "signals must stay aligned with the input")
+        lost = cls.REQUIRED_COLUMNS - set(signal_data.columns)
+        if lost:
+            raise ValueError(f"strategy output dropped required columns: {sorted(lost)}")
+        buy_col, sell_col = names["buy"], names["sell"]
+        return signal_data.assign(**{c: signal_data[c].where(signal_data[c].notna(), False).astype(bool)
+                                     for c in {buy_col, sell_col}})
+
     @staticmethod
     def _spread_adjusted(price: float, buying: bool, config: BacktestConfig) -> float:
         if not config.symbol.startswith("C:") or config.spread_pips == 0:
@@ -60,6 +81,8 @@ class BacktestService:
 
     def _apply_signals(self, portfolio: Portfolio, buy: bool, sell: bool, price: float, timestamp: Any, index: int,
                        config: BacktestConfig, records: list[TradeRecord]) -> None:
+        if buy and sell:
+            return      # conflicting signals: the live engine rejects such bars (_validate_signals), so the backtest must too
         if config.trading_mode == "long_only":
             if buy and portfolio.side is PositionSide.FLAT:
                 entry = self._spread_adjusted(price, True, config)

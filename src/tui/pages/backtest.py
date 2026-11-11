@@ -24,6 +24,7 @@ from src.core.adapters.legacy import LegacyDataProviderAdapter
 from src.core.application.backtest import BacktestService
 from src.core.domain.models import BacktestConfig
 from src.tui import charts as C
+from src.data.local_datasets import symbol_from_name
 from src.tui.datasets import DatasetInfo, scan_datasets, short_name
 from src.tui.diagnostics import (Finding, check_config, check_data, check_result, check_signals,
                                  explain_exception)
@@ -48,10 +49,7 @@ RESAMPLE = [("Native", "none"), ("5 min", "5min"), ("15 min", "15min"), ("30 min
             ("4 hours", "4h"), ("1 day", "1D")]
 
 
-def symbol_from_filename(name: str) -> str:
-    """``X_BTCUSD_minute_…csv`` -> ``X:BTCUSD`` (Polygon naming, used for forex spread logic)."""
-    m = re.match(r"^([A-Z])_([A-Z0-9]+)_", name)
-    return f"{m.group(1)}:{m.group(2)}" if m else name.split("_")[0].split(".")[0]
+symbol_from_filename = symbol_from_name       # kept under its old name for the page and its tests
 
 
 def fmt_params(vals: Dict[str, Any]) -> str:
