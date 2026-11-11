@@ -417,7 +417,7 @@ class LivePage(Widget):
             eq = [v for _, v in snap.equity]
             init = cfg.initial_balance
             self.query_one("#lv-equity", Plot).set_builder((lambda w, h: C.line_chart(
-                {"Equity": eq}, w, h, colors={"Equity": C.pnl_color(eq[-1] - init) if eq[-1] != init else C.BLUE},
+                {"Equity": eq}, w, h, colors={"Equity": C.pnl_color(eq[-1] - init) if eq[-1] != init else C.ORANGE},
                 hline=init, y_fmt=lambda v: "$" + C.fmt_num(v), title="Account equity (session)",
                 x_labels=None)) if len(eq) > 1 else None)
         self._render_side(snap, cfg)

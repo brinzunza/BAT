@@ -18,16 +18,18 @@ import numpy as np
 import pandas as pd
 from rich.text import Text
 
-UP = "#3fb950"
-DOWN = "#f85149"
-BLUE = "#58a6ff"
-AMBER = "#d29922"
-PURPLE = "#bc8cff"
-CYAN = "#39c5cf"
+# Bloomberg-style palette: pure black ground, amber for labels and the primary series, green/red for up/down.
+UP = "#00e676"
+DOWN = "#ff4d4d"
+ORANGE = "#ffa028"          # primary: headers, labels, the strategy line
+AMBER = "#ffd23f"           # highlights, warnings, signals
+BLUE = "#3d9bff"
+PURPLE = "#b48cff"
+CYAN = "#19d3da"
 PINK = "#f778ba"
-MUTED = "#8b949e"
-GRID = "#484f58"
-SERIES_COLORS = [BLUE, AMBER, PURPLE, CYAN, PINK, UP]
+MUTED = "#8f8f8f"
+GRID = "#3a3a3a"
+SERIES_COLORS = [ORANGE, CYAN, AMBER, BLUE, PINK, UP]
 
 _BITS = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
 _SPARKS = "▁▂▃▄▅▆▇█"
@@ -746,9 +748,9 @@ def heatmap(matrix: np.ndarray, row_labels: Sequence[str], col_labels: Sequence[
             if diverging:
                 bound = max(abs(vmin), abs(vmax), 1e-12)
                 x = val / bound
-                bg = lerp_color("#2d333b", UP if x >= 0 else DOWN, abs(x) * 0.85)
+                bg = lerp_color("#242424", UP if x >= 0 else DOWN, abs(x) * 0.85)
             else:
-                bg = lerp_color("#1f2a44", BLUE, (val - vmin) / max(vmax - vmin, 1e-12))
+                bg = lerp_color("#2a1800", ORANGE, (val - vmin) / max(vmax - vmin, 1e-12))
             txt = fmt(val).center(cell_width)
             if best is not None and (i, j) == best:
                 txt = ("★" + fmt(val)).center(cell_width)
@@ -757,18 +759,20 @@ def heatmap(matrix: np.ndarray, row_labels: Sequence[str], col_labels: Sequence[
     return t
 
 
+LOGO_ROWS = [
+    "█████▄   ▄████▄  ▀█████▀",
+    "█    ██  █▀  ▀█     █   ",
+    "█████▀   ██████     █   ",
+    "█    ██  █    █     █   ",
+    "█████▀   █    █     █   ",
+]
+LOGO_TOP, LOGO_BOTTOM = "#ffc457", "#ff7a00"      # light amber -> deep orange
+
+
 def ascii_logo() -> Text:
-    art = [
-        "██████╗  █████╗ ████████╗",
-        "██╔══██╗██╔══██╗╚══██╔══╝",
-        "██████╔╝███████║   ██║   ",
-        "██╔══██╗██╔══██║   ██║   ",
-        "██████╔╝██║  ██║   ██║   ",
-        "╚═════╝ ╚═╝  ╚═╝   ╚═╝   ",
-    ]
     t = Text()
-    for i, line in enumerate(art):
-        t.append(line + "\n", style=lerp_color(BLUE, PURPLE, i / (len(art) - 1)))
+    for i, line in enumerate(LOGO_ROWS):
+        t.append(line + "\n", style=lerp_color(LOGO_TOP, LOGO_BOTTOM, i / (len(LOGO_ROWS) - 1)))
     return t
 
 

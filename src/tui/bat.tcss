@@ -47,7 +47,7 @@ StatusBar {
 }
 .config Select, .config Input { margin: 0; }
 .section {
-    color: $accent;
+    color: $primary;
     text-style: bold;
     margin: 1 0 1 0;
     border-bottom: solid $panel;
@@ -77,8 +77,8 @@ DataTable:focus > .datatable--cursor { background: $primary 40%; }
 Plot { background: $surface; padding: 0 1; margin-bottom: 1; }
 PriceChart { background: $surface; padding: 0 1; margin-bottom: 1; }
 
-RichLog { background: $surface; border: round $panel; padding: 0 1; }
-.panel { border: round $panel; background: $surface; padding: 0 1; }
+RichLog { background: $surface; border: solid $panel; padding: 0 1; }
+.panel { border: solid $panel; background: $surface; padding: 0 1; }
 .panel-title { color: $text-muted; text-style: bold; }
 
 ProgressBar { padding: 0 1; }
@@ -106,8 +106,9 @@ ModalScreen { align: center middle; background: $background 70%; }
 .switch-row Label { padding: 1 1; }
 
 /* ------------------------------------------------------------------ home */
-#home-top { height: 9; }
+#home-top { height: 10; }
 #home-logo { width: 32; padding: 1 2; }
+#home-ticker { display: none; height: 1; margin-bottom: 1; }
 #home-intro { padding: 1 2; }
 #home-actions { height: 3; margin-top: 1; }
 #home-actions Button { margin-right: 1; }
@@ -155,6 +156,7 @@ Screen.-narrow CardGrid { grid-size: 2; }
 Screen.-narrow #live-side { width: 30; }
 Screen.-narrow #home-right { display: none; }
 Screen.-narrow #home-logo { display: none; }
+Screen.-narrow #home-ticker { display: block; }
 Screen.-wide .config { width: 48; }
 Screen.-wide CardGrid { grid-size: 4; }
 Screen.-wide #live-side { width: 42; }
@@ -180,3 +182,47 @@ Screen.-narrow #bt-runlog { height: 6; }
     padding: 0;
     background: $surface;
 }
+
+
+/* ------------------------------------------------- terminal look (amber on black) */
+Header { background: $primary; color: $background; text-style: bold; }
+HeaderTitle { color: $background; }
+HeaderClock { background: $primary; color: $background; text-opacity: 100%; }
+HeaderIcon { color: $background; }
+HeaderIcon:hover { background: $background 15%; }
+
+#nav { background: $background; border-right: solid $panel; }
+NavItem { color: $foreground; }
+NavItem:hover { background: $panel; color: $primary; }
+NavItem:focus { color: $primary; }
+NavItem.-active { background: $primary; color: $background; text-style: bold; border-left: none; padding-left: 2; }
+NavItem.-active:hover { background: $primary; color: $background; }
+StatusBar { background: $panel; color: $primary; }
+
+.config { background: $background; border-right: solid $panel; }
+Button { border: none; height: 3; background: $panel; color: $primary; text-style: bold; }
+Button:hover { background: $primary 30%; }
+Button.-primary { background: $primary; color: $background; }
+Button.-primary:hover { background: $primary 80%; }
+Button.-success { background: $success; color: $background; }
+Button.-error { background: $error; color: $background; }
+Button.-warning { background: $warning; color: $background; }
+Button:disabled { background: $panel; color: $text-muted; }
+
+Input { background: $panel; color: $foreground; }
+Input:focus { background: $primary 25%; }
+SelectCurrent { background: $panel; border: none; }
+Select:focus > SelectCurrent { background: $primary 25%; }
+* { scrollbar-background: $background; scrollbar-color: $panel; scrollbar-color-hover: $primary 60%;
+    scrollbar-color-active: $primary; scrollbar-size-vertical: 1; scrollbar-size-horizontal: 1; }
+
+DataTable { background: $background; }
+DataTable > .datatable--header { background: $panel; color: $primary; text-style: bold; }
+DataTable > .datatable--odd-row { background: $surface; }
+DataTable:focus > .datatable--cursor { background: $primary; color: $background; }
+Tabs { background: $background; }
+Tab { color: $text-muted; }
+Tab.-active { color: $primary; text-style: bold; }
+Underline > .underline--bar { color: $primary; background: $panel; }
+
+Plot, PriceChart, RichLog, .panel { background: $background; }

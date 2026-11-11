@@ -16,15 +16,18 @@ from src.analytics.prodlive import sync as prodlive_sync
 from src.tui import charts as C
 from src.tui.datasets import DatasetInfo, human_size, scan_datasets, short_name
 from src.tui.services import mlops
+from src.tui.services.ticker import TickerFeed
 from src.tui.state import LogEntry
+from src.tui.widgets.brand import BrandBox
 from src.tui.widgets.common import EventLog, Section
 
 
 class HomePage(Widget):
     def compose(self) -> ComposeResult:
         with Horizontal(id="home-top"):
-            yield Static(C.ascii_logo(), id="home-logo")
+            yield BrandBox(id="home-logo")
             with Vertical(id="home-intro"):
+                yield BrandBox(compact=True, id="home-ticker")
                 yield Static("[b]Bruninvestor Algorithmic Trading[/b]\n"
                              "[dim]Backtest strategies, trade live, research parameters, train models and monitor "
                              "production — from one terminal.[/]")
@@ -47,6 +50,9 @@ class HomePage(Widget):
                 yield EventLog(id="home-activity")
 
     def on_mount(self) -> None:
+        self.feed = TickerFeed(self.app.bat)
+        self.refresh_brand()
+        self.set_interval(0.15, self._tick_brand)
         dt = self.query_one("#home-datasets", DataTable)
         dt.add_columns("Dataset", "Bars", "TF", "Range", "Trend", "Δ")
         bt = self.query_one("#home-backtests", DataTable)
@@ -54,6 +60,17 @@ class HomePage(Widget):
         for e in list(self.app.bat.events)[-30:]:
             self.push(e)
         self.refresh_all()
+
+    # ----- header ticker -----------------------------------------------------------------
+    def refresh_brand(self) -> None:
+        """Draw one frame now (also used after toggling the animation, to show/hide the "paused" tag)."""
+        self._frame = self.feed.step() if not hasattr(self, "_frame") or self.app.brand_anim else self._frame
+        for w in self.query(BrandBox):
+            w.show(self._frame, paused=not self.app.brand_anim)
+
+    def _tick_brand(self) -> None:
+        if self.app.brand_anim and self.display:         # a hidden page costs nothing
+            self.refresh_brand()
 
     def on_show(self) -> None:
         self.refresh_all()

@@ -8,3 +8,9 @@ def bars():
 def cfgs():
     return (dict(path=None, resample=None, seq_len=16, horizon=4, target="direction", split=dict(train=0.7, val=0.15, test=0.15), embargo=4, batch_size=64),
             dict(name="lstm", hidden=16, layers=1, dropout=0.1), dict(epochs=2, lr=1e-3, weight_decay=0.0, loss="bce", optimizer="adamw", scheduler="cosine", patience=3, grad_clip=1.0, seed=1, device="cpu"))
+
+
+@pytest.fixture(autouse=True)
+def _quiet_brand_animation(monkeypatch):
+    """The Home header ticker animates on a timer; keep every UI test deterministic unless it opts in."""
+    monkeypatch.setenv("BAT_NO_ANIM", "1")

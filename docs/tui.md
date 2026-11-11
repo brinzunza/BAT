@@ -11,7 +11,7 @@ candlesticks, background colours for heat maps. No images, no plotting library, 
 
 | Key | Page | What it does |
 |---|---|---|
-| `1` | Home | Dataset overview with trend sparklines, recent backtests, connection / ML / production status, activity feed. |
+| `1` | Home | BAT logo with an animated PnL ticker, dataset overview with trend sparklines, recent backtests, connection / ML / production status, activity feed. |
 | `2` | Backtest | Form-driven runs on local CSVs or a connected provider (**Run ▶** or `ctrl+r`). A **run log** reports every step — data checks, indicator problems, signal counts, warnings — and the simulation is **replayed bar by bar** (KPI cards, equity, drawdown, price chart and a trade tape update live; pick the speed or press Skip). Tabs: **Overview** (16 KPI cards, equity vs buy-and-hold, drawdown), **Price & signals** (pannable candlestick chart with indicators and trade markers), **Trades** (sortable round-trip table, Enter jumps the chart to the trade), **Analysis** (P&L distribution, by hour / weekday, monthly heat map), **History** (compare runs, export CSV/JSON). |
 | `3` | Live Trading | Offline demo market or Alpaca / OANDA / Synth data; simulated broker or Alpaca / IB. Live candles, indicator pane, equity, position / account panels, trade table, event log. Runs in the background while you use other pages. |
 | `4` | Research | **Datasets** (inspect quality, preview, resample & save), **Optimizer** (grid search with train/test split, robustness flag, heat map, "apply to backtest"), **Download** (provider → `data/raw`). |
@@ -53,10 +53,21 @@ src/tui/
   strategies.py     strategy registry: ParamSpec / StrategySpec drive forms, validation and the optimizer
   datasets.py       dataset discovery, loading, resampling, quality stats
   services/         capture (thread-aware stdout), connections, demo feed, live session,
-                    optimizer, mlops (runs, checkpoints, subprocess jobs)
-  widgets/          Plot, PriceChart (pan/zoom/hover), cards, parameter form, event log, modals
+                    optimizer, mlops (runs, checkpoints, subprocess jobs), ticker (data for the Home header)
+  widgets/          Plot, PriceChart (pan/zoom/hover), cards, parameter form, event log, modals, brand (logo + ticker)
   pages/            one module per page
 ```
+
+## Look and the Home ticker
+
+The dark theme is Bloomberg-style: black ground, amber for labels, headers and the primary series, green/red for
+up/down. The palette lives in `charts.py` (chart colours) and `BAT_DARK` in `app.py` (widgets); `bat.tcss` only uses theme
+variables, so the light theme and Textual's own theme picker still work.
+
+The Home header shows the logo with a sparkline and PnL under it (one line on narrow terminals). Its numbers come from
+the most real source available and are always labelled: `LIVE` (running live/demo session), `REPLAY` (latest backtest's
+equity curve, looped) or `DEMO` (simulated random walk, never real money). It only redraws while Home is visible.
+Turn the animation off with `ctrl+p` → "Toggle logo animation", or start paused with `BAT_NO_ANIM=1`.
 
 Design rules that keep it maintainable:
 

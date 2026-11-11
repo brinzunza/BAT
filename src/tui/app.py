@@ -1,6 +1,7 @@
 """BAT terminal application: navigation shell, status bar, command palette."""
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Type
@@ -19,9 +20,12 @@ from src.tui import charts as C
 from src.tui.state import BatState
 from src.tui.widgets.modals import ConfirmModal, HelpModal
 
-BAT_DARK = Theme(
-    name="bat", primary="#58a6ff", secondary="#bc8cff", accent="#39c5cf", warning="#d29922", error="#f85149",
-    success="#3fb950", foreground="#c9d1d9", background="#0d1117", surface="#161b22", panel="#21262d", dark=True,
+BAT_DARK = Theme(            # Bloomberg-style: pure black, amber primary, green/red for up/down
+    name="bat", primary="#ffa028", secondary="#3d9bff", accent="#19d3da", warning="#ffd23f", error="#ff4d4d",
+    success="#00e676", foreground="#e6e6e6", background="#000000", surface="#070707", panel="#241a0a", dark=True,
+    variables={"footer-key-foreground": "#000000", "footer-key-background": "#ffa028",
+               "footer-description-foreground": "#ffa028", "footer-background": "#120c03",
+               "block-cursor-background": "#ffa028", "block-cursor-foreground": "#000000"},
 )
 BAT_LIGHT = Theme(
     name="bat-light", primary="#0969da", secondary="#8250df", accent="#1b7c83", warning="#9a6700", error="#cf222e",
@@ -121,6 +125,7 @@ class BatCommands(Provider):
             ("Backtest: run with current settings", app.cmd_run_backtest, "Runs the form on the Backtest page"),
             ("Live: start demo session", app.cmd_demo_live, "Offline simulated market + simulated broker"),
             ("Toggle light / dark theme", app.cmd_toggle_theme, "Switch between BAT dark and light"),
+            ("Toggle logo animation", app.cmd_toggle_brand_anim, "Pause or resume the header ticker (BAT_NO_ANIM=1 starts it paused)"),
             ("Toggle sidebar", app.action_toggle_sidebar, "Show or hide the navigation"),
             ("Show keyboard help", app.action_help, "Shortcuts for every page"),
             ("Quit BAT", app.action_quit_app, "Exit (asks first if live trading is running)"),
@@ -187,6 +192,7 @@ class BatApp(App):
         self.bat = BatState()
         self.pages: List[PageDef] = []
         self.active_page = "home"
+        self.brand_anim = os.environ.get("BAT_NO_ANIM", "") in ("", "0")
 
     # ----- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
@@ -194,7 +200,7 @@ class BatApp(App):
         yield Header(show_clock=True)
         with Horizontal(id="shell"):
             with Vertical(id="nav"):
-                yield Static("◢◣ BAT", id="nav-brand")
+                yield Static("◢◣ BAT  [dim]TERMINAL[/]", id="nav-brand")
                 for p in self.pages:
                     yield NavItem(p)
                 yield Static("", id="nav-sep")
@@ -268,6 +274,14 @@ class BatApp(App):
     def cmd_demo_live(self) -> None:
         self.goto("live")
         self.query_one("#live").start_demo()
+
+    def cmd_toggle_brand_anim(self) -> None:
+        self.brand_anim = not self.brand_anim
+        self.notify("Logo animation " + ("on" if self.brand_anim else "off"), timeout=2)
+        try:
+            self.query_one("#home").refresh_brand()
+        except Exception:
+            pass
 
     def cmd_toggle_theme(self) -> None:
         self.theme = "bat-light" if self.theme != "bat-light" else "bat"

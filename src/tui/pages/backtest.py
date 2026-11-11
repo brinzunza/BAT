@@ -487,7 +487,7 @@ class BacktestPage(Widget):
         dd[:cut] = rep.drawdown.to_numpy() * 100
         labels, money = ax["labels"], (lambda v: "$" + C.fmt_num(v))
         self.query_one("#bt-equity", Plot).set_builder(lambda w, h: C.line_chart(
-            {"Strategy": eq, "Buy & hold": bh}, w, h, colors={"Strategy": C.BLUE, "Buy & hold": C.MUTED},
+            {"Strategy": eq, "Buy & hold": bh}, w, h, colors={"Strategy": C.ORANGE, "Buy & hold": C.MUTED},
             hline=init, x_labels=labels, y_fmt=money, title="Equity (mark-to-market) — replaying"))
         lo = min(float(np.nanmin(dd)) * 1.15, -0.5)
         self.query_one("#bt-dd", Plot).set_builder(lambda w, h: C.line_chart(
@@ -583,7 +583,7 @@ class BacktestPage(Widget):
         labels = C.time_labels(eq.index, 5)
         money = lambda v: "$" + C.fmt_num(v)
         self.query_one("#bt-equity", Plot).set_builder(lambda w, h: C.line_chart(
-            {"Strategy": eq.to_numpy(), "Buy & hold": bh}, w, h, colors={"Strategy": C.BLUE, "Buy & hold": C.MUTED},
+            {"Strategy": eq.to_numpy(), "Buy & hold": bh}, w, h, colors={"Strategy": C.ORANGE, "Buy & hold": C.MUTED},
             hline=init, x_labels=labels, y_fmt=money, title="Equity (mark-to-market)"))
         dd = rep.drawdown.to_numpy() * 100
         lo = min(float(dd.min()) * 1.15, -0.5)

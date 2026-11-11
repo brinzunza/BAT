@@ -331,7 +331,7 @@ class MLPage(Widget):
         self.query_one("#ml-progress", ProgressBar).update(total=self.ml_epochs, progress=len(rows))
         n = len(rows)
         self.query_one("#ml-loss", Plot).set_builder(lambda w, h: C.line_chart(
-            {"train": tr, "val": va}, w, h, colors={"train": C.BLUE, "val": C.AMBER},
+            {"train": tr, "val": va}, w, h, colors={"train": C.ORANGE, "val": C.AMBER},
             x_labels=["1", str(max(n // 2, 1)), str(n)] if n > 2 else None, y_fmt=lambda v: f"{v:.4f}",
             title=f"Loss · epoch {n}/{self.ml_epochs} · best val {va[best]:.4f} @ {best + 1}"))
         if not final:

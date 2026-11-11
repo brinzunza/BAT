@@ -18,8 +18,8 @@ from textual.widgets import Input, Label, RichLog, Select, Static, Switch, Tabbe
 from src.tui import charts as C
 from src.tui.strategies import ParamSpec, StrategySpec
 
-LEVEL_STYLE = {"info": "#8b949e", "detail": "#6e7681", "signal": "#d29922", "trade": "#3fb950",
-               "error": "#f85149", "warn": "#d29922", "ok": "#3fb950", "loss": "#f85149"}
+LEVEL_STYLE = {"info": "#9b9b9b", "detail": "#6b6b6b", "signal": "#ffd23f", "trade": "#00e676",
+               "error": "#ff4d4d", "warn": "#ffa028", "ok": "#00e676", "loss": "#ff4d4d"}
 
 
 def select_value(sel: Select, default: Any = None) -> Any:
@@ -141,7 +141,7 @@ class EventLog(RichLog):
         t = Text(no_wrap=False)
         t.append(f"{ts:%H:%M:%S} ", style="dim")
         if source:
-            t.append(f"{source:<9}", style="#58a6ff")
+            t.append(f"{source:<9}", style="#ffa028")
         t.append(text, style=LEVEL_STYLE.get(level, "default"))
         return t
 
