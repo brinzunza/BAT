@@ -30,7 +30,8 @@ class MACDStrategy:
         df = df.copy()
 
         # Calculate MACD
-        df['macd_line'], df['signal_line'], df['histogram'] = macd(df['Close'], self.fast, self.slow, self.signal)
+        parts = macd(df['Close'], self.fast, self.slow, self.signal)
+        df['macd_line'], df['signal_line'], df['histogram'] = parts['macd'], parts['signal'], parts['histogram']
 
         # Generate crossover signals
         df['macd_cross_above'] = (df['macd_line'] > df['signal_line']) & (df['macd_line'].shift(1) <= df['signal_line'].shift(1))

@@ -265,122 +265,6 @@ class TradingCLI:
         print("=" * 50)
         print()
     
-    def setup_data_provider(self):
-        """Setup data provider with API key validation"""
-        while True:
-            print("\nData Provider Setup")
-            print("-" * 20)
-            print("Select a data provider:")
-            print("1. Polygon.io")
-            print("2. Synth (Synthetic Market Data)")
-            print("3. Return to main menu")
-
-            provider_choice = input("\nSelect provider (1-3): ").strip()
-
-            if provider_choice == '3':
-                return False
-
-            # Setup Polygon provider
-            if provider_choice == '1':
-                api_key = input("Enter your Polygon API key (or press Enter to use default): ").strip()
-                if not api_key:
-                    api_key = "your-api-key-here"  # Default placeholder
-
-                try:
-                    # Create data provider instance and cache it
-                    polygon_provider = PolygonDataProvider(api_key)
-
-                    # Test the connection
-                    print("Testing API key...")
-                    success, message = polygon_provider.test_connection()
-
-                    if success:
-                        print(f"✓ {message}")
-                        print("✓ Polygon data provider configured successfully")
-                        # Cache the provider and set as active
-                        self.polygon_data_provider = polygon_provider
-                        self.data_provider = self.polygon_data_provider
-                        return True
-                    else:
-                        # API key validation failed
-                        print(f"✗ {message}")
-                        print("\nWhat would you like to do?")
-                        print("1. Retry with a different provider")
-                        print("2. Return to main menu")
-
-                        choice = input("\nSelect option (1-2): ").strip()
-
-                        if choice == '2':
-                            return False
-                        # If choice is '1' or anything else, loop continues
-
-                except Exception as e:
-                    print(f"✗ Error setting up data provider: {e}")
-                    print("\nWhat would you like to do?")
-                    print("1. Retry with a different provider")
-                    print("2. Return to main menu")
-
-                    choice = input("\nSelect option (1-2): ").strip()
-
-                    if choice == '2':
-                        return False
-                    # If choice is '1' or anything else, loop continues
-
-            # Setup Synth provider
-            elif provider_choice == '2':
-                base_url = input("Enter Synth API base URL (or press Enter for default): ").strip()
-                if not base_url:
-                    base_url = os.getenv('SYNTH_BASE_URL', 'http://35.209.219.174:8000')
-
-                api_key = input("Enter Synth API key: ").strip()
-                if not api_key:
-                    print("✗ API key is required for Synth provider")
-                    continue
-
-                try:
-                    # Create synth data provider instance and cache it
-                    synth_provider = SynthDataProvider(base_url, api_key)
-
-                    # Test the connection
-                    print("Testing Synth API connection...")
-                    success, message = synth_provider.test_connection()
-
-                    if success:
-                        print(f"✓ {message}")
-                        print("✓ Synth data provider configured successfully")
-                        # Cache the provider and set as active
-                        self.synth_data_provider = synth_provider
-                        self.data_provider = self.synth_data_provider
-                        return True
-                    else:
-                        # Connection test failed
-                        print(f"✗ {message}")
-                        print("\nWhat would you like to do?")
-                        print("1. Retry with a different provider")
-                        print("2. Return to main menu")
-
-                        choice = input("\nSelect option (1-2): ").strip()
-
-                        if choice == '2':
-                            return False
-                        # If choice is '1' or anything else, loop continues
-
-                except Exception as e:
-                    print(f"✗ Error setting up Synth provider: {e}")
-                    print("\nWhat would you like to do?")
-                    print("1. Retry with a different provider")
-                    print("2. Return to main menu")
-
-                    choice = input("\nSelect option (1-2): ").strip()
-
-                    if choice == '2':
-                        return False
-                    # If choice is '1' or anything else, loop continues
-
-            else:
-                print("Invalid choice. Please select 1, 2, or 3.")
-                continue
-
     def select_data_provider(self):
         """Select data provider from cached providers or setup new one"""
         while True:
@@ -495,41 +379,6 @@ class TradingCLI:
         except Exception as e:
             print(f"✗ Error setting up Synth provider: {e}")
             return False
-
-    def setup_broker(self):
-        """Setup broker interface"""
-        print("\nBroker Setup")
-        print("-" * 20)
-        print("1. Simulated Broker (for testing)")
-        print("2. Alpaca Broker (live trading)")
-        
-        choice = input("Select broker (1-2): ").strip()
-        
-        if choice == '1':
-            initial_balance = float(input("Enter initial balance (default 10000): ") or "10000")
-            self.broker = SimulatedBroker(initial_balance)
-            print("✓ Simulated broker configured")
-        
-        elif choice == '2':
-            print("Enter Alpaca credentials:")
-            api_key = input("API Key: ").strip()
-            secret_key = input("Secret Key: ").strip()
-            base_url = input("Base URL (default: paper-api.alpaca.markets): ").strip()
-            
-            if not base_url:
-                base_url = "https://paper-api.alpaca.markets/"
-            
-            try:
-                self.broker = AlpacaBroker(api_key, secret_key, base_url)
-                print("✓ Alpaca broker configured")
-            except Exception as e:
-                print(f"✗ Error setting up Alpaca broker: {e}")
-                return False
-        else:
-            print("Invalid choice")
-            return False
-        
-        return True
 
     def setup_alpaca_credentials(self):
         """Setup Alpaca credentials for live trading"""
@@ -1201,12 +1050,6 @@ class TradingCLI:
                     self._print_detailed_trade_results(trade_history.tail(10))
 
                 print("\n" + "=" * 60)
-
-    def run_live_trading(self):
-        """Run live trading workflow with real-time charting - routes to live trading menu"""
-        # This method is kept for backward compatibility
-        # Routes to the consolidated menu
-        self.run_live_trading_menu()
 
     def run_alpaca_live_trading(self):
         """Run live trading with Alpaca data provider"""

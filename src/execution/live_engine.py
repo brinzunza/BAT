@@ -1,7 +1,6 @@
-import time
 import pandas as pd
 import os
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, List
 from src.data.providers.base_provider import BaseDataProvider
 from datetime import datetime
 import logging
@@ -48,17 +47,6 @@ class LiveTradingEngine:
         self.pending_orders = {}  # Track pending limit orders by order_id
         self.order_timestamps = {}  # Track order placement times
 
-    def _print_trade_msg(self, message: str, regular_alternative: str = None):
-        """Print trade message with verbose mode support"""
-        if self.verbose_mode:
-            print(message)
-        elif regular_alternative:
-            print(regular_alternative)
-    
-    def set_broker_interface(self, broker_interface):
-        """Set the broker interface for live trading"""
-        self.broker_interface = broker_interface
-    
     def execute_buy_order(self, symbol: str, quantity: float = 1, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Execute buy order and return order details"""
         try:
@@ -135,6 +123,14 @@ class LiveTradingEngine:
                 return {'status': 'simulated', 'symbol': symbol, 'action': 'close_position'}
         except Exception as e:
             return {'status': 'failed', 'error': str(e)}
+
+    @staticmethod
+    def _order_problem(result: dict) -> str:
+        """Explain why an order result was not treated as filled (a broker 'pending' is in flight, not an error)."""
+        if result.get('status') == 'pending':
+            return ("order sent but not confirmed by the broker yet - not recorded as a trade; "
+                    "the position is re-read from the broker on the next tick")
+        return result.get('error') or 'Unknown error'
 
     def cancel_order(self, order_id: str) -> dict:
         """Cancel a pending order"""
@@ -370,12 +366,17 @@ class LiveTradingEngine:
             return
 
         # Process signals based on trading mode
+        trades_before = len(self.trades)
         if self.trading_mode == "long_only":
             self._process_long_only_signals(buy_signal, sell_signal, current_qty, alpaca_position,
                                           symbol, quantity, current_price, timestamp)
         else:  # long_short mode
             self._process_long_short_signals(buy_signal, sell_signal, current_qty, alpaca_position,
                                            symbol, quantity, current_price, timestamp)
+        # self.position below is derived from the quantity read BEFORE this tick's orders, so it lags one tick behind
+        # our own trades; remember that we traded so the next tick does not report it as an external change.
+        acted_previous_tick = getattr(self, '_acted_last_tick', False)
+        self._acted_last_tick = len(self.trades) > trades_before
 
         # Update position info from Alpaca - ensure sync after manual changes
         previous_position = self.position
@@ -390,7 +391,7 @@ class LiveTradingEngine:
             self.entry_price = 0
 
         # Debug output if position changed without engine action (manual closure)
-        if previous_position != self.position and not (buy_signal or sell_signal):
+        if previous_position != self.position and not (buy_signal or sell_signal) and not acted_previous_tick:
             print(f"\nPOSITION SYNC - Position changed externally")
             print(f"     Previous: {previous_position} → Current: {self.position}")
             print(f"     Alpaca Qty: {current_qty}")
@@ -460,7 +461,7 @@ class LiveTradingEngine:
                         print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
                         print(f"  Quantity: {quantity}")
                 else:
-                    print(f" BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
+                    print(f" BUY ORDER FAILED - {self._order_problem(result)}")
             else:
                 print(f" BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
 
@@ -518,7 +519,7 @@ class LiveTradingEngine:
                     print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
                     print(f"  Quantity: {current_qty}")
             else:
-                print(f" CLOSE POSITION FAILED - {result.get('error', 'Unknown error')}")
+                print(f" CLOSE POSITION FAILED - {self._order_problem(result)}")
 
     def _process_long_short_signals(self, buy_signal, sell_signal, current_qty, alpaca_position,
                                   symbol, quantity, current_price, timestamp):
@@ -605,7 +606,7 @@ class LiveTradingEngine:
                                 print(f"  Fill Price: ${long_result.get('avg_fill_price', 0):.2f}")
                                 print(f"  Quantity: {quantity}")
                         else:
-                            print(f" BUY ORDER FAILED - {long_result.get('error', 'Unknown error')}")
+                            print(f" BUY ORDER FAILED - {self._order_problem(long_result)}")
                     else:
                         print(f" BUY SIGNAL REJECTED - Invalid conditions")
 
@@ -645,7 +646,7 @@ class LiveTradingEngine:
                             print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
                             print(f"  Quantity: {quantity}")
                     else:
-                        print(f" BUY ORDER FAILED - {result.get('error', 'Unknown error')}")
+                        print(f" BUY ORDER FAILED - {self._order_problem(result)}")
                 else:
                     print(f" BUY SIGNAL REJECTED - Insufficient funds or invalid conditions")
 
@@ -719,7 +720,7 @@ class LiveTradingEngine:
                                 print(f"  Fill Price: ${short_result.get('avg_fill_price', 0):.2f}")
                                 print(f"  Quantity: {quantity}")
                         else:
-                            print(f" SHORT ORDER FAILED - {short_result.get('error', 'Unknown error')}")
+                            print(f" SHORT ORDER FAILED - {self._order_problem(short_result)}")
                     else:
                         print(f" SHORT SIGNAL REJECTED - Invalid conditions")
 
@@ -759,7 +760,7 @@ class LiveTradingEngine:
                             print(f"  Fill Price: ${result.get('avg_fill_price', 0):.2f}")
                             print(f"  Quantity: {quantity}")
                     else:
-                        print(f" SHORT ORDER FAILED - {result.get('error', 'Unknown error')}")
+                        print(f" SHORT ORDER FAILED - {self._order_problem(result)}")
                 else:
                     print(f" SELL SIGNAL REJECTED - Invalid conditions")
 
@@ -773,73 +774,6 @@ class LiveTradingEngine:
                 print(f"\n🔴 SELL SIGNAL IGNORED - Already have pending SELL order for {symbol}")
                 print(f"     Cannot place multiple sell orders (position limit enforced)")
 
-    def run_strategy(self,
-                    strategy,
-                    symbol: str,
-                    quantity: float = 1,
-                    sleep_interval: int = 60,
-                    max_iterations: Optional[int] = None,
-                    quiet_mode: bool = False,
-                    chart_callback: Optional[Callable] = None):
-        """
-        Run strategy continuously
-
-        Args:
-            strategy: Strategy instance
-            symbol: Trading symbol
-            quantity: Position size
-            sleep_interval: Seconds between iterations
-            max_iterations: Maximum iterations (None for infinite)
-            quiet_mode: If True, minimize terminal output
-            chart_callback: Optional callback to update chart
-        """
-        self.running = True
-        iteration = 0
-        self.quiet_mode = quiet_mode
-
-        if not quiet_mode:
-            self.logger.info(f"Starting live trading for {strategy.name} on {symbol}")
-
-        try:
-            while self.running:
-                # Check max iterations
-                if max_iterations and iteration >= max_iterations:
-                    if not quiet_mode:
-                        self.logger.info("Max iterations reached, stopping...")
-                    break
-
-                try:
-                    # Get latest data
-                    df = self.data_provider.get_live_data(symbol)
-
-                    # Process signals
-                    self.process_signals(df, strategy, symbol, quantity)
-
-                    # Display trading stats
-                    if quiet_mode:
-                        self._display_quiet_stats(iteration + 1, symbol)
-                    else:
-                        self._display_trading_stats(iteration + 1, symbol)
-
-                    # Update chart if callback provided
-                    if chart_callback:
-                        chart_callback()
-
-                except Exception as e:
-                    if not quiet_mode:
-                        self.logger.error(f"Error in iteration {iteration + 1}: {e}")
-
-                iteration += 1
-
-                # Wait before next iteration
-                if self.running:
-                    time.sleep(sleep_interval)
-
-        except KeyboardInterrupt:
-            if not quiet_mode:
-                self.logger.info("Received keyboard interrupt, stopping...")
-            self.stop()
-    
     def stop(self):
         """Stop the trading engine"""
         self.running = False
@@ -1163,97 +1097,3 @@ class LiveTradingEngine:
             'percent_return': (current_balance / self.initial_balance - 1) * 100,
             'current_position': self.position
         }
-
-    def _display_trading_stats(self, iteration: int, symbol: str):
-        """Display current trading statistics using Alpaca data"""
-        performance = self.get_performance_summary()
-        alpaca_position = self.get_alpaca_position(symbol)
-
-        # Get unrealized P&L directly from Alpaca
-        unrealized_pnl = float(alpaca_position['unrealized_pl'])
-        current_qty = float(alpaca_position['qty'])
-        avg_entry_price = float(alpaca_position['avg_entry_price'])
-        market_value = float(alpaca_position['market_value'])
-
-        # Format position status using Alpaca data
-        position_status = "FLAT"
-        if current_qty > 0:
-            position_status = f"LONG {current_qty} @ ${avg_entry_price:.2f}"
-        elif current_qty < 0:
-            position_status = f"SHORT {abs(current_qty)} @ ${avg_entry_price:.2f}"
-
-        # Print stats
-        print("\n" + "=" * 60)
-        print(f" LIVE TRADING STATS - Iteration {iteration} (Alpaca Data)")
-        print("=" * 60)
-        print(f"Symbol: {symbol}")
-        print(f"Position: {position_status}")
-        print(f"Market Value: ${market_value:.2f}")
-        print(f"Total Trades: {performance['total_trades']}")
-        print(f"Win Rate: {performance['win_rate']:.1f}%")
-        print(f"Account Equity: ${performance['current_balance']:.2f}")
-        print(f"Portfolio Value: ${performance['portfolio_value']:.2f}")
-        print(f"Total Return: ${performance['total_return']:.2f}")
-        print(f"Unrealized P&L: ${unrealized_pnl:.2f}")
-        print(f"Total P&L: ${performance['total_return'] + unrealized_pnl:.2f}")
-        print(f"Percent Return: {performance['percent_return']:.2f}%")
-        print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("=" * 60)
-
-    def _display_quiet_stats(self, iteration: int, symbol: str):
-        """Display minimal trading statistics for quiet mode"""
-        if iteration % 1 != 0:  # Display every iteration
-            return
-
-        alpaca_position = self.get_alpaca_position(symbol)
-        performance = self.get_performance_summary()
-
-        # Get current price
-        try:
-            df = self.data_provider.get_live_data(symbol)
-            if len(df) > 0:
-                current_price = df.iloc[-1]['Close']
-            else:
-                current_price = 0
-        except:
-            current_price = 0
-
-        # Get position info
-        current_qty = float(alpaca_position['qty'])
-        unrealized_pnl = float(alpaca_position['unrealized_pl'])
-        avg_entry_price = float(alpaca_position['avg_entry_price'])
-
-        # Position status
-        position_status = "FLAT"
-        if current_qty > 0:
-            position_status = f"LONG {abs(current_qty):,.0f}"
-        elif current_qty < 0:
-            position_status = f"SHORT {abs(current_qty):,.0f}"
-
-        # Color codes for terminal
-        GREEN = '\033[92m'
-        RED = '\033[91m'
-        YELLOW = '\033[93m'
-        CYAN = '\033[96m'
-        RESET = '\033[0m'
-        BOLD = '\033[1m'
-
-        # Determine P&L color
-        total_pnl = unrealized_pnl + performance['total_return']
-        pnl_color = GREEN if total_pnl >= 0 else RED
-        unrealized_color = GREEN if unrealized_pnl >= 0 else RED
-        realized_color = GREEN if performance['total_return'] >= 0 else RED
-
-        # Single line output
-        timestamp = datetime.now().strftime('%H:%M:%S')
-        print(f"\r{CYAN}[{timestamp}]{RESET} "
-              f"{BOLD}{symbol}{RESET} "
-              f"Price: {YELLOW}{current_price:.5f}{RESET} | "
-              f"Position: {BOLD}{position_status}{RESET} "
-              f"@ {avg_entry_price:.5f} | "
-              f"Unrealized: {unrealized_color}{unrealized_pnl:+.2f}{RESET} | "
-              f"Realized: {realized_color}{performance['total_return']:+.2f}{RESET} | "
-              f"Total: {pnl_color}{BOLD}{total_pnl:+.2f}{RESET} | "
-              f"Trades: {performance['total_trades']} "
-              f"(W:{performance['profitable_trades']} L:{performance['losing_trades']})",
-              end='', flush=True)

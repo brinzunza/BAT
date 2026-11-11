@@ -465,7 +465,7 @@ class AlpacaBroker:
             print(f" Error checking crypto permissions: {e}")
             return False
 
-    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Place buy order using alpaca_trade_api library"""
 
         original_symbol = symbol
@@ -518,9 +518,9 @@ class AlpacaBroker:
                 print(f"📄 Response status: {e.response.status_code if hasattr(e.response, 'status_code') else 'Unknown'}")
                 print(f"📄 Response text: {e.response.text if hasattr(e.response, 'text') else 'No response text'}")
 
-            return {}
+            return {'status': 'failed', 'error': str(e)}
 
-    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Place sell order using alpaca_trade_api library"""
 
         original_symbol = symbol
@@ -573,7 +573,7 @@ class AlpacaBroker:
                 print(f"📄 Response status: {e.response.status_code if hasattr(e.response, 'status_code') else 'Unknown'}")
                 print(f"📄 Response text: {e.response.text if hasattr(e.response, 'text') else 'No response text'}")
 
-            return {}
+            return {'status': 'failed', 'error': str(e)}
 
     def get_positions(self):
         """Get current positions using alpaca_trade_api"""
@@ -712,7 +712,7 @@ class AlpacaBroker:
             print(f"Error getting orders via API: {e}")
             return []
 
-    def close_position(self, symbol: str, cancel_orders: bool = True):
+    def close_position(self, symbol: str, cancel_orders: bool = True, current_price: float = None):
         """Close position for specific symbol using direct API call"""
         try:
             # Convert symbol format (BTC/USD -> BTCUSD)
@@ -831,7 +831,7 @@ class SimulatedBroker:
         else:
             return 0
 
-    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Simulate buy order execution"""
         original_symbol = symbol
 
@@ -935,7 +935,7 @@ class SimulatedBroker:
             'timestamp': datetime.now()
         })
 
-    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """Simulate sell order execution"""
         original_symbol = symbol
 
@@ -1032,7 +1032,7 @@ class SimulatedBroker:
             'timestamp': datetime.now()
         })
 
-    def close_position(self, symbol: str) -> dict:
+    def close_position(self, symbol: str, current_price: float = None) -> dict:
         """Close all positions for a symbol using market orders"""
         # Convert symbol format
         if '/' in symbol:
@@ -1066,7 +1066,7 @@ class SimulatedBroker:
         del self.orders[order_id]
         print(f" SIMULATED ORDER CANCELED - {order['side'].upper()} {order['qty']} {order['symbol']}")
 
-        return {'status': 'canceled', 'order_id': order_id}
+        return {'status': 'cancelled', 'order_id': order_id}
 
     def check_pending_orders(self):
         """Check if any pending limit orders can be filled based on current prices"""

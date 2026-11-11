@@ -52,7 +52,7 @@ src/tui/
   report.py         backtest analytics: mark-to-market equity, drawdown, round trips, Sharpe/Sortino/Calmar, …
   strategies.py     strategy registry: ParamSpec / StrategySpec drive forms, validation and the optimizer
   datasets.py       dataset discovery, loading, resampling, quality stats
-  services/         capture (thread-aware stdout), connections (+ BrokerShim), demo feed, live session,
+  services/         capture (thread-aware stdout), connections, demo feed, live session,
                     optimizer, mlops (runs, checkpoints, subprocess jobs)
   widgets/          Plot, PriceChart (pan/zoom/hover), cards, parameter form, event log, modals
   pages/            one module per page

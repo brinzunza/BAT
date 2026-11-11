@@ -145,10 +145,6 @@ STRATEGIES: Dict[str, StrategySpec] = {s.key: s for s in [
 ]}
 
 
-def get_strategy(key: str) -> StrategySpec:
-    return STRATEGIES[key]
-
-
 def strategy_options() -> List[tuple]:
     return [(s.label, s.key) for s in STRATEGIES.values()]
 

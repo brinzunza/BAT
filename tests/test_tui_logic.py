@@ -13,7 +13,6 @@ from src.tui.datasets import dataset_stats, inspect_csv, load_dataset, resample_
 from src.tui.report import build_report, equity_curve, pair_round_trips
 from src.tui.services import mlops
 from src.tui.services.capture import capture_thread_output, classify
-from src.tui.services.connections import BrokerShim
 from src.tui.services.demo import DemoFeed
 from src.tui.services.live import LiveConfig, LiveSession, make_bar_source, round_trips_from_engine
 from src.tui.services.optimizer import build_grid, parse_range, run_grid
@@ -174,28 +173,6 @@ def test_run_grid_train_test_and_cancel(ohlcv):
 
 
 # ---------------------------------------------------------------- services
-def test_broker_shim_drops_unsupported_kwargs():
-    class Alpacaish:                       # mirrors AlpacaBroker: no current_price kwarg
-        def buy(self, symbol, quantity, order_type="market", limit_price=None):
-            return {"status": "ok", "symbol": symbol, "qty": quantity, "type": order_type}
-
-        def close_position(self, symbol, cancel_orders=True):
-            return {"status": "closed", "symbol": symbol}
-
-        def get_account(self):
-            return {"equity": 1}
-
-    class Flexible:
-        def sell(self, symbol, quantity, **kw):
-            return kw
-
-    shim = BrokerShim(Alpacaish())
-    assert shim.buy("BTC", 1, order_type="market", current_price=5.0)["status"] == "ok"
-    assert shim.close_position("BTC", current_price=5.0)["status"] == "closed"
-    assert shim.get_account() == {"equity": 1} and not hasattr(shim, "get_account_api")
-    assert BrokerShim(Flexible()).sell("X", 1, current_price=7) == {"current_price": 7}
-
-
 def test_capture_routes_only_registered_threads(capsys):
     got = []
 
@@ -229,7 +206,7 @@ def test_live_session_runs_headless_and_accounts_consistently():
     from src.execution.brokers import SimulatedBroker
     snaps, events = [], []
     cfg = LiveConfig(strategy=STRATEGIES["mean_reversion"].build(), symbol="BTC/USD", source=make_bar_source(DemoFeed(seed=3)),
-                     broker=BrokerShim(SimulatedBroker(10_000)), trading_mode="long_short", position_pct=20,
+                     broker=SimulatedBroker(10_000), trading_mode="long_short", position_pct=20,
                      interval=0.001, lookback=300, initial_balance=10_000, max_iterations=120)
     s = LiveSession(cfg, snaps.append, events.append)
     s.start()
@@ -250,7 +227,7 @@ def test_live_session_close_and_stop_actions():
     from src.execution.brokers import SimulatedBroker
     snaps, events = [], []
     cfg = LiveConfig(strategy=STRATEGIES["rsi"].build({"window": 5, "oversold_threshold": 45, "overbought_threshold": 55}),
-                     symbol="BTC/USD", source=make_bar_source(DemoFeed(seed=5)), broker=BrokerShim(SimulatedBroker(10_000)),
+                     symbol="BTC/USD", source=make_bar_source(DemoFeed(seed=5)), broker=SimulatedBroker(10_000),
                      position_pct=20, interval=0.05, lookback=300, initial_balance=10_000)
     s = LiveSession(cfg, snaps.append, events.append)
     s.start()

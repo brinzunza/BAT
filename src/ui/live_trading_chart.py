@@ -384,18 +384,6 @@ class LiveTradingChart:
             # Silently continue if display fails
             pass
 
-    def _format_position(self, position):
-        """Format position for display"""
-        if position == 0:
-            return "FLAT (No position)"
-        elif position == 1:
-            entry_price = getattr(self.trading_engine, 'entry_price', 0)
-            return f"LONG @ ${entry_price:.2f}"
-        elif position == -1:
-            entry_price = getattr(self.trading_engine, 'entry_price', 0)
-            return f"SHORT @ ${entry_price:.2f}"
-        return "UNKNOWN"
-
     def _calculate_unrealized_pnl(self, current_price):
         """Get unrealized P&L from Alpaca"""
         try:
@@ -878,11 +866,6 @@ class LiveTradingChart:
             self.trading_engine.graceful_shutdown(self.symbol, f"Error: {e}")
 
         return ani
-
-    def stop_trading(self):
-        """Stop live trading"""
-        self.trading_engine.stop()
-        print("Live trading stopped")
 
     def get_trade_history(self):
         """Get trading history"""

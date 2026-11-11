@@ -5,7 +5,6 @@ the in-app form. They are held in memory only and never written to disk.
 """
 from __future__ import annotations
 
-import inspect
 import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -46,48 +45,6 @@ def load_env() -> None:
         load_dotenv()
     except Exception:
         pass
-
-
-class BrokerShim:
-    """Adapt any broker to the call shapes ``LiveTradingEngine`` uses.
-
-    The engine passes ``current_price=`` to ``buy/sell/close_position`` but the
-    Alpaca broker class does not accept it, which makes every Alpaca order fail
-    with a ``TypeError``. The shim drops keyword arguments the target does not
-    declare and forwards everything else untouched.
-    """
-
-    def __init__(self, inner: Any):
-        object.__setattr__(self, "_inner", inner)
-
-    def __getattr__(self, name: str):
-        return getattr(self._inner, name)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        setattr(self._inner, name, value)
-
-    def _call(self, name: str, *args, **kwargs):
-        fn = getattr(self._inner, name)
-        try:
-            params = inspect.signature(fn).parameters
-            if not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
-                kwargs = {k: v for k, v in kwargs.items() if k in params}
-        except (TypeError, ValueError):
-            pass
-        return fn(*args, **kwargs)
-
-    def buy(self, *a, **kw):
-        return self._call("buy", *a, **kw)
-
-    def sell(self, *a, **kw):
-        return self._call("sell", *a, **kw)
-
-    def close_position(self, *a, **kw):
-        return self._call("close_position", *a, **kw)
-
-    @property
-    def inner(self) -> Any:
-        return self._inner
 
 
 @dataclass
@@ -210,7 +167,7 @@ class ConnectionManager:
     def broker_for_live(self, which: str, initial_balance: float = 10_000.0) -> Any:
         from src.execution.brokers import SimulatedBroker
         if which == "simulated":
-            return BrokerShim(SimulatedBroker(initial_balance))
+            return SimulatedBroker(initial_balance)
         if which in self.brokers:
-            return BrokerShim(self.brokers[which])
+            return self.brokers[which]
         raise KeyError(f"broker '{which}' is not connected")

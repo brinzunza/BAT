@@ -148,7 +148,7 @@ class IBBroker(EWrapper, EClient):
         contract.exchange = 'IDEALPRO'
         return contract
 
-    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+    def buy(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """
         Place buy order and wait for confirmation
 
@@ -212,7 +212,7 @@ class IBBroker(EWrapper, EClient):
                 'message': 'Order placed but not confirmed yet'
             }
 
-    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None) -> dict:
+    def sell(self, symbol: str, quantity: float, order_type: str = "market", limit_price: float = None, current_price: float = None) -> dict:
         """
         Place sell order and wait for confirmation
 
@@ -276,7 +276,7 @@ class IBBroker(EWrapper, EClient):
                 'message': 'Order placed but not confirmed yet'
             }
 
-    def close_position(self, symbol: str) -> dict:
+    def close_position(self, symbol: str, current_price: float = None) -> dict:
         """
         Close position for symbol using market order
 

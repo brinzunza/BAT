@@ -124,16 +124,6 @@ def colored_sparkline(values: Sequence[float], width: Optional[int] = None) -> T
     return Text(s, style=color)
 
 
-def hbar(value: float, maximum: float, width: int, color: str = BLUE) -> Text:
-    """Horizontal bar with 1/8 cell resolution."""
-    width = max(width, 1)
-    frac = 0.0 if maximum <= 0 else float(np.clip(value / maximum, 0, 1))
-    eighths = int(round(frac * width * 8))
-    full, rem = divmod(eighths, 8)
-    blocks = "█" * full + (" ▏▎▍▌▋▊▉"[rem] if rem and full < width else "")
-    return Text(blocks.ljust(width), style=color)
-
-
 def gauge(value: float, lo: float, hi: float, width: int, label: str = "") -> Text:
     """Diverging gauge centred on the middle of [lo, hi] (e.g. a probability)."""
     width = max(width, 5)
